@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICR | Inventory</title>
+    <link rel="icon" type="image/png" href="logo.png" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&family=Playfair+Display:wght@500;700;800;900&display=swap" rel="stylesheet">
+    <!-- Lucide Icons CDN (for dynamic runtime parsing) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <!-- 3D Canvas Background -->
+    <canvas id="canvas-3d"></canvas>
+
+    <!-- Auth Overlay (Login/Signup) -->
+    <div class="auth-overlay" id="auth-overlay">
+        <div class="auth-card glass">
+            <div class="auth-header">
+                <img src="logo.png" class="auth-logo" alt="CICR Logo">
+                <h2>CICR INVENTORY</h2>
+                <p id="auth-subtitle"> ~ Creative & Innovative Cell in Robotics</p>
+            </div>
+            
+            <!-- Login Form -->
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <div class="input-icon-wrapper">
+                        <i data-lucide="user" class="input-icon"></i>
+                        <input type="text" id="login-username" required placeholder="Enter username">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <div class="input-icon-wrapper">
+                        <i data-lucide="lock" class="input-icon"></i>
+                        <input type="password" id="login-password" required placeholder="Enter password">
+                        <button type="button" class="password-toggle-btn" id="login-password-toggle" title="Toggle password visibility">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="auth-error-msg" id="login-error" style="display: none;"></div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i data-lucide="log-in"></i> Authenticate
+                </button>
+                <div class="auth-switch-prompt">
+                    Don't have an account? <a href="#" id="go-to-signup">Sign Up</a>
+                </div>
+            </form>
+
+            <!-- Signup Form -->
+            <form id="signup-form" style="display: none;">
+                <div class="form-group">
+                    <label for="signup-username">Create Username</label>
+                    <div class="input-icon-wrapper">
+                        <i data-lucide="user" class="input-icon"></i>
+                        <input type="text" id="signup-username" required placeholder="Pick a username">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="signup-email">Email Address</label>
+                    <div class="input-icon-wrapper">
+                        <i data-lucide="mail" class="input-icon"></i>
+                        <input type="email" id="signup-email" required placeholder="name@domain.com">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="signup-password">Choose Password</label>
+                    <div class="input-icon-wrapper">
+                        <i data-lucide="lock" class="input-icon"></i>
+                        <input type="password" id="signup-password" required placeholder="Pick a strong password">
+                        <button type="button" class="password-toggle-btn" id="signup-password-toggle" title="Toggle password visibility">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="auth-error-msg" id="signup-error" style="display: none;"></div>
+                <div class="auth-success-msg" id="signup-success" style="display: none;"></div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i data-lucide="user-plus"></i> Register Account
+                </button>
+                <div class="auth-switch-prompt">
+                    Already have an account? <a href="#" id="go-to-login">Login</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Futuristic Scanning Laser Sweep -->
+    <div class="cyber-scanner-line"></div>
+
+    <!-- Floating Capsule Navbar Wrapper (Hidden by default, shown when logged in) -->
+    <div class="navbar-wrapper" id="global-navbar" style="display: none;">
+        <nav class="nav-capsule">
+            <div class="logo-area" style="cursor: pointer;" id="nav-brand-logo">
+                <img src="logo.png" class="logo-img" alt="CICR Logo">
+                <div class="logo-text-wrapper">
+                    <span class="logo-title">CICR INVENTORY</span>
+                    <span class="logo-subtitle-nav"> ~ Creative & Innovative Cell in Robotics</span>
+                </div>
+                <span class="user-badge" id="nav-user-badge"><span class="online-indicator"></span> <span id="nav-username"></span></span>
+            </div>
+            
+            <div class="nav-links">
+                <a class="nav-link active" id="nav-dashboard"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+                <a class="nav-link" id="nav-inventory"><i data-lucide="layers"></i> Inventory</a>
+                <a class="nav-link" id="nav-add-item"><i data-lucide="plus-circle"></i> Add Component</a>
+                <a class="nav-link" id="nav-about"><i data-lucide="info"></i> About</a>
+                <a class="nav-link" id="nav-logs-bell" style="position: relative;">
+                    <i data-lucide="bell"></i> History
+                    <span class="notification-badge" id="nav-bell-badge"></span>
+                </a>
+                <a class="nav-link" id="nav-logout"><i data-lucide="log-out"></i> Logout</a>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Pinterest OVI-Style Interactive Welcome Screen -->
+    <div class="welcome-screen" id="welcome-screen">
+        <!-- Floating Cyber Grid Overlay -->
+        <div class="welcome-grid-overlay"></div>
+
+        <!-- Left Side: Massive Outlined Title & Orbiting Cyber Rings -->
+        <div class="welcome-left-brand">
+            <!-- Futuristic Orbiting Cyber Rings behind text -->
+            <div class="orbiting-rings-wrapper">
+                <div class="orbit-ring ring-1"></div>
+                <div class="orbit-ring ring-2"></div>
+                <div class="orbit-ring ring-3"></div>
+                <div class="orbit-core-glow"></div>
+            </div>
+            
+            <div class="welcome-huge-text">
+                <span class="char-solid">C</span>
+                <span class="char-outline">I</span>
+                <span class="char-solid">C</span>
+                <span class="char-outline">R</span>
+            </div>
+        </div>
+
+        <!-- Right Side: Content Block & Action pill button -->
+        <div class="welcome-right-content">
+            <div class="welcome-toggle-row">
+                <span class="welcome-toggle-pill active">CREATIVITY</span>
+                <span class="welcome-toggle-pill">INNOVATION</span>
+            </div>
+            <h1 class="welcome-heading">
+                INSTANTLY MANAGE<br>
+                ROBOTICS INVENTORY<br>
+                <span class="welcome-gradient-text">WITH CICR VAULT.</span>
+            </h1>
+            <p class="welcome-subtitle">
+                Your lab's entire hardware stock, live and searchable. Reserve what you need, return what you're done with.
+            </p>
+            <div class="welcome-actions">
+                <button class="welcome-btn-start" id="welcome-btn-enter">
+                    GET STARTED WITH VAULT <i data-lucide="arrow-right"></i>
+                </button>
+            </div>
+            <div class="welcome-footer-tags">
+                <span class="tag-title">SYSTEM ROLES //</span>
+                <div class="tag-pills">
+                    <span class="tag-item">STM32 MCU</span>
+                    <span class="tag-item">ROS 2 NAV</span>
+                    <span class="tag-item">LIDAR PAYLOAD</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Container (Hidden by default, shown when logged in) -->
+    <div class="app-container" id="app-container" style="display: none;">
+        
+
+
+        <!-- Main Content Grid -->
+        <main class="main-content">
+            <!-- Dashboard view (Slide 1 Hero style welcome) -->
+            <section class="hero-section pinterest-hero" id="dashboard-view">
+                <div class="dashboard-hero-row">
+                    <!-- Left Side: Huge Brand Letters & Orbiting Rings -->
+                    <div class="hero-brand-area">
+                        <!-- Futuristic Orbiting Cyber Rings behind text -->
+                        <div class="orbiting-rings-wrapper">
+                            <div class="orbit-ring ring-1"></div>
+                            <div class="orbit-ring ring-2"></div>
+                            <div class="orbit-ring ring-3"></div>
+                            <div class="orbit-core-glow"></div>
+                        </div>
+                        
+                        <div class="huge-brand-text">
+                            <span class="char-solid">C</span>
+                            <span class="char-outline">I</span>
+                            <span class="char-solid">C</span>
+                            <span class="char-outline">R</span>
+                        </div>
+                        
+                        <!-- Left Corner Micro Labels -->
+                        <div class="micro-labels-left">
+                            <span class="label-item">Instant Component Access</span>
+                            <span class="label-item">Robotics Vault System</span>
+                        </div>
+                    </div>
+
+                    <!-- Right Side: Content & Actions -->
+                    <div class="hero-content-area">
+                        <div class="hero-toggle-wrapper">
+                            <span class="toggle-pill active" id="hero-btn-explore" style="cursor: pointer;">VAULT</span>
+                            <span class="toggle-pill" id="hero-btn-about" style="cursor: pointer;">EXPLORE</span>
+                        </div>
+                        
+                        <h1 class="hero-heading-new">
+                            INSTANTLY MANAGE<br>
+                            ROBOTICS INVENTORY<br>
+                            <span class="text-gradient-new">WITH CICR VAULT.</span>
+                        </h1>
+                        
+                        <p class="hero-subtitle-new">
+                            Your lab's entire hardware stock, live and searchable. Reserve what you need, return what you're done with.
+                        </p>
+                        
+                        <div class="hero-actions-new">
+                            <button class="btn-vault-start" id="hero-btn-start">
+                                GET STARTED WITH VAULT <i data-lucide="arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Premium Cyberpunk Footer -->
+                <footer class="dashboard-footer">
+                    <div class="footer-left">
+                        <span class="cyber-accent">© 2026 CICR VAULT</span>
+                        <span class="divider-slash">//</span>
+                        <span class="dim-text">AUTOMATED SYSTEM V2.8</span>
+                    </div>
+                    <div class="footer-center">
+                        <span class="pulse-indicator"></span>
+                        <span class="status-pulse-text">SIGNAL STABLE // LATENCY 14MS // NODES ACTIVE</span>
+                    </div>
+                    <div class="footer-right">
+                        <a href="#about" class="footer-link" id="footer-link-about">VAULT CODE</a>
+                        <span class="divider-slash">|</span>
+                        <a href="#docs" class="footer-link" id="footer-link-docs">JIIT CELL</a>
+                    </div>
+                </footer>
+            </section>
+
+            <!-- Slide 3: Pinterest Search Explorer Layout (3-Column Staggered Grid) -->
+            <section class="explorer-layout-section reveal" id="inventory-view">
+                <div class="explorer-header-area">
+                    <span class="pill-badge-innovation">INVENTORY REGISTRY</span>
+                    <h2 class="explorer-heading-title">YOUR NEXT BIG IDEA STARTS HERE</h2>
+                    <p class="explorer-heading-subtitle">Search, request, and track high-fidelity electronics directly from the vault.</p>
+                </div>
+                
+                <div class="explorer-layout-container">
+                    <!-- Column 1: Vertical Sidebar Navigation -->
+                    <aside class="explorer-sidebar">
+                        <div class="sidebar-nav-title">VAULT INDEX</div>
+                        
+                        <div class="sidebar-items-group">
+                            <div class="sidebar-item active" data-category="all">
+                                <i data-lucide="layers"></i>
+                                <span>All Assets</span>
+                            </div>
+                            <div class="sidebar-item" data-category="microcontrollers">
+                                <i data-lucide="cpu"></i>
+                                <span>Micro</span>
+                            </div>
+                            <div class="sidebar-item" data-category="sensors">
+                                <i data-lucide="radar"></i>
+                                <span>Sensors</span>
+                            </div>
+                            <div class="sidebar-item" data-category="actuators">
+                                <i data-lucide="compass"></i>
+                                <span>Actuators</span>
+                            </div>
+                            <div class="sidebar-item" data-category="power">
+                                <i data-lucide="battery-charging"></i>
+                                <span>Power</span>
+                            </div>
+                            <div class="sidebar-item" data-category="tools">
+                                <i data-lucide="wrench"></i>
+                                <span>Tools</span>
+                            </div>
+                        </div>
+
+                        <!-- Pulse status tag -->
+                        <div class="sidebar-status">
+                            <span class="status-indicator-dot pulsing"></span>
+                            <span class="status-text">VAULT SECURE</span>
+                        </div>
+                    </aside>
+                    
+                    <!-- Column 2 & 3: Main Explorer Center -->
+                    <div class="explorer-main-area">
+                        <!-- Top Search Bar & Stats integration -->
+                        <div class="explorer-search-row">
+                            <div class="search-box-new">
+                                <i data-lucide="search" class="search-icon"></i>
+                                <input type="text" id="search-input" placeholder="Search components, modules, tools...">
+                                <button class="clear-search" id="clear-search" style="display: none;">
+                                    <i data-lucide="x"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Category tags in line (horizontal tags selector) -->
+                            <div class="horizontal-tags-selector">
+                                <span class="tag-pill active" data-category="all">All</span>
+                                <span class="tag-pill" data-category="microcontrollers">MCU</span>
+                                <span class="tag-pill" data-category="sensors">Sensors</span>
+                                <span class="tag-pill" data-category="actuators">Actuators</span>
+                                <span class="tag-pill" data-category="power">Power</span>
+                                <span class="tag-pill" data-category="tools">Tools</span>
+                            </div>
+                        </div>
+
+                        <!-- Quick Stats Panel inside Explorer Layout -->
+                        <div class="explorer-stats-row">
+                            <div class="stat-bubble-new">
+                                <span class="bubble-label">Total Vaulted</span>
+                                <span class="bubble-value" id="stat-total">0</span>
+                            </div>
+                            <div class="stat-bubble-new">
+                                <span class="bubble-label">Active Loans</span>
+                                <span class="bubble-value text-purple" id="stat-borrowed">0</span>
+                            </div>
+                            <div class="stat-bubble-new">
+                                <span class="bubble-label">Low Reserves</span>
+                                <span class="bubble-value text-yellow" id="stat-low">0</span>
+                            </div>
+                            <div class="stat-bubble-new">
+                                <span class="bubble-label">Active Groups</span>
+                                <span class="bubble-value text-pink" id="stat-categories">0</span>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Items Grid -->
+                        <div class="explorer-grid-container">
+                            <div class="section-title-bar">
+                                <h2>Vault Catalog</h2>
+                                <span class="items-count-badge" id="results-count">Showing 0 items</span>
+                            </div>
+                            
+                            <!-- No Results State -->
+                            <div class="no-results glass" id="no-results" style="display: none;">
+                                <i data-lucide="package-search"></i>
+                                <h3>No items found</h3>
+                                <p>Try adjusting your search keywords or sidebar filters.</p>
+                            </div>
+
+                            <div class="inventory-grid" id="inventory-grid">
+                                <!-- Cards will be dynamically injected by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>&copy; 2026 Creative & Innovative Cell in Robotics (CICR)</p>
+        </footer>
+    </div>
+
+    <!-- Modals Section -->
+    
+    <!-- Item Detail Modal -->
+    <div class="modal-overlay" id="detail-modal">
+        <div class="modal-content glass">
+            <button class="close-modal"><i data-lucide="x"></i></button>
+            <div class="modal-header">
+                <div class="modal-category-badge" id="detail-category">Category</div>
+                <h2 id="detail-name">Component Name</h2>
+                <div class="modal-status-badge" id="detail-status">Available</div>
+            </div>
+            
+            <div class="modal-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Storage Location</span>
+                        <div class="info-val-wrapper">
+                            <i data-lucide="map-pin"></i>
+                            <span class="info-value" id="detail-location">Lab Shelf A1</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Available Stock</span>
+                        <div class="info-val-wrapper">
+                            <i data-lucide="boxes"></i>
+                            <span class="info-value" id="detail-quantity">10 / 10 available</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="details-section">
+                    <h3>Specifications & Details</h3>
+                    <p id="detail-specs">No specifications provided.</p>
+                </div>
+                
+                <div class="borrow-status-panel" id="borrowers-panel" style="display: none;">
+                    <h3>Currently Checked Out By</h3>
+                    <div class="borrowers-list" id="borrowers-list">
+                        <!-- List of borrowers dynamically updated -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-return" id="btn-return" style="display: none;">
+                    <i data-lucide="corner-up-left"></i> Return Item
+                </button>
+                <button class="btn btn-primary btn-borrow" id="btn-borrow">
+                    <i data-lucide="shopping-cart"></i> Checkout / Borrow
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Borrow Form Modal -->
+    <div class="modal-overlay" id="borrow-form-modal">
+        <div class="modal-content glass small-modal">
+            <button class="close-modal"><i data-lucide="x"></i></button>
+            <div class="modal-header">
+                <h2>Borrow Component</h2>
+                <p id="borrow-form-subtitle">Borrowing Arduino Uno</p>
+            </div>
+            <form id="borrow-form">
+                <div class="form-group">
+                    <label for="borrow-name">Borrower Name</label>
+                    <input type="text" id="borrow-name" required placeholder="Enter full name">
+                </div>
+                <div class="form-group">
+                    <label for="borrow-roll">Roll Number / ID</label>
+                    <input type="text" id="borrow-roll" required placeholder="e.g. 21103123">
+                </div>
+                <div class="form-group">
+                    <label for="borrow-qty">Quantity to Borrow</label>
+                    <input type="number" id="borrow-qty" min="1" required value="1">
+                    <span class="form-help" id="borrow-qty-limit">Max available: 5</span>
+                </div>
+                <div class="form-group">
+                    <label for="borrow-purpose">Purpose / Project</label>
+                    <input type="text" id="borrow-purpose" required placeholder="e.g. Robo Soccer development">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-back-to-detail">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Confirm Borrow</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Item Modal -->
+    <div class="modal-overlay" id="add-item-modal">
+        <div class="modal-content glass">
+            <button class="close-modal"><i data-lucide="x"></i></button>
+            <div class="modal-header">
+                <h2>Add New Component</h2>
+                <p>Register a new item into the CICR inventory database</p>
+            </div>
+            <form id="add-item-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="item-name">Component Name *</label>
+                        <input type="text" id="item-name" required placeholder="e.g. ESP32 Development Board">
+                    </div>
+                    <div class="form-group">
+                        <label for="item-category">Category *</label>
+                        <select id="item-category" required>
+                            <option value="" disabled selected>Select category</option>
+                            <option value="microcontrollers">Microcontroller</option>
+                            <option value="sensors">Sensor</option>
+                            <option value="actuators">Actuator</option>
+                            <option value="power">Power & Battery</option>
+                            <option value="tools">Tool & Lab</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="item-qty">Total Quantity *</label>
+                        <input type="number" id="item-qty" min="1" required placeholder="e.g. 10">
+                    </div>
+                    <div class="form-group">
+                        <label for="item-location">Storage Location *</label>
+                        <input type="text" id="item-location" required placeholder="e.g. Cupboard C, Shelf 2">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="item-specs">Specifications & Description</label>
+                    <textarea id="item-specs" rows="4" placeholder="Enter key features, pinout, voltage requirements, or other guidelines..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btn-add-cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add to Inventory</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- History / Logs Drawer -->
+    <div class="modal-overlay" id="logs-drawer">
+        <div class="modal-content glass drawer">
+            <button class="close-modal"><i data-lucide="x"></i></button>
+            <div class="modal-header">
+                <h2>Inventory logs & transactions</h2>
+                <p>History of checkouts, returns, and inventory updates</p>
+            </div>
+            <div class="logs-body">
+                <div class="logs-list" id="logs-list">
+                    <!-- Logs dynamically loaded -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Modal -->
+    <div class="modal-overlay" id="about-modal">
+        <div class="modal-content glass">
+            <button class="close-modal"><i data-lucide="x"></i></button>
+            <div class="modal-header">
+                <h2>About CICR Cell</h2>
+                <p>Creative & Innovative Cell in Robotics</p>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:14px; line-height:1.6; color:var(--text-muted);">
+                    <strong>CICR</strong> is the premier student-run robotics cell at the Jaypee Institute of Information Technology (JIIT), Sector-128, Noida.
+                </p>
+                <p style="font-size:14px; line-height:1.6; color:var(--text-muted);">
+                    Our cell serves as an incubator for creative engineering, hands-on robotics workshops, and competitive team projects in circuit layout, mechanical fabrication, and robotic controls.
+                </p>
+                <div class="info-grid" style="grid-template-columns: 1fr; gap:12px; margin-top:8px;">
+                    <div class="info-item">
+                        <span class="info-label">Specializations</span>
+                        <span class="info-value" style="font-size:13px;">Embedded Firmware, Mechanical CAD, Computer Vision & ROS</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Lab Facility</span>
+                        <span class="info-value" style="font-size:13px;">Robotics Research Lab, JIIT-128 Campus, Noida</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary btn-close-about">Acknowledge</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Entry module scripts for Vite bundling -->
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
