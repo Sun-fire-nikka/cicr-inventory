@@ -9,19 +9,34 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 
 [![Live Demo](https://img.shields.io/badge/LIVE-cicrinventory.vercel.app-00f0ff?style=for-the-badge&logo=vercel&logoColor=white)](https://cicrinventory.vercel.app/)
 [![Repo](https://img.shields.io/badge/GITHUB-CICR__Inventory-bd00ff?style=for-the-badge&logo=github&logoColor=white)](https://github.com/simplyvardaan/CICR_Inventory)
-[![License](https://img.shields.io/badge/LICENSE-MIT-1e2327?style=for-the-badge)](#license)
+[![License](https://img.shields.io/badge/LICENSE-MIT-1e2327?style=for-the-badge)](#-license)
+
+<img src="https://img.shields.io/badge/STATUS-ACTIVE-00f0ff?style=flat-square" />
+<img src="https://img.shields.io/badge/BUILD-Vite%20%2B%20TypeScript-bd00ff?style=flat-square" />
+<img src="https://img.shields.io/badge/DEPLOY-Vercel-black?style=flat-square" />
 
 </div>
 
 <br>
 
 <div align="center">
-<img src="https://img.shields.io/badge/STATUS-ACTIVE-00f0ff?style=flat-square" />
-<img src="https://img.shields.io/badge/BUILD-Vite%20%2B%20TypeScript-bd00ff?style=flat-square" />
-<img src="https://img.shields.io/badge/DEPLOY-Vercel-black?style=flat-square" />
+
+**[Live Demo](https://cicrinventory.vercel.app/)** · **[Report a Bug](https://github.com/simplyvardaan/CICR_Inventory/issues)** · **[Request a Feature](https://github.com/simplyvardaan/CICR_Inventory/issues)**
+
 </div>
 
 <br>
+
+## 📖 Table of Contents
+
+- [System Overview](#-system-overview)
+- [Core Features](#️-core-features)
+- [Tech Stack](#️-tech-stack)
+- [Getting Started](#-getting-started)
+- [Project Structure](#-project-structure)
+- [Roadmap](#-roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
@@ -71,6 +86,13 @@ No more group-chat scavenger hunts for a missing Arduino or a lost servo. CICR V
 
 ## 🚀 Getting Started
 
+### Prerequisites
+
+- **Node.js** ≥ 18
+- **npm** (comes with Node)
+
+### Installation
+
 ```bash
 # Clone the vault
 git clone https://github.com/simplyvardaan/CICR_Inventory.git
@@ -85,7 +107,7 @@ npm run dev
 
 Then open the printed local URL (usually `http://localhost:5173`) in your browser.
 
-**Build for production:**
+### Build for production
 
 ```bash
 npm run build
@@ -97,13 +119,14 @@ npm run build
 
 ```
 CICR_Inventory/
-├── public/          # Static assets
-├── src/             # Application source
-├── index.html       # Entry point
-├── logo.png         # CICR logo
-├── package.json     # Dependencies & scripts
-├── tsconfig.json     # TypeScript config
-└── README.md         # You are here
+├── backend/          # API / server logic
+├── public/           # Static assets
+├── src/               # Application source
+├── index.html          # Entry point
+├── logo.png              # CICR logo
+├── package.json            # Dependencies & scripts
+├── tsconfig.json             # TypeScript config
+└── README.md                   # You are here
 ```
 
 ---
@@ -123,8 +146,9 @@ Built by and for CICR members — contributions, bug reports, and feature ideas 
 
 1. Fork the repo
 2. Create a branch (`git checkout -b feature/your-idea`)
-3. Commit your changes
-4. Open a pull request
+3. Commit your changes (`git commit -m "Add: your idea"`)
+4. Push to your branch (`git push origin feature/your-idea`)
+5. Open a pull request
 
 ---
 
@@ -136,5 +160,7 @@ Distributed under the MIT License. Built with 🧠 + 🔧 by the Creative & Inno
 
 **© 2026 CICR VAULT — Creative & Innovative Cell in Robotics**
 *Instant component access. Robotics vault system.*
+
+[![Live Demo](https://img.shields.io/badge/VISIT-VAULT-00f0ff?style=for-the-badge)](https://cicrinventory.vercel.app/)
 
 </div>
