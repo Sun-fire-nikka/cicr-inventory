@@ -3,12 +3,17 @@ dotenv.config();
 
 import app from './app';
 import { supabase } from './app';
+import systemRoutes from './routes/system.routes';
 
 const PORT = process.env.PORT || 5000;
+
+app.use('/api/system', systemRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server listening on http://localhost:${PORT}`);
 });
+
+startReminderScheduler();
 
 async function testConnection() {
   try {
