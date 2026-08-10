@@ -39,9 +39,9 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 
 | Version | Status | Highlights |
 |---------|--------|-----------|
-| **v0.0.0** | ✅ Released | Frontend-only prototype. Vite + Three.js + TypeScript with a hardcoded sample inventory catalog. No persistence, no backend. |
-| **v0.0.1** | ✅ Released | Backend foundation. Node.js/Express + Supabase REST API; JWT auth (`register`/`login`/`profile`); admin-gated inventory CRUD; borrow/return flows with `borrowed_at`/`returned_at`; dashboard stats + audit log. Frontend wired to the live API. |
-| **v0.0.2** | ✅ Released | Email automation. Nodemailer SMTP (Gmail App Password); borrow/return confirmation receipts; context-rich borrow email (remaining stock, current-holder summary, 5-day due-date notice); `node-cron` reminder scheduler (due-today / overdue); `due_date` migration; full test suite (41 tests). |
+| **v1.0.0** | ✅ Released | Frontend-only prototype. Vite + Three.js + TypeScript with a hardcoded sample inventory catalog. No persistence, no backend. |
+| **v1.1.0** | ✅ Released | Backend foundation. Node.js/Express + Supabase REST API; JWT auth (`register`/`login`/`profile`); admin-gated inventory CRUD; borrow/return flows with `borrowed_at`/`returned_at`; dashboard stats + audit log. Frontend wired to the live API. |
+| **v1.2.1** | ✅ Released | Email automation. Nodemailer SMTP (Gmail App Password); borrow/return confirmation receipts; context-rich borrow email (remaining stock, current-holder summary, 5-day due-date notice); `node-cron` reminder scheduler (due-today / overdue); `due_date` migration; full test suite (41 tests). |
 
 > The current release is **v0.0.2**. The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
 
