@@ -115,7 +115,7 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
       .from('borrow_records')
       .update({
         status: 'RETURNED',
-        return_date: new Date().toISOString()
+        returned_at: new Date().toISOString()
       })
       .eq('id', borrow_id)
       .select()
@@ -154,16 +154,39 @@ export const getBorrowHistory = async (req: AuthRequest, res: Response) => {
 
     let query = supabase
       .from('borrow_records')
-      .select('*, users(name, email, roll_number), inventory(name, category, image)')
-      .order('borrow_date', { ascending: false });
+      .select('*')
+      .order('borrowed_at', { ascending: false });
 
     // Members see only their own history; Admins see all
     if (userRole !== 'ADMIN') {
       query = query.eq('user_id', userId);
     }
 
-    const { data: history, error } = await query;
+    const { data: records, error } = await query;
     if (error) throw error;
+
+    // Resolve related users and items manually (borrow_records.user_id
+    // has no FK to users, so PostgREST embed is unavailable).
+    const userIds = [...new Set((records || []).map((r) => r.user_id).filter(Boolean))];
+    const itemIds = [...new Set((records || []).map((r) => r.inventory_id).filter(Boolean))];
+
+    const [usersRes, itemsRes] = await Promise.all([
+      userIds.length
+        ? supabase.from('users').select('id, name, email, roll_number').in('id', userIds)
+        : Promise.resolve({ data: [] }),
+      itemIds.length
+        ? supabase.from('inventory').select('id, name, category, image').in('id', itemIds)
+        : Promise.resolve({ data: [] })
+    ]);
+
+    const userMap = Object.fromEntries((usersRes.data || []).map((u) => [u.id, u]));
+    const itemMap = Object.fromEntries((itemsRes.data || []).map((i) => [i.id, i]));
+
+    const history = (records || []).map((r) => ({
+      ...r,
+      users: userMap[r.user_id] || null,
+      inventory: itemMap[r.inventory_id] || null
+    }));
 
     return res.status(200).json({ status: 'success', count: history.length, data: history });
   } catch (err: any) {
