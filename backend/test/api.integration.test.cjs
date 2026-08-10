@@ -247,17 +247,35 @@ test('POST /api/borrow quantity exceeding stock returns 400', async () => {
   assert.match(json.message, /exceeds available stock/);
 });
 
-test('POST /api/borrow happy path returns 201 and decrements stock', async () => {
+test('POST /api/borrow happy path returns 201, computes due_date, decrements stock', async () => {
   const { status, json } = await api('/api/borrow', {
     method: 'POST', token: memberToken,
-    body: { inventory_id: itemId, quantity: 2, purpose: 'integration test borrow' }
+    body: { inventory_id: itemId, quantity: 2, purpose: 'integration test borrow', duration_days: 5 }
   });
   assert.equal(status, 201);
   assert.equal(json.data.status, 'BORROWED');
   borrowId = json.data.id;
 
+  assert.ok(json.data.due_date, 'due_date should be saved');
+  const borrowed = new Date(json.data.borrowed_at);
+  const due = new Date(json.data.due_date);
+  const diffDays = Math.round((due - borrowed) / 86400000);
+  assert.equal(diffDays, 5, `due_date should be 5 days after borrowed_at (got ${diffDays})`);
+
   const { json: item } = await api(`/api/items/${itemId}`);
   assert.equal(item.data.available_quantity, 6);
+});
+
+test('POST /api/borrow defaults duration_days to 7', async () => {
+  const { status, json } = await api('/api/borrow', {
+    method: 'POST', token: memberToken,
+    body: { inventory_id: itemId, quantity: 1, purpose: 'default duration test' }
+  });
+  assert.equal(status, 201);
+  const borrowed = new Date(json.data.borrowed_at);
+  const due = new Date(json.data.due_date);
+  const diffDays = Math.round((due - borrowed) / 86400000);
+  assert.equal(diffDays, 7, `due_date should default to 7 days (got ${diffDays})`);
 });
 
 test('POST /api/borrow quantity <= 0 returns 400', async () => {
@@ -283,7 +301,7 @@ test('POST /api/borrow/return happy path returns 200 and restores stock', async 
   assert.ok(json.data.returned_at);
 
   const { json: item } = await api(`/api/items/${itemId}`);
-  assert.equal(item.data.available_quantity, 8);
+  assert.equal(item.data.available_quantity, 7);
 });
 
 test('POST /api/borrow/return double-return returns 400', async () => {

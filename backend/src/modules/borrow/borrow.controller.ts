@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../../app';
 import { AuthRequest } from '../../middleware/auth.middleware';
+import { sendBorrowConfirmation, sendReturnConfirmation } from '../../services/emailService';
 
 // Helper function to insert into audit_logs
 async function logAudit(action: string, userId: string | undefined, itemId: string | null, description: string) {
@@ -17,7 +18,9 @@ async function logAudit(action: string, userId: string | undefined, itemId: stri
 export const borrowItem = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    const { inventory_id, quantity, purpose } = req.body;
+    const userEmail = req.user?.email;
+    const userName = req.user?.name || 'Borrower';
+    const { inventory_id, quantity, purpose, duration_days = 7 } = req.body;
 
     if (!inventory_id || !quantity || !purpose) {
       return res.status(400).json({ status: 'error', message: 'inventory_id, quantity, and purpose are required.' });
@@ -27,6 +30,8 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
     if (qty <= 0) {
       return res.status(400).json({ status: 'error', message: 'Quantity must be greater than 0.' });
     }
+
+    const days = Number(duration_days) > 0 ? Number(duration_days) : 7;
 
     // 1. Fetch item to check stock
     const { data: item, error: itemErr } = await supabase
@@ -46,7 +51,12 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // 2. Insert borrow record
+    // Calculate dates
+    const borrowedAt = new Date();
+    const dueDate = new Date(borrowedAt);
+    dueDate.setDate(dueDate.getDate() + days);
+
+    // 2. Insert borrow record with calculated due_date
     const { data: borrowRecord, error: borrowErr } = await supabase
       .from('borrow_records')
       .insert([
@@ -55,6 +65,8 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
           inventory_id,
           quantity: qty,
           purpose,
+          borrowed_at: borrowedAt.toISOString(),
+          due_date: dueDate.toISOString(),
           status: 'BORROWED'
         }
       ])
@@ -74,6 +86,12 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
 
     // 4. Audit Log
     await logAudit('Borrowed', userId, inventory_id, `Borrowed ${qty} units of "${item.name}" for purpose: ${purpose}`);
+
+    // 5. Send Email Confirmation
+    if (userEmail) {
+      sendBorrowConfirmation(userEmail, userName, item.name, qty, days, dueDate)
+        .catch((err) => console.error('Failed to dispatch borrow email:', err.message));
+    }
 
     return res.status(201).json({
       status: 'success',
@@ -110,12 +128,14 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Item has already been returned.' });
     }
 
-    // 2. Update borrow record
+    const returnTimestamp = new Date();
+
+    // 2. Update borrow record status and returned_at timestamp
     const { data: updatedRecord, error: updateRecordErr } = await supabase
       .from('borrow_records')
       .update({
         status: 'RETURNED',
-        returned_at: new Date().toISOString()
+        returned_at: returnTimestamp.toISOString()
       })
       .eq('id', borrow_id)
       .select()
@@ -136,9 +156,17 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
     const itemName = record.inventory?.name || record.inventory_id;
     await logAudit('Returned', userId, record.inventory_id, `Returned ${record.quantity} units of "${itemName}"`);
 
+    // 5. Send Return Confirmation Receipt Email
+    const userEmail = req.user?.email;
+    const userName = req.user?.name || 'Borrower';
+    if (userEmail) {
+      sendReturnConfirmation(userEmail, userName, itemName, returnTimestamp)
+        .catch((err) => console.error('Failed to dispatch return email:', err.message));
+    }
+
     return res.status(200).json({
       status: 'success',
-      message: 'Item returned successfully!',
+      message: 'Item returned successfully! Return logged on server.',
       data: updatedRecord
     });
   } catch (err: any) {
@@ -165,8 +193,7 @@ export const getBorrowHistory = async (req: AuthRequest, res: Response) => {
     const { data: records, error } = await query;
     if (error) throw error;
 
-    // Resolve related users and items manually (borrow_records.user_id
-    // has no FK to users, so PostgREST embed is unavailable).
+    // Resolve related users and items manually
     const userIds = [...new Set((records || []).map((r) => r.user_id).filter(Boolean))];
     const itemIds = [...new Set((records || []).map((r) => r.inventory_id).filter(Boolean))];
 

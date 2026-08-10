@@ -64,7 +64,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const secret = process.env.JWT_SECRET || 'super_secret_cicr_key';
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, secret, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, secret, { expiresIn: '7d' });
 
     return res.status(200).json({
       status: 'success',
