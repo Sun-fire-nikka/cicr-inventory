@@ -13,8 +13,10 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-    <!-- 3D Canvas Background -->
+    <!-- 3D Canvas Background & Sakura Falling Leaves & Avengers Energy Overlays -->
     <canvas id="canvas-3d"></canvas>
+    <canvas id="sakura-canvas"></canvas>
+    <canvas id="avengers-canvas"></canvas>
 
     <!-- Auth Overlay (Login/Signup) -->
     <div class="auth-overlay" id="auth-overlay">
@@ -117,11 +119,12 @@
                 <div class="nav-theme-box">
                     <i data-lucide="palette" class="nav-theme-icon"></i>
                     <select id="nav-theme-select" title="Switch Theme">
-                        <option value="cyberpunk">⚡ Cyber Neon</option>
-                        <option value="matrix">🟢 Matrix Green</option>
-                        <option value="synthwave">🌆 Synthwave</option>
-                        <option value="midnight">🌌 Midnight Blue</option>
-                        <option value="light">☀️ Clean Light</option>
+                        <option value="cyberpunk">Cyber Neon</option>
+                        <option value="matrix">Matrix Green</option>
+                        <option value="midnight">Midnight Blue</option>
+                        <option value="light">Clean Light</option>
+                        <option value="sakura">Cherry Blossom</option>
+                        <option value="avengers">Avengers Assemble</option>
                     </select>
                 </div>
                 <a class="nav-link" id="nav-logout"><i data-lucide="log-out"></i> Logout</a>
@@ -228,6 +231,39 @@
                         <i data-lucide="layers"></i>
                         <span>Inventory</span>
                     </a>
+
+                    <details class="vault-dropdown" open>
+                        <summary class="sidebar-nav-title">
+                            <span>VAULT INDEX</span>
+                            <i data-lucide="chevron-down"></i>
+                        </summary>
+                        <div class="sidebar-items-group">
+                            <div class="sidebar-item active" data-category="all">
+                                <i data-lucide="layers"></i>
+                                <span>All Assets</span>
+                            </div>
+                            <div class="sidebar-item" data-category="microcontrollers">
+                                <i data-lucide="cpu"></i>
+                                <span>Micro</span>
+                            </div>
+                            <div class="sidebar-item" data-category="sensors">
+                                <i data-lucide="radar"></i>
+                                <span>Sensors</span>
+                            </div>
+                            <div class="sidebar-item" data-category="actuators">
+                                <i data-lucide="compass"></i>
+                                <span>Actuators</span>
+                            </div>
+                            <div class="sidebar-item" data-category="power">
+                                <i data-lucide="battery-charging"></i>
+                                <span>Power</span>
+                            </div>
+                            <div class="sidebar-item" data-category="tools">
+                                <i data-lucide="wrench"></i>
+                                <span>Tools</span>
+                            </div>
+                        </div>
+                    </details>
                 </div>
             </div>
 
@@ -257,10 +293,6 @@
                          <i data-lucide="menu"></i>
                          <span>Menu</span>
                      </button>
-                     <div class="status-toast">
-                         <i data-lucide="check-circle-2" class="toast-check-icon"></i>
-                         <span>Profile essentials complete.</span>
-                     </div>
                      <div class="breadcrumbs">
                          <span class="breadcrumb-root">HOME</span>
                          <span class="breadcrumb-separator">/</span>
@@ -277,11 +309,12 @@
                      <div class="header-theme-box">
                          <i data-lucide="palette" class="header-theme-icon"></i>
                          <select id="header-theme-select" title="Switch Theme">
-                             <option value="cyberpunk">⚡ Cyber Neon</option>
-                             <option value="matrix">🟢 Matrix Green</option>
-                             <option value="synthwave">🌆 Synthwave</option>
-                             <option value="midnight">🌌 Midnight Blue</option>
-                             <option value="light">☀️ Clean Light</option>
+                             <option value="cyberpunk">Cyber Neon</option>
+                             <option value="matrix">Matrix Green</option>
+                             <option value="midnight">Midnight Blue</option>
+                             <option value="light">Clean Light</option>
+                             <option value="sakura">Cherry Blossom</option>
+                             <option value="avengers">Avengers Assemble</option>
                          </select>
                      </div>
                  </div>
@@ -290,23 +323,16 @@
              <!-- Main Content Area -->
              <main class="main-content" id="app-main-content">
                   <!-- sections: dashboard-view, inventory-view, projects-view, meetings-view, events-view -->
-                  <!-- Dashboard View -->
-                  <section class="dashboard-section active" id="dashboard-view">
-                      <!-- Greeting card -->
-                      <div class="dashboard-greeting-card glass">
-                          <div class="card-greetings-left">
-                              <span class="dashboard-subtitle-accent">ADMIN DASHBOARD</span>
-                              <h1 class="dashboard-greeting-title" id="dashboard-greeting">Good evening, Operator</h1>
-                              <p class="dashboard-greeting-desc">Here's what's happening across CICR Inventory right now.</p>
-                              
-                               <div class="dashboard-action-pills">
-                                   <button class="action-pill-btn" id="dashboard-pill-catalog"><i data-lucide="layers"></i> Catalog</button>
-                                   <button class="action-pill-btn" id="dashboard-pill-logs"><i data-lucide="clipboard-list"></i> Active Logs</button>
-                                   <button class="action-pill-btn" id="dashboard-pill-orders"><i data-lucide="truck"></i> Logistics</button>
-                                   <button class="action-pill-btn" id="dashboard-pill-diagnostics"><i data-lucide="shield-alert"></i> Diagnostics</button>
-                               </div>
+                   <!-- Dashboard View -->
+                   <section class="dashboard-section active" id="dashboard-view">
+                       <!-- Greeting card -->
+                       <div class="dashboard-greeting-card glass">
+                           <div class="card-greetings-left">
+                               <span class="dashboard-subtitle-accent">ADMIN DASHBOARD</span>
+                               <h1 class="dashboard-greeting-title" id="dashboard-greeting">Good evening, Operator</h1>
+                               <p class="dashboard-greeting-desc">Here's what's happening across CICR Inventory right now.</p>
                            </div>
- 
+
                            <div class="card-clock-right">
                                <div class="clock-time" id="dashboard-clock">09:28:35 pm</div>
                                <div class="clock-date" id="dashboard-date">Tuesday, 17 March 2026</div>
@@ -353,48 +379,6 @@
                   <!-- Slide 3: Pinterest Search Explorer Layout (3-Column Staggered Grid) -->
                   <section class="explorer-layout-section reveal" id="inventory-view" style="display: none;">
                       <div class="explorer-layout-container">
-                          <!-- Column 1: Vertical Sidebar Navigation -->
-                          <aside class="explorer-sidebar">
-                              <details class="vault-dropdown">
-                                  <summary class="sidebar-nav-title">
-                                      <span>VAULT INDEX</span>
-                                      <i data-lucide="chevron-down"></i>
-                                  </summary>
-                                  <div class="sidebar-items-group">
-                                      <div class="sidebar-item active" data-category="all">
-                                          <i data-lucide="layers"></i>
-                                          <span>All Assets</span>
-                                      </div>
-                                      <div class="sidebar-item" data-category="microcontrollers">
-                                          <i data-lucide="cpu"></i>
-                                          <span>Micro</span>
-                                      </div>
-                                      <div class="sidebar-item" data-category="sensors">
-                                          <i data-lucide="radar"></i>
-                                          <span>Sensors</span>
-                                      </div>
-                                      <div class="sidebar-item" data-category="actuators">
-                                          <i data-lucide="compass"></i>
-                                          <span>Actuators</span>
-                                      </div>
-                                      <div class="sidebar-item" data-category="power">
-                                          <i data-lucide="battery-charging"></i>
-                                          <span>Power</span>
-                                      </div>
-                                      <div class="sidebar-item" data-category="tools">
-                                          <i data-lucide="wrench"></i>
-                                          <span>Tools</span>
-                                      </div>
-                                  </div>
-                              </details>
-
-                              <!-- Pulse status tag -->
-                              <div class="sidebar-status">
-                                  <span class="status-indicator-dot pulsing"></span>
-                                  <span class="status-text">VAULT SECURE</span>
-                              </div>
-                          </aside>
-                          
                           <!-- Column 2 & 3: Main Explorer Center -->
                           <div class="explorer-main-area">
                               <!-- Top Search Bar & Stats integration -->

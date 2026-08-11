@@ -32,6 +32,8 @@ class Background3D {
     private grid2!: THREE.GridHelper;
     private wallGrid!: THREE.GridHelper;
     private particles!: THREE.Points;
+    private particlePhases: Float32Array = new Float32Array(0);
+    private currentTheme = 'cyberpunk';
     
     private mouseX = 0;
     private mouseY = 0;
@@ -44,6 +46,7 @@ class Background3D {
 
     constructor() {
         this.canvas = document.getElementById('canvas-3d') as HTMLCanvasElement;
+        if (!this.canvas) return;
         this.init();
         this.createGrid();
         this.createParticles();
@@ -84,7 +87,7 @@ class Background3D {
         this.grid2.position.z = -this.gridSize;
         this.scene.add(this.grid2);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         this.scene.add(ambientLight);
 
         const pointLight = new THREE.PointLight(0xbd00ff, 1.5, 100);
@@ -95,7 +98,6 @@ class Background3D {
         pointLight2.position.set(20, 5, 10);
         this.scene.add(pointLight2);
 
-        // Vertical background wall grid for depth
         const wallColor = new THREE.Color(0x00f0ff);
         this.wallGrid = new THREE.GridHelper(this.gridSize, this.gridDivisions, wallColor, helperColor);
         this.wallGrid.rotation.x = Math.PI / 2;
@@ -104,62 +106,100 @@ class Background3D {
     }
 
     public updateThemeColors(theme: string) {
+        this.currentTheme = theme;
         let fogHex = 0x06060e;
         if (theme === 'matrix') fogHex = 0x020d07;
-        else if (theme === 'synthwave') fogHex = 0x120318;
         else if (theme === 'midnight') fogHex = 0x060e20;
         else if (theme === 'light') fogHex = 0xf1f5f9;
+        else if (theme === 'sakura') fogHex = 0xfff0f5;
+        else if (theme === 'avengers') fogHex = 0x090a15;
 
         if (this.scene) {
-            this.scene.fog = new THREE.FogExp2(fogHex, 0.015);
+            this.scene.fog = new THREE.FogExp2(fogHex, theme === 'sakura' ? 0.01 : 0.015);
         }
+
+        if (this.grid1 && this.grid2) {
+            const showHorizontalGrids = theme !== 'sakura';
+            this.grid1.visible = showHorizontalGrids;
+            this.grid2.visible = showHorizontalGrids;
+        }
+
+        this.setParticleColorsForTheme(theme);
+    }
+
+    private setParticleColorsForTheme(theme: string) {
+        if (!this.particles) return;
+        const colors = this.particles.geometry.attributes.color.array as Float32Array;
+        const count = colors.length / 3;
+
+        let color1 = new THREE.Color(0x00f0ff);
+        let color2 = new THREE.Color(0xbd00ff);
+        let color3 = new THREE.Color(0xff007a);
+
+        if (theme === 'avengers') {
+            color1 = new THREE.Color(0x00f0ff); // Stark Arc Cyan
+            color2 = new THREE.Color(0xa855f7); // Wakanda Vibranium Purple
+            color3 = new THREE.Color(0xef4444); // Iron Crimson Energy
+        } else if (theme === 'sakura') {
+            color1 = new THREE.Color(0xec4899); // Sakura Pink
+            color2 = new THREE.Color(0xf43f5e); // Rose Petal Red
+            color3 = new THREE.Color(0xfbcfe8); // Soft Blossom White
+        } else if (theme === 'matrix') {
+            color1 = new THREE.Color(0x00ff66);
+            color2 = new THREE.Color(0x00cc44);
+            color3 = new THREE.Color(0x33ff88);
+        } else if (theme === 'midnight') {
+            color1 = new THREE.Color(0x38bdf8);
+            color2 = new THREE.Color(0x818cf8);
+            color3 = new THREE.Color(0xc084fc);
+        } else if (theme === 'light') {
+            color1 = new THREE.Color(0x0284c7);
+            color2 = new THREE.Color(0x7c3aed);
+            color3 = new THREE.Color(0xdb2777);
+        }
+
+        for (let i = 0; i < count; i++) {
+            const rand = Math.random();
+            let c = color1;
+            if (rand > 0.6) c = color2;
+            else if (rand > 0.3) c = color3;
+
+            colors[i * 3] = c.r;
+            colors[i * 3 + 1] = c.g;
+            colors[i * 3 + 2] = c.b;
+        }
+
+        this.particles.geometry.attributes.color.needsUpdate = true;
     }
 
     private createParticles() {
-        const particleCount = 250;
+        const particleCount = 350;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
-
-        const cyanColor = new THREE.Color(0x00f0ff);
-        const purpleColor = new THREE.Color(0xbd00ff);
-        const pinkColor = new THREE.Color(0xff007a);
+        this.particlePhases = new Float32Array(particleCount);
 
         for (let i = 0; i < particleCount; i++) {
-            const x = (Math.random() - 0.5) * 120;
-            const y = Math.random() * 35 - 5;
-            const z = (Math.random() - 0.7) * 150;
-
-            positions[i * 3] = x;
-            positions[i * 3 + 1] = y;
-            positions[i * 3 + 2] = z;
-
-            const rand = Math.random();
-            let mixedColor = cyanColor;
-            if (rand > 0.6) {
-                mixedColor = purpleColor;
-            } else if (rand > 0.3) {
-                mixedColor = pinkColor;
-            }
-
-            colors[i * 3] = mixedColor.r;
-            colors[i * 3 + 1] = mixedColor.g;
-            colors[i * 3 + 2] = mixedColor.b;
+            positions[i * 3] = (Math.random() - 0.5) * 120;
+            positions[i * 3 + 1] = Math.random() * 40 - 10;
+            positions[i * 3 + 2] = (Math.random() - 0.7) * 150;
+            this.particlePhases[i] = Math.random() * Math.PI * 2;
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
         const material = new THREE.PointsMaterial({
-            size: 0.18,
+            size: 0.24,
             vertexColors: true,
             transparent: true,
-            opacity: 0.85,
+            opacity: 0.88,
             blending: THREE.AdditiveBlending
         });
 
         this.particles = new THREE.Points(geometry, material);
         this.scene.add(this.particles);
+        this.setParticleColorsForTheme(this.currentTheme);
     }
 
     private setupEvents() {
@@ -189,22 +229,37 @@ class Background3D {
             this.grid2.position.z = this.grid1.position.z - this.gridSize;
         }
 
-        const positions = this.particles.geometry.attributes.position.array as Float32Array;
-        const particleCount = positions.length / 3;
+        if (this.particles) {
+            const positions = this.particles.geometry.attributes.position.array as Float32Array;
+            const particleCount = positions.length / 3;
+            const time = Date.now() * 0.001;
 
-        for (let i = 0; i < particleCount; i++) {
-            positions[i * 3 + 1] += 0.015;
-            positions[i * 3 + 2] += 0.03;
+            for (let i = 0; i < particleCount; i++) {
+                if (this.currentTheme === 'sakura') {
+                    // Gentle falling & swaying Sakura Cherry Blossom petals
+                    positions[i * 3 + 1] -= 0.035;
+                    positions[i * 3] += Math.sin(time * 1.5 + this.particlePhases[i]) * 0.025;
+                    positions[i * 3 + 2] += Math.cos(time * 1.0 + this.particlePhases[i]) * 0.015;
 
-            if (positions[i * 3 + 1] > 30) {
-                positions[i * 3 + 1] = -5;
+                    if (positions[i * 3 + 1] < -10) {
+                        positions[i * 3 + 1] = 30;
+                        positions[i * 3] = (Math.random() - 0.5) * 120;
+                    }
+                } else {
+                    positions[i * 3 + 1] += 0.015;
+                    positions[i * 3 + 2] += 0.03;
+
+                    if (positions[i * 3 + 1] > 30) {
+                        positions[i * 3 + 1] = -5;
+                    }
+                    if (positions[i * 3 + 2] > 20) {
+                        positions[i * 3 + 2] = -120;
+                        positions[i * 3] = (Math.random() - 0.5) * 120;
+                    }
+                }
             }
-            if (positions[i * 3 + 2] > 20) {
-                positions[i * 3 + 2] = -120;
-                positions[i * 3] = (Math.random() - 0.5) * 120;
-            }
+            this.particles.geometry.attributes.position.needsUpdate = true;
         }
-        this.particles.geometry.attributes.position.needsUpdate = true;
 
         this.targetCameraX = this.mouseX * 3;
         this.targetCameraY = 4 + (this.mouseY * 1.5);
@@ -581,6 +636,7 @@ class DashboardManager {
             item.addEventListener('click', () => {
                 const cat = (item as HTMLElement).dataset.category || 'all';
                 selectCategory(cat);
+                switchSection('inventory-view');
             });
         });
 
@@ -1589,6 +1645,416 @@ class TerminalSimulator {
 
 
 
+// ==========================================
+// Cherry Blossom (Sakura) Falling Leaves Engine
+// ==========================================
+interface SakuraPetal {
+    x: number;
+    y: number;
+    size: number;
+    speedY: number;
+    swayFreq: number;
+    swayAmp: number;
+    swayPhase: number;
+    rotation: number;
+    rotationSpeed: number;
+    flipAngle: number;
+    flipSpeed: number;
+    opacity: number;
+    colorStart: string;
+    colorEnd: string;
+}
+
+class SakuraAnimation {
+    private canvas: HTMLCanvasElement | null = null;
+    private ctx: CanvasRenderingContext2D | null = null;
+    private petals: SakuraPetal[] = [];
+    private animationFrameId: number | null = null;
+    private isRunning = false;
+    private width = window.innerWidth;
+    private height = window.innerHeight;
+
+    private colors = [
+        { start: '#fbcfe8', end: '#ec4899' },
+        { start: '#fce7f3', end: '#f43f5e' },
+        { start: '#ffffff', end: '#fda4af' },
+        { start: '#f472b6', end: '#db2777' },
+    ];
+
+    constructor() {
+        this.canvas = document.getElementById('sakura-canvas') as HTMLCanvasElement;
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        this.initPetals(75);
+        this.setupEvents();
+    }
+
+    private resize() {
+        if (!this.canvas) return;
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+    }
+
+    private initPetals(count: number) {
+        this.petals = [];
+        for (let i = 0; i < count; i++) {
+            this.petals.push(this.createPetal(true));
+        }
+    }
+
+    private createPetal(randomY = false): SakuraPetal {
+        const colorPair = this.colors[Math.floor(Math.random() * this.colors.length)];
+        return {
+            x: Math.random() * this.width,
+            y: randomY ? Math.random() * this.height : -20 - Math.random() * 40,
+            size: Math.random() * 9 + 8,
+            speedY: Math.random() * 1.2 + 0.8,
+            swayFreq: Math.random() * 0.02 + 0.01,
+            swayAmp: Math.random() * 2.5 + 1.2,
+            swayPhase: Math.random() * Math.PI * 2,
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: (Math.random() - 0.5) * 0.03,
+            flipAngle: Math.random() * Math.PI,
+            flipSpeed: Math.random() * 0.03 + 0.01,
+            opacity: Math.random() * 0.35 + 0.6,
+            colorStart: colorPair.start,
+            colorEnd: colorPair.end,
+        };
+    }
+
+    private setupEvents() {
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    public start() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.loop();
+    }
+
+    public stop() {
+        this.isRunning = false;
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+        if (this.ctx && this.canvas) {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    }
+
+    private drawPetal(petal: SakuraPetal) {
+        if (!this.ctx) return;
+        const { x, y, size, rotation, flipAngle, opacity, colorStart, colorEnd } = petal;
+
+        this.ctx.save();
+        this.ctx.translate(x, y);
+        this.ctx.rotate(rotation);
+
+        const scaleX = Math.cos(flipAngle);
+        this.ctx.scale(scaleX, 1);
+
+        this.ctx.globalAlpha = opacity;
+
+        const grad = this.ctx.createLinearGradient(0, -size, 0, size);
+        grad.addColorStop(0, colorStart);
+        grad.addColorStop(1, colorEnd);
+        this.ctx.fillStyle = grad;
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -size);
+        this.ctx.bezierCurveTo(size * 0.75, -size * 0.75, size * 0.9, size * 0.4, 0, size);
+        this.ctx.bezierCurveTo(-size * 0.9, size * 0.4, -size * 0.75, -size * 0.75, 0, -size);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        this.ctx.strokeStyle = 'rgba(236, 72, 153, 0.25)';
+        this.ctx.lineWidth = 0.8;
+        this.ctx.stroke();
+
+        this.ctx.restore();
+    }
+
+    private loop() {
+        if (!this.isRunning || !this.ctx || !this.canvas) return;
+
+        this.ctx.clearRect(0, 0, this.width, this.height);
+
+        for (let i = 0; i < this.petals.length; i++) {
+            const p = this.petals[i];
+
+            p.y += p.speedY;
+            p.swayPhase += p.swayFreq;
+            p.x += Math.sin(p.swayPhase) * p.swayAmp;
+            p.rotation += p.rotationSpeed;
+            p.flipAngle += p.flipSpeed;
+
+            if (p.y > this.height + 30 || p.x < -40 || p.x > this.width + 40) {
+                this.petals[i] = this.createPetal(false);
+            }
+
+            this.drawPetal(p);
+        }
+
+        this.animationFrameId = requestAnimationFrame(() => this.loop());
+    }
+}
+
+// ==========================================
+// Avengers Cinematic Ambient Engine (Shield + Arc Reactor HUD)
+// ==========================================
+class AvengersAnimation {
+    private canvas: HTMLCanvasElement | null = null;
+    private ctx: CanvasRenderingContext2D | null = null;
+    private animationFrameId: number | null = null;
+    private isRunning = false;
+    private pulseTime = 0;
+
+    constructor() {
+        this.canvas = document.getElementById('avengers-canvas') as HTMLCanvasElement;
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    private resize() {
+        if (!this.canvas) return;
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+
+    public start() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.resize();
+        this.loop();
+    }
+
+    public stop() {
+        this.isRunning = false;
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+        if (this.ctx && this.canvas) {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    }
+
+    private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number, color: string) {
+        let rot = (Math.PI / 2) * 3;
+        let step = Math.PI / spikes;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+            let x = cx + Math.cos(rot) * outerRadius;
+            let y = cy + Math.sin(rot) * outerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+
+            x = cx + Math.cos(rot) * innerRadius;
+            y = cy + Math.sin(rot) * innerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+    }
+
+    private drawBackground() {
+        if (!this.ctx || !this.canvas) return;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        this.ctx.clearRect(0, 0, w, h);
+
+        const cx = w / 2;
+        const cy = h / 2;
+        const baseRadius = Math.min(w, h) * 0.27;
+        const pulse = Math.sin(this.pulseTime) * 0.03;
+        const opacity = 0.28 + pulse; // Enhanced, clear, glowing opacity
+
+        this.ctx.save();
+        this.ctx.globalAlpha = opacity;
+
+        // 1. Intense Red Vibranium Energy Background Aura Glow
+        const bgGlow = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.3, cx, cy, baseRadius * 1.4);
+        bgGlow.addColorStop(0, 'rgba(255, 0, 60, 0.45)');
+        bgGlow.addColorStop(0.5, 'rgba(239, 68, 68, 0.25)');
+        bgGlow.addColorStop(0.85, 'rgba(220, 38, 38, 0.08)');
+        bgGlow.addColorStop(1, 'transparent');
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 1.4, 0, Math.PI * 2);
+        this.ctx.fillStyle = bgGlow;
+        this.ctx.fill();
+
+        // 2. Arc Cyan & Stark Gold Outer Tech Halo Rings
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 1.25, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2, baseRadius * 0.035);
+        this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+        this.ctx.stroke();
+
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 1.15, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(3, baseRadius * 0.045);
+        this.ctx.strokeStyle = '#00f0ff';
+        this.ctx.shadowColor = '#00f0ff';
+        this.ctx.shadowBlur = 18;
+        this.ctx.stroke();
+
+        // 12 Stark Nodes
+        const nodes = 12;
+        for (let i = 0; i < nodes; i++) {
+            const angle = (i * Math.PI * 2) / nodes + this.pulseTime * 0.15;
+            const nx = cx + Math.cos(angle) * (baseRadius * 1.15);
+            const ny = cy + Math.sin(angle) * (baseRadius * 1.15);
+            this.ctx.beginPath();
+            this.ctx.arc(nx, ny, Math.max(3, baseRadius * 0.03), 0, Math.PI * 2);
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.shadowColor = '#00f0ff';
+            this.ctx.shadowBlur = 10;
+            this.ctx.fill();
+        }
+
+        // 3. CAPTAIN AMERICA SHIELD WITH BOLD BLACK CIRCLE BOUNDARIES & GLOW
+        // Outer Red Glowing Vibranium Ring
+        this.ctx.shadowColor = '#ff0033';
+        this.ctx.shadowBlur = 30;
+
+        const redGrad1 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.74, cx, cy, baseRadius);
+        redGrad1.addColorStop(0, '#ef4444');
+        redGrad1.addColorStop(0.6, '#dc2626');
+        redGrad1.addColorStop(1, '#991b1b');
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
+        this.ctx.fillStyle = redGrad1;
+        this.ctx.fill();
+
+        // Outer Black Circle Boundary
+        this.ctx.shadowBlur = 0;
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(3.5, baseRadius * 0.025);
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.stroke();
+
+        // Middle Silver White Ring
+        const silverGrad = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.48, cx, cy, baseRadius * 0.74);
+        silverGrad.addColorStop(0, '#ffffff');
+        silverGrad.addColorStop(0.5, '#e2e8f0');
+        silverGrad.addColorStop(1, '#cbd5e1');
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
+        this.ctx.fillStyle = silverGrad;
+        this.ctx.fill();
+
+        // Middle Silver Black Circle Boundary
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.018);
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.stroke();
+
+        // Inner Red Ring with Glow
+        this.ctx.shadowColor = '#ff0033';
+        this.ctx.shadowBlur = 20;
+
+        const redGrad2 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.28, cx, cy, baseRadius * 0.48);
+        redGrad2.addColorStop(0, '#ff1e43');
+        redGrad2.addColorStop(0.7, '#dc2626');
+        redGrad2.addColorStop(1, '#991b1b');
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.48, 0, Math.PI * 2);
+        this.ctx.fillStyle = redGrad2;
+        this.ctx.fill();
+
+        // Inner Red Black Circle Boundary
+        this.ctx.shadowBlur = 0;
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.48, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.018);
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.stroke();
+
+        // Center Cobalt Blue Disk
+        this.ctx.shadowColor = '#3b82f6';
+        this.ctx.shadowBlur = 18;
+
+        const blueGrad = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, baseRadius * 0.28);
+        blueGrad.addColorStop(0, '#3b82f6');
+        blueGrad.addColorStop(0.7, '#1d4ed8');
+        blueGrad.addColorStop(1, '#1e3a8a');
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
+        this.ctx.fillStyle = blueGrad;
+        this.ctx.fill();
+
+        // Center Blue Black Circle Boundary
+        this.ctx.shadowBlur = 0;
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.018);
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.stroke();
+
+        // Center Luminous White 5-Point Star
+        this.ctx.shadowColor = '#ffffff';
+        this.ctx.shadowBlur = 15;
+        this.drawStar(this.ctx, cx, cy, 5, baseRadius * 0.25, baseRadius * 0.11, '#ffffff');
+
+        // Star Outline Highlight
+        this.ctx.shadowBlur = 0;
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.stroke();
+
+        // 4. Stark HUD Target Crosshair Marks
+        this.ctx.strokeStyle = 'rgba(255, 0, 80, 0.5)';
+        this.ctx.lineWidth = 1.8;
+
+        const notchLen = baseRadius * 0.22;
+        // Top
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy - baseRadius * 1.35);
+        this.ctx.lineTo(cx, cy - baseRadius * 1.35 + notchLen);
+        this.ctx.stroke();
+
+        // Bottom
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy + baseRadius * 1.35);
+        this.ctx.lineTo(cx, cy + baseRadius * 1.35 - notchLen);
+        this.ctx.stroke();
+
+        // Left
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx - baseRadius * 1.35, cy);
+        this.ctx.lineTo(cx - baseRadius * 1.35 + notchLen, cy);
+        this.ctx.stroke();
+
+        // Right
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx + baseRadius * 1.35, cy);
+        this.ctx.lineTo(cx + baseRadius * 1.35 - notchLen, cy);
+        this.ctx.stroke();
+
+        this.ctx.restore();
+    }
+
+    private loop() {
+        if (!this.isRunning) return;
+        this.pulseTime += 0.02;
+        this.drawBackground();
+        this.animationFrameId = requestAnimationFrame(() => this.loop());
+    }
+}
+
 // Extend global window interface for development debugging
 declare global {
     interface Window {
@@ -1604,8 +2070,13 @@ class ThemeManager {
     private static themeSelectEl: HTMLSelectElement | null = null;
     private static navThemeSelectEl: HTMLSelectElement | null = null;
     private static headerThemeSelectEl: HTMLSelectElement | null = null;
+    private static sakuraAnim: SakuraAnimation | null = null;
+    private static avengersAnim: AvengersAnimation | null = null;
 
     public static init() {
+        this.sakuraAnim = new SakuraAnimation();
+        this.avengersAnim = new AvengersAnimation();
+
         this.themeSelectEl = document.getElementById('theme-select') as HTMLSelectElement;
         this.navThemeSelectEl = document.getElementById('nav-theme-select') as HTMLSelectElement;
         this.headerThemeSelectEl = document.getElementById('header-theme-select') as HTMLSelectElement;
@@ -1640,6 +2111,14 @@ class ThemeManager {
 
     public static applyTheme(theme: string) {
         document.documentElement.setAttribute('data-theme', theme);
+        document.body.classList.remove('theme-light', 'theme-pink', 'theme-sakura', 'theme-avengers');
+        if (theme === 'light') {
+            document.body.classList.add('theme-light');
+        } else if (theme === 'pink' || theme === 'sakura') {
+            document.body.classList.add('theme-sakura');
+        } else if (theme === 'avengers') {
+            document.body.classList.add('theme-avengers');
+        }
         localStorage.setItem('cicr_vault_theme', theme);
 
         if (this.themeSelectEl && this.themeSelectEl.value !== theme) {
@@ -1655,6 +2134,17 @@ class ThemeManager {
         if (window.bg3D) {
             window.bg3D.updateThemeColors(theme);
         }
+
+        if (theme === 'sakura' || theme === 'pink') {
+            this.sakuraAnim?.start();
+            this.avengersAnim?.stop();
+        } else if (theme === 'avengers') {
+            this.sakuraAnim?.stop();
+            this.avengersAnim?.start();
+        } else {
+            this.sakuraAnim?.stop();
+            this.avengersAnim?.stop();
+        }
     }
 }
 
@@ -1662,9 +2152,9 @@ class ThemeManager {
 // 7. Application Bootstrap
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    window.bg3D = new Background3D();
     ThemeManager.init();
     DatabaseManager.init();
-    // window.bg3D = new Background3D();
     ModalManager.init();
     AuthManager.init();
     lucide.createIcons();
