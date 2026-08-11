@@ -1603,10 +1603,12 @@ declare global {
 class ThemeManager {
     private static themeSelectEl: HTMLSelectElement | null = null;
     private static navThemeSelectEl: HTMLSelectElement | null = null;
+    private static headerThemeSelectEl: HTMLSelectElement | null = null;
 
     public static init() {
         this.themeSelectEl = document.getElementById('theme-select') as HTMLSelectElement;
         this.navThemeSelectEl = document.getElementById('nav-theme-select') as HTMLSelectElement;
+        this.headerThemeSelectEl = document.getElementById('header-theme-select') as HTMLSelectElement;
 
         const savedTheme = localStorage.getItem('cicr_vault_theme') || 'cyberpunk';
         this.applyTheme(savedTheme);
@@ -1626,6 +1628,14 @@ class ThemeManager {
                 this.applyTheme(target.value);
             });
         }
+
+        if (this.headerThemeSelectEl) {
+            this.headerThemeSelectEl.value = savedTheme;
+            this.headerThemeSelectEl.addEventListener('change', (e) => {
+                const target = e.target as HTMLSelectElement;
+                this.applyTheme(target.value);
+            });
+        }
     }
 
     public static applyTheme(theme: string) {
@@ -1637,6 +1647,9 @@ class ThemeManager {
         }
         if (this.navThemeSelectEl && this.navThemeSelectEl.value !== theme) {
             this.navThemeSelectEl.value = theme;
+        }
+        if (this.headerThemeSelectEl && this.headerThemeSelectEl.value !== theme) {
+            this.headerThemeSelectEl.value = theme;
         }
 
         if (window.bg3D) {
