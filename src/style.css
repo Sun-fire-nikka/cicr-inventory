@@ -3243,3 +3243,255 @@ input:-webkit-autofill:active {
     transform: translateY(-2px) !important;
     box-shadow: 0 0 15px rgba(255, 0, 122, 0.3) !important;
 }
+/* V2.5 - Vault Index Dropdown */
+.vault-dropdown {
+    width: 100%;
+}
+
+.vault-dropdown summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+}
+
+.vault-dropdown summary::-webkit-details-marker {
+    display: none;
+}
+
+.vault-dropdown summary svg {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s ease;
+}
+
+.vault-dropdown[open] summary svg {
+    transform: rotate(180deg);
+}
+
+.vault-dropdown .sidebar-items-group {
+    margin-top: 10px;
+    padding-left: 4px;
+}
+
+/* ==========================================
+   V3.0 - Theme Selector System & Color Presets
+   ========================================== */
+
+/* Theme Overrides */
+[data-theme="matrix"] {
+    --bg-primary: #020d07;
+    --bg-glass: rgba(6, 24, 15, 0.65);
+    --bg-glass-hover: rgba(12, 40, 24, 0.8);
+    --bg-glass-active: rgba(18, 54, 34, 0.9);
+    --border-glass: rgba(0, 255, 102, 0.15);
+    --border-glass-hover: rgba(0, 255, 102, 0.4);
+    --neon-cyan: #00ff66;
+    --neon-purple: #00e5ff;
+    --neon-pink: #a3e635;
+    --neon-yellow: #facc15;
+    --neon-green: #00ff66;
+    --text-main: #e6fffa;
+    --text-muted: #6ee7b7;
+    --glow-cyan: 0 0 15px rgba(0, 255, 102, 0.35);
+    --glow-purple: 0 0 15px rgba(0, 229, 255, 0.35);
+}
+
+[data-theme="synthwave"] {
+    --bg-primary: #120318;
+    --bg-glass: rgba(28, 8, 38, 0.65);
+    --bg-glass-hover: rgba(45, 12, 60, 0.8);
+    --bg-glass-active: rgba(56, 16, 78, 0.9);
+    --border-glass: rgba(255, 0, 122, 0.18);
+    --border-glass-hover: rgba(255, 183, 0, 0.4);
+    --neon-cyan: #ff007a;
+    --neon-purple: #ffb700;
+    --neon-pink: #9d4edd;
+    --neon-yellow: #ff9e00;
+    --neon-green: #00f0ff;
+    --text-main: #fff0f5;
+    --text-muted: #f472b6;
+    --glow-cyan: 0 0 15px rgba(255, 0, 122, 0.35);
+    --glow-purple: 0 0 15px rgba(255, 183, 0, 0.35);
+}
+
+[data-theme="midnight"] {
+    --bg-primary: #060e20;
+    --bg-glass: rgba(12, 24, 52, 0.65);
+    --bg-glass-hover: rgba(20, 38, 80, 0.8);
+    --bg-glass-active: rgba(28, 46, 96, 0.9);
+    --border-glass: rgba(59, 130, 246, 0.18);
+    --border-glass-hover: rgba(56, 189, 248, 0.4);
+    --neon-cyan: #3b82f6;
+    --neon-purple: #38bdf8;
+    --neon-pink: #818cf8;
+    --neon-yellow: #f59e0b;
+    --neon-green: #10b981;
+    --text-main: #f0f6ff;
+    --text-muted: #93c5fd;
+    --glow-cyan: 0 0 15px rgba(59, 130, 246, 0.35);
+    --glow-purple: 0 0 15px rgba(56, 189, 248, 0.35);
+}
+
+[data-theme="light"] {
+    --bg-primary: #f1f5f9;
+    --bg-glass: rgba(255, 255, 255, 0.85);
+    --bg-glass-hover: rgba(241, 245, 249, 0.95);
+    --bg-glass-active: rgba(226, 232, 240, 0.95);
+    --border-glass: rgba(15, 23, 42, 0.12);
+    --border-glass-hover: rgba(2, 132, 199, 0.4);
+    --neon-cyan: #0284c7;
+    --neon-purple: #7c3aed;
+    --neon-pink: #db2777;
+    --neon-yellow: #d97706;
+    --neon-green: #16a34a;
+    --text-main: #0f172a;
+    --text-muted: #334155;
+    --text-dim: #64748b;
+    --glow-cyan: 0 0 15px rgba(2, 132, 199, 0.2);
+    --glow-purple: 0 0 15px rgba(124, 58, 237, 0.2);
+    --glow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] body {
+    background-color: #f1f5f9;
+}
+
+[data-theme="light"] body::before {
+    background-image: 
+        linear-gradient(rgba(2, 132, 199, 0.12) 1.2px, transparent 1.2px),
+        linear-gradient(90deg, rgba(2, 132, 199, 0.12) 1.2px, transparent 1.2px);
+}
+
+[data-theme="light"] .search-box-new {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(15, 23, 42, 0.15);
+}
+
+[data-theme="light"] .search-box-new input {
+    color: #0f172a;
+}
+
+/* Theme Selector Box (Top right corner near search bar) */
+.theme-selector-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    background: var(--bg-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-glass);
+    border-radius: 20px;
+    padding: 0 14px;
+    height: 46px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease, background 0.3s ease;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.theme-selector-box:hover {
+    border-color: var(--neon-cyan);
+    box-shadow: var(--glow-cyan);
+    transform: translateY(-1px);
+}
+
+.theme-selector-box .theme-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--neon-cyan);
+    flex-shrink: 0;
+    transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.theme-selector-box:hover .theme-icon {
+    transform: rotate(20deg) scale(1.1);
+}
+
+.theme-selector-box select {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 20px;
+}
+
+.theme-selector-box select option {
+    background: #0d0e19;
+    color: #ffffff;
+    font-weight: 500;
+    padding: 10px;
+}
+
+[data-theme="light"] .theme-selector-box select option {
+    background: #ffffff;
+    color: #0f172a;
+}
+
+.theme-selector-box .theme-select-arrow {
+    position: absolute;
+    right: 12px;
+    width: 14px;
+    height: 14px;
+    color: var(--text-dim);
+    pointer-events: none;
+    transition: transform 0.2s ease, color 0.3s ease;
+}
+
+.theme-selector-box:hover .theme-select-arrow {
+    color: var(--neon-cyan);
+}
+
+/* Nav Theme Box */
+.nav-theme-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    border-radius: 20px;
+    padding: 4px 10px;
+    position: relative;
+    transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.nav-theme-box:hover {
+    border-color: var(--neon-cyan);
+}
+
+.nav-theme-box .nav-theme-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--neon-cyan);
+}
+
+.nav-theme-box select {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-main);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.nav-theme-box select option {
+    background: #0d0e19;
+    color: #ffffff;
+}
+
+[data-theme="light"] .nav-theme-box select option {
+    background: #ffffff;
+    color: #0f172a;
+}

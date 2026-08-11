@@ -101,7 +101,7 @@
                 <img src="logo.png" class="logo-img" alt="CICR Logo">
                 <div class="logo-text-wrapper">
                     <span class="logo-title">CICR INVENTORY</span>
-                    <span class="logo-subtitle-nav"> ~ Creative & Innovative Cell in Robotics</span>
+                    
                 </div>
                 <span class="user-badge" id="nav-user-badge"><span class="online-indicator"></span> <span id="nav-username"></span></span>
             </div>
@@ -115,6 +115,16 @@
                     <i data-lucide="bell"></i> History
                     <span class="notification-badge" id="nav-bell-badge"></span>
                 </a>
+                <div class="nav-theme-box">
+                    <i data-lucide="palette" class="nav-theme-icon"></i>
+                    <select id="nav-theme-select" title="Switch Theme">
+                        <option value="cyberpunk">⚡ Cyber Neon</option>
+                        <option value="matrix">🟢 Matrix Green</option>
+                        <option value="synthwave">🌆 Synthwave</option>
+                        <option value="midnight">🌌 Midnight Blue</option>
+                        <option value="light">☀️ Clean Light</option>
+                    </select>
+                </div>
                 <a class="nav-link" id="nav-logout"><i data-lucide="log-out"></i> Logout</a>
             </div>
         </nav>
@@ -255,14 +265,17 @@
             <section class="explorer-layout-section reveal" id="inventory-view">
                 <div class="explorer-header-area">
                     <span class="pill-badge-innovation">INVENTORY REGISTRY</span>
-                    <h2 class="explorer-heading-title">YOUR NEXT BIG IDEA STARTS HERE</h2>
-                    <p class="explorer-heading-subtitle">Search, request, and track high-fidelity electronics directly from the vault.</p>
+     
                 </div>
                 
                 <div class="explorer-layout-container">
                     <!-- Column 1: Vertical Sidebar Navigation -->
                     <aside class="explorer-sidebar">
-                        <div class="sidebar-nav-title">VAULT INDEX</div>
+                        <details class="vault-dropdown" open>
+                    <summary class="sidebar-nav-title">
+                     VAULT INDEX
+                     <i data-lucide="chevron-down"></i>
+                     </summary>
                         
                         <div class="sidebar-items-group">
                             <div class="sidebar-item active" data-category="all">
@@ -286,11 +299,11 @@
                                 <span>Power</span>
                             </div>
                             <div class="sidebar-item" data-category="tools">
-                                <i data-lucide="wrench"></i>
-                                <span>Tools</span>
-                            </div>
-                        </div>
-
+                            <i data-lucide="wrench"></i>
+                            <span>Tools</span>
+                             </div>
+                             </div>
+                            </details>
                         <!-- Pulse status tag -->
                         <div class="sidebar-status">
                             <span class="status-indicator-dot pulsing"></span>
@@ -318,6 +331,19 @@
                                 <span class="tag-pill" data-category="actuators">Actuators</span>
                                 <span class="tag-pill" data-category="power">Power</span>
                                 <span class="tag-pill" data-category="tools">Tools</span>
+                            </div>
+
+                            <!-- Futuristic Theme Selector Box -->
+                            <div class="theme-selector-box" id="theme-selector-box">
+                                <i data-lucide="palette" class="theme-icon"></i>
+                                <select id="theme-select" aria-label="Select Theme">
+                                    <option value="cyberpunk">⚡ Cyber Neon</option>
+                                    <option value="matrix">🟢 Matrix Green</option>
+                                    <option value="synthwave">🌆 Synthwave</option>
+                                    <option value="midnight">🌌 Midnight Blue</option>
+                                    <option value="light">☀️ Clean Light</option>
+                                </select>
+                                <i data-lucide="chevron-down" class="theme-select-arrow"></i>
                             </div>
                         </div>
 
