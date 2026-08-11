@@ -191,7 +191,8 @@ Writes an `audit_logs` entry (`action: "Deleted"`) before removing the row.
 {
   "inventory_id": "uuid (required)",
   "quantity": "number (required, > 0)",
-  "purpose": "string (required)"
+  "purpose": "string (required)",
+  "duration_days": "number (optional, default 5, must be 1–30)"
 }
 ```
 
@@ -199,10 +200,101 @@ Validates `quantity <= inventory.available_quantity`, inserts a `borrow_records`
 row (`status: "BORROWED"`), decrements `inventory.available_quantity`, and
 writes an `audit_logs` entry (`action: "Borrowed"`).
 
+`duration_days` is capped to the **1–30 day** rental window — values outside it
+are rejected with `400`. `due_date` is computed as `borrowed_at + duration_days`.
+
 **Response `201`**: the created borrow record.
 
-**Errors**: `400` missing fields, invalid quantity, or insufficient stock;
-`404` item not found.
+**Errors**: `400` missing fields, invalid quantity, out-of-range `duration_days`,
+or insufficient stock; `404` item not found.
+
+---
+
+### `GET /api/borrow/admins`
+**Auth required.**
+
+Lists the **admin directory** used for OTP approval. Each entry: `{ id, name, email }`
+(currently **KUSH**, Yasharth, Aryan, Dhruvi).
+
+**Response `200`**
+```json
+{
+  "status": "success",
+  "count": 4,
+  "data": [
+    { "id": "kush", "name": "KUSH", "email": "kushagragargdelhi@gmail.com" },
+    { "id": "yasharth", "name": "Yasharth", "email": "yasharth@cicr.edu" },
+    { "id": "aryan", "name": "Aryan", "email": "aryan@cicr.edu" },
+    { "id": "dhruvi", "name": "Dhruvi", "email": "dhruvi@cicr.edu" }
+  ]
+}
+```
+
+---
+
+### `POST /api/borrow/request-otp`
+**Auth required.**
+
+Step 1 of the **admin OTP approval** workflow. Generates a 6-digit OTP
+(**10-minute TTL**) and emails it to the selected admin.
+
+**Body**
+```json
+{
+  "item_id": "uuid (required)",
+  "quantity": "number (required, > 0)",
+  "purpose": "string (optional)",
+  "duration_days": "number (optional, default 5, must be 1–30)",
+  "selected_admin_id": "string (required — admin id from GET /api/borrow/admins)"
+}
+```
+
+Validates the item exists and has enough stock *before* any OTP is issued.
+
+**Response `200`**
+```json
+{
+  "status": "success",
+  "message": "OTP sent to admin KUSH (kushagragargdelhi@gmail.com). It expires in 10 minutes.",
+  "data": {
+    "expires_in_seconds": 600,
+    "item_id": "...",
+    "duration_days": 5,
+    "selected_admin": { "id": "kush", "name": "KUSH", "email": "kushagragargdelhi@gmail.com" }
+  }
+}
+```
+
+**Errors**: `400` missing fields / out-of-range `duration_days` / insufficient
+stock; `404` unknown admin or item; `502` OTP generated but email failed to send.
+
+---
+
+### `POST /api/borrow/verify-otp`
+**Auth required.**
+
+Step 2 of the **admin OTP approval** workflow. Verifies the OTP the student
+received from the admin, then completes the borrow (same insert/stock/audit
+path as `POST /api/borrow`).
+
+**Body**
+```json
+{ "otp": "string (required, 6 digits)" }
+```
+
+**Response `201`**
+```json
+{
+  "status": "success",
+  "message": "OTP verified. Borrow confirmed successfully!",
+  "data": {
+    "borrow": { "...": "created borrow record" },
+    "approved_by_admin_id": "kush"
+  }
+}
+```
+
+**Errors**: `400` missing/invalid/expired OTP, or OTP issued to a different user.
 
 ---
 
@@ -288,6 +380,9 @@ acting user (`name`, `email`) and referenced item (`name`).
 | PATCH  | `/api/items/:id`            | Admin       |
 | DELETE | `/api/items/:id`            | Admin       |
 | POST   | `/api/borrow`               | Token       |
+| GET    | `/api/borrow/admins`        | Token       |
+| POST   | `/api/borrow/request-otp`   | Token       |
+| POST   | `/api/borrow/verify-otp`    | Token       |
 | POST   | `/api/borrow/return`        | Token       |
 | GET    | `/api/borrow/history`       | Token       |
 | GET    | `/api/stats`                | None        |

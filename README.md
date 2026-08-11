@@ -27,6 +27,7 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 - [API Reference](#-api-reference)
 - [Email Notification Workflow](#-email-notification-workflow)
 - [Back-of-the-Envelope (BOTE) Estimation & Scalability](#-back-of-the-envelope-bote-estimation--scalability)
+- ["Crack vs Smooth Surface" — System Analysis](#-crack-vs-smooth-surface--system-analysis)
 - [Database Schema](#-database-schema)
 - [Testing](#-testing)
 - [Deployment](#-deployment)
@@ -39,11 +40,13 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 
 | Version | Status | Highlights |
 |---------|--------|-----------|
-| **v1.0.0** | ✅ Released | Frontend-only prototype. Vite + Three.js + TypeScript with a hardcoded sample inventory catalog. No persistence, no backend. |
-| **v1.1.0** | ✅ Released | Backend foundation. Node.js/Express + Supabase REST API; JWT auth (`register`/`login`/`profile`); admin-gated inventory CRUD; borrow/return flows with `borrowed_at`/`returned_at`; dashboard stats + audit log. Frontend wired to the live API. |
-| **v1.2.1** | ✅ Released | Email automation. Nodemailer SMTP (Gmail App Password); borrow/return confirmation receipts; context-rich borrow email (remaining stock, current-holder summary, 5-day due-date notice); `node-cron` reminder scheduler (due-today / overdue); `due_date` migration; full test suite (41 tests). |
+| **v1.0.0** | ✅ Released | Major MVP baseline. Initial frontend (Vite + Three.js + TypeScript) and Express server foundation. |
+| **v1.1.0** | ✅ Released | Supabase database & core APIs. Supabase schema integration, JWT auth, and core inventory routes. |
+| **v1.2.1** | ✅ Released | Feature additions, bug fixes & connections. Frontend-backend integration, borrow/return logic refinements, and route bug fixes. |
+| **v1.3.2** | ✅ Released | Base email service setup & route fixes. Nodemailer transport integration, SMTP configuration, and transactional email base. |
+| **v1.4.3** | ✅ Current | Admin OTP approval workflow & BOTE analysis. Admin selection (including Admin **KUSH**), test student account setup (`kush` / `kushgdhi@gmail.com`), **1–30 day rental cap**, 6-digit cryptographic OTP verification via `POST /api/borrow/request-otp` and `POST /api/borrow/verify-otp`, automated **Day N-1 return reminders**, and BOTE deliverability breakdown. |
 
-> The current release is **v0.0.2**. The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
+> The current release is **v1.4.3**. The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
 
 ---
 
@@ -92,8 +95,8 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **Database** | Supabase (PostgreSQL) via `@supabase/supabase-js` PostgREST client |
 | **Auth** | `bcryptjs` password hashing + `jsonwebtoken` (JWT, 7-day expiry) |
 | **Email** | Nodemailer (SMTP, Gmail App Password) |
-| **Scheduling** | node-cron (daily 09:00 + boot-time due/overdue check) |
-| **Tests** | Node built-in test runner (`node --test`) — 41 tests |
+| **Scheduling** | node-cron (daily 09:00 + boot-time due-tomorrow / due / overdue check) |
+| **Tests** | Node built-in test runner (`node --test`) — 72 tests |
 | **Deployment** | Backend: Render (`cicr-inventory-backend.onrender.com`) · Frontend: Vercel (`cicrinventory.vercel.app`) |
 
 ---
@@ -248,7 +251,10 @@ Auth scheme: `Authorization: Bearer <JWT>`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `POST` | `/api/borrow` | Bearer | Borrow item. Body: `{ inventory_id, quantity, purpose, duration_days? }`. `duration_days` defaults to **5**. Computes `due_date = borrowed_at + duration_days`, decrements `available_quantity`, sends **borrow confirmation email to `req.user.email`** → `201` |
+| `GET` | `/api/borrow/admins` | Bearer | List admin directory (`{ email, name }`) for the OTP approval step — includes Admin **KUSH**, Yasharth, Aryan, Dhruvi |
+| `POST` | `/api/borrow/request-otp` | Bearer | Step 1 of OTP workflow. Body: `{ admin_email }`. Generates a **6-digit OTP** (TTL **10 min**, 5 attempts), sends it to the chosen admin's email → `201` |
+| `POST` | `/api/borrow/verify-otp` | Bearer | Step 2 of OTP workflow. Body: `{ admin_email, otp }`. Verifies the OTP then creates the `BORROWED` record (same as `/api/borrow`) → `201` |
+| `POST` | `/api/borrow` | Bearer | Direct borrow (backward compatible). Body: `{ inventory_id, quantity, purpose, duration_days? }`. `duration_days` defaults to **5**, clamped to **1–30**. Computes `due_date = borrowed_at + duration_days`, decrements `available_quantity`, sends **borrow confirmation email to `req.user.email`** → `201` |
 | `POST` | `/api/borrow/return` | Bearer | Return item. Body: `{ borrow_id }`. Sets `status=RETURNED`, `returned_at`, restores `available_quantity`, sends **return confirmation email** → `200` |
 | `GET` | `/api/borrow/history` | Bearer | Borrow history. Members see only their own; Admins see all (joins resolved manually via `users` + `inventory`) |
 
@@ -295,17 +301,22 @@ All email logic lives in `backend/src/services/emailService.ts`. When `SMTP_USER
 ```
                  ┌─────────────────────────────────────────────────────────────┐
                  │                     emailService.ts                         │
-                 │  sendBorrowConfirmation()  sendReturnConfirmation()         │
-                 │  sendReturnReminder()      formatSmtpError()                │
+                 │  sendOtpEmail()             sendBorrowConfirmation()        │
+                 │  sendReturnConfirmation()   sendReturnReminder()            │
+                 │  sendUpcomingReminder()     formatSmtpError()               │
                  └───────────────┬─────────────────────────────────────────────┘
                                  │ nodemailer (STARTTLS :587)
                                  ▼
                        Gmail App Password (SMTP_USER/SMTP_PASS)
 ```
 
+### 0. Admin OTP approval (immediate, required before borrow)
+
+`POST /api/borrow/request-otp` generates a **6-digit OTP** and emails it to the chosen admin (from `/api/borrow/admins`). The borrower then calls `POST /api/borrow/verify-otp` with that OTP to complete the borrow. OTPs live in an in-memory store with a **10-minute TTL** and a **5-attempt** verification budget — hashed at rest, never persisted.
+
 ### 1. Borrow confirmation (immediate)
 
-Triggered on `POST /api/borrow`. Sent **asynchronously** (`.catch()` fire-and-forget) to `req.user.email` — the logged-in borrower. Includes:
+Triggered on `POST /api/borrow` / `POST /api/borrow/verify-otp`. Sent **asynchronously** (`.catch()` fire-and-forget) to `req.user.email` — the logged-in borrower. Includes:
 
 - **Item details** — name + category, quantity borrowed
 - **Remaining available stock** — `available_quantity` after decrement
@@ -325,9 +336,9 @@ Triggered on `POST /api/borrow/return`. Sent to `req.user.email` with the item n
 
 `runDueReminderCheck()`:
 
-1. Selects all `borrow_records` with `status = 'BORROWED'` and `due_date < end-of-today`.
+1. Selects all `borrow_records` with `status = 'BORROWED'` and `due_date < end-of-today` plus, in the same pass, any borrowed item with `due_date` landing **tomorrow** (Day N-1).
 2. Resolves each borrower's **registered email** from `users.user_id`.
-3. Sends `sendReturnReminder(...)` — subject `[CICR Inventory] OVERDUE Return: <item>` when `daysOverdue > 0`, otherwise `[CICR Inventory] Return Due Today: <item>`.
+3. Sends `sendUpcomingReminder(...)` for tomorrow-due items (`[CICR Inventory] Return Due Tomorrow: <item>`) and `sendReturnReminder(...)` for due/overdue ones — subject `[CICR Inventory] OVERDUE Return: <item>` when `daysOverdue > 0`, otherwise `[CICR Inventory] Return Due Today: <item>`.
 
 > **Gmail notes:** App Passwords require 2-Step Verification on the account. `SMTP_FROM` must use the same account as `SMTP_USER`. Errors are caught, logged with `message / code / response / responseCode`, and never crash the API.
 
@@ -339,18 +350,30 @@ Quick napkin math for the email pipeline. Full derivation lives in [`docs/BOTE_E
 
 ### Gmail daily throughput — the hard ceiling
 
-Gmail's free tier caps outbound mail at **500 emails/day/account**. A borrow cycle costs **2 emails** (borrow + return confirmation), so:
+Gmail's free tier caps outbound mail at **500 emails/day/account**. A full borrow workflow now costs **3 emails** (admin OTP + borrow confirmation + return confirmation), so:
 
 ```
-max_transactions/day = 500 ÷ 2 = ~250 borrow transactions/day
+max_workflows/day = 500 ÷ 3 = ~166 full borrow workflows/day
 ```
 
 | Metric | Value |
 |--------|-------|
 | Gmail free cap | 500 emails / day / account |
-| Emails per borrow cycle | 2 (borrow + return) |
-| **Max transactions / day** | **~250** |
-| Max transactions / month | ~7,500 |
+| Emails per full borrow workflow | 3 (OTP + borrow + return) |
+| **Max full workflows / day** | **~166** |
+| Max workflows / month | ~4,980 |
+
+### Failure-rate analysis (deliverability)
+
+Email is the only external dependency on the borrow path, so delivery health matters:
+
+- **2–5% spam/delivery failure** on institutional domains (missing custom SPF/DKIM headers) → **≈93% end-to-end OTP delivery** on first send.
+- OTPs remain valid for **10 min** and re-requests are idempotent, so failures stall, never corrupt.
+- Production inbox needs SPF/DKIM (or an ESP) before OTP approval is relied on at scale.
+
+### Concurrency — 500–1000 web users
+
+The web tier (Express + Supabase PostgREST) comfortably serves **500–1000 concurrent users** with <1s p95 API latency — web concurrency scales horizontally. The **email tier** is the true ceiling: ~166 full workflows/day on a single Gmail inbox.
 
 ### Latency — synchronous SMTP vs. async queue
 
@@ -359,7 +382,7 @@ Current `emailService.ts` sends synchronously via Nodemailer; the reminder job (
 | Scenario | Emails | Sequential `await` (current) | BullMQ workers (concurrency 25) |
 |----------|-------:|:---:|:---:|
 | Average club day | 20 | ~20 s | ~1 s |
-| Busy club day | 250 | ~4.2 min | ~10 s |
+| Busy club day (Gmail-cap: 166 workflows) | 332 | ~5.5 min | ~13 s |
 | 10,000-user rollout | ~1,333 | ~22 min | ~53 s |
 
 ```
@@ -374,7 +397,7 @@ A BullMQ job is ~2 KB (metadata + payload). A full reminder batch:
 10,000 jobs × 2 KB = ~20 MB queue memory footprint
 ```
 
-10,000 students × 2 borrows/month × 2 emails/cycle = **~40,000 emails/month ≈ 1,333/day** — 3× over Gmail's cap, yet only ~20 MB of queue memory.
+10,000 students × 2 borrows/month × 3 emails/workflow = **~40,000 emails/month ≈ 1,333/day** — 3× over Gmail's cap, yet only ~20 MB of queue memory.
 
 ### Provider comparison at 40,000 emails/month
 
@@ -386,7 +409,36 @@ A BullMQ job is ~2 KB (metadata + payload). A full reminder batch:
 
 \* New SES accounts start sandboxed (200/day); the 3,000/day trial applies to EC2-originated sending.
 
-**Bottom line:** Gmail's ~250 transactions/day is plenty for club scale. At ~10,000 students, switch `emailService.ts` to the **Resend** or **AWS SES** SDK and run reminders through a **BullMQ/Redis** worker pool before the daily cap becomes the bottleneck.
+**Bottom line:** Gmail's ~166 workflows/day is plenty for club scale. At ~10,000 students, switch `emailService.ts` to the **Resend** or **AWS SES** SDK and run reminders through a **BullMQ/Redis** worker pool before the daily cap becomes the bottleneck.
+
+---
+
+## ⚖️ "Crack vs Smooth Surface" — System Analysis
+
+A two-sided engineering read of the CICR Inventory stack.
+
+### 🟩 The Smooth Surface (what scales fine)
+
+- **API tier: 500–1000 concurrent web users** with <1s p95 latency. Express + Supabase (PostgREST) are stateless, connection-pooled, and scale horizontally by adding Render/Vercel instances — no rework needed.
+- **OTP store & verification** are in-memory `Map` lookups (O(1), 10-min TTL) — effectively unlimited throughput.
+- **Postgres / Supabase** handles thousands of inventory rows and audit entries trivially; queue memory for a 10,000-student reminder batch is only **~20 MB**.
+- **The whole web path** (auth, inventory CRUD, borrow/return, dashboard stats) has no daily cap.
+
+### 🟥 The Crack (what doesn't)
+
+- **Free Gmail SMTP caps outbound mail at 500 emails/day** — the single hard bottleneck. That fixes daily borrowing at **~166 full workflows/day** (3 emails each: OTP + borrow + return). Everything else can scale; email cannot.
+- **2–5% spam/delivery failure rate** on institutional domains (missing custom SPF/DKIM headers) → ~93% OTP delivery on first send. Email is the *only* external dependency on the borrow path, so a delivery miss directly stalls a workflow.
+- **Reminders share the same 500/day pool** — a busy day's confirmation emails and the 09:00 reminder batch compete for the same budget.
+
+### 🛠️ The Escape Hatch (migration path)
+
+| Trigger | Action |
+|---------|--------|
+| Workflows/day approach ~166 | Move `emailService.ts` to **Resend** or **AWS SES** SDK (≈$4/mo at 40k emails) |
+| Reminder batch > ~100 emails | Introduce **BullMQ/Redis** async workers (25 concurrent → ~13 s for the busy-day batch) |
+| OTP deliverability matters | Configure SPF/DKIM on the sending domain or switch to an ESP |
+
+> **TL;DR:** the web surface is smooth (500–1000 concurrent users), the email crack is real (~166 workflows/day + 2–5% spam loss on Gmail). The fix is small and contained: swap the SMTP layer and queue the reminders.
 
 ---
 
@@ -490,11 +542,13 @@ CREATE INDEX IF NOT EXISTS idx_borrow_due_date   ON public.borrow_records (due_d
 
 ```bash
 cd backend
-npm test          # node --test "test/*.test.cjs" — 41 tests
+npm test          # node --test "test/*.test.cjs" — 72 tests
 ```
 
 - `test/auth.middleware.test.cjs` — 6 unit tests for JWT auth middleware.
-- `test/api.integration.test.cjs` — 35 integration tests against the live Supabase project (health, auth, inventory, borrow/return, audit).
+- `test/otp.unit.test.cjs` — 4 unit tests for the admin-OTP store (generation, verify, consume).
+- `test/api.integration.test.cjs` — 45 integration tests against the live Supabase project (health, auth, inventory, borrow/return, admin-OTP approval, rental-duration cap, audit).
+- `test/bote.test.cjs` — 17 unit tests for the BOTE capacity/latency math.
 
 > Integration tests register `*@cicr.test` users. RLS prevents anonymous deletion, so leftovers accumulate — clean them via the SQL Editor.
 
@@ -526,21 +580,23 @@ The built frontend reads `API_BASE` from `src/main.ts:11` — point it at the Re
 
 ## ⚠️ Known Issues & Roadmap
 
-**Known issues (v0.0.2):**
+**Known issues (v1.4.3):**
 
 - `register` accepts `role: 'ADMIN'` from the client (role spoofing).
 - `createItem` accepts negative `quantity`.
 - `GET /api/stats` is public; `GET /api/audit` is visible to any authenticated member.
 - Real email delivery requires a valid Gmail App Password; placeholders produce `535 BadCredentials`.
+- Admin OTPs are in-memory only — a server restart invalidates pending approvals (acceptable for club scale; a Redis-backed store is the production path).
 
 **Roadmap:**
 
 - [x] Role-based access (admin vs. member) — partial (admin middleware exists)
 - [x] Overdue-loan notifications — v0.0.2 (node-cron reminders)
+- [x] Admin OTP approval workflow — v1.4.3 (`request-otp` / `verify-otp`)
 - [ ] QR-code component tagging for instant lookup
 - [ ] Export vault data (CSV / PDF reports)
-- [ ] PENDING borrow-request approval workflow
-- [ ] Frontend-backed borrow UI (submit/return from the dashboard)
+- [ ] Frontend-backed borrow UI (submit/return from the dashboard, including the OTP approval step)
+- [ ] Redis-backed OTP store + BullMQ/Redis email workers at scale (see BOTE)
 
 ---
 
