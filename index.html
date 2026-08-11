@@ -101,7 +101,6 @@
                 <img src="logo.png" class="logo-img" alt="CICR Logo">
                 <div class="logo-text-wrapper">
                     <span class="logo-title">CICR Inventory</span>
-                    <span class="logo-subtitle-nav"> ~ Creative & Innovative Cell in Robotics</span>
                 </div>
                 <span class="user-badge" id="nav-user-badge"><span class="online-indicator"></span> <span id="nav-username"></span></span>
             </div>
@@ -191,8 +190,6 @@
                 <img src="logo.png" class="sidebar-logo-img" alt="CICR Logo">
                 <div class="sidebar-brand-text">
                     <span class="brand-title">CICR Inventory</span>
-                    <span class="brand-subtitle">~ Creative & Innovative Cell in Robotics
-</span>
                 </div>
             </div>
 
@@ -234,21 +231,7 @@
                 </div>
             </div>
 
-            <!-- Theme Selector Widget -->
-            <div class="sidebar-theme-section">
-                <span class="theme-section-title">THEME SELECTOR</span>
-                <div class="theme-buttons-row">
-                    <button class="theme-btn active" id="theme-btn-dark" title="Dark Mode">
-                        <i data-lucide="moon"></i>
-                    </button>
-                    <button class="theme-btn" id="theme-btn-light" title="Light Mode">
-                        <i data-lucide="sun"></i>
-                    </button>
-                    <button class="theme-btn" id="theme-btn-pink" title="Girly Pop Mode">
-                        <i data-lucide="sparkles"></i>
-                    </button>
-                </div>
-            </div>
+
 
             <!-- Profile widget section at bottom -->
             <div class="sidebar-profile-box" id="sidebar-profile-widget">
@@ -290,6 +273,16 @@
                          <i data-lucide="search" class="search-icon"></i>
                          <input type="text" id="header-search-input" placeholder="Search...">
                          <span class="search-kbd">Ctrl K</span>
+                     </div>
+                     <div class="header-theme-box">
+                         <i data-lucide="palette" class="header-theme-icon"></i>
+                         <select id="header-theme-select" title="Switch Theme">
+                             <option value="cyberpunk">⚡ Cyber Neon</option>
+                             <option value="matrix">🟢 Matrix Green</option>
+                             <option value="synthwave">🌆 Synthwave</option>
+                             <option value="midnight">🌌 Midnight Blue</option>
+                             <option value="light">☀️ Clean Light</option>
+                         </select>
                      </div>
                  </div>
              </header>
@@ -359,43 +352,41 @@
 
                   <!-- Slide 3: Pinterest Search Explorer Layout (3-Column Staggered Grid) -->
                   <section class="explorer-layout-section reveal" id="inventory-view" style="display: none;">
-                      <div class="explorer-header-area">
-                          <span class="pill-badge-innovation">INVENTORY REGISTRY</span>
-                          <h2 class="explorer-heading-title">YOUR NEXT BIG IDEA STARTS HERE</h2>
-                          <p class="explorer-heading-subtitle">Search, request, and track high-fidelity electronics directly from the vault.</p>
-                      </div>
-                      
                       <div class="explorer-layout-container">
                           <!-- Column 1: Vertical Sidebar Navigation -->
                           <aside class="explorer-sidebar">
-                              <div class="sidebar-nav-title">VAULT INDEX</div>
-                              
-                              <div class="sidebar-items-group">
-                                  <div class="sidebar-item active" data-category="all">
-                                      <i data-lucide="layers"></i>
-                                      <span>All Assets</span>
+                              <details class="vault-dropdown">
+                                  <summary class="sidebar-nav-title">
+                                      <span>VAULT INDEX</span>
+                                      <i data-lucide="chevron-down"></i>
+                                  </summary>
+                                  <div class="sidebar-items-group">
+                                      <div class="sidebar-item active" data-category="all">
+                                          <i data-lucide="layers"></i>
+                                          <span>All Assets</span>
+                                      </div>
+                                      <div class="sidebar-item" data-category="microcontrollers">
+                                          <i data-lucide="cpu"></i>
+                                          <span>Micro</span>
+                                      </div>
+                                      <div class="sidebar-item" data-category="sensors">
+                                          <i data-lucide="radar"></i>
+                                          <span>Sensors</span>
+                                      </div>
+                                      <div class="sidebar-item" data-category="actuators">
+                                          <i data-lucide="compass"></i>
+                                          <span>Actuators</span>
+                                      </div>
+                                      <div class="sidebar-item" data-category="power">
+                                          <i data-lucide="battery-charging"></i>
+                                          <span>Power</span>
+                                      </div>
+                                      <div class="sidebar-item" data-category="tools">
+                                          <i data-lucide="wrench"></i>
+                                          <span>Tools</span>
+                                      </div>
                                   </div>
-                                  <div class="sidebar-item" data-category="microcontrollers">
-                                      <i data-lucide="cpu"></i>
-                                      <span>Micro</span>
-                                  </div>
-                                  <div class="sidebar-item" data-category="sensors">
-                                      <i data-lucide="radar"></i>
-                                      <span>Sensors</span>
-                                  </div>
-                                  <div class="sidebar-item" data-category="actuators">
-                                      <i data-lucide="compass"></i>
-                                      <span>Actuators</span>
-                                  </div>
-                                  <div class="sidebar-item" data-category="power">
-                                      <i data-lucide="battery-charging"></i>
-                                      <span>Power</span>
-                                  </div>
-                                  <div class="sidebar-item" data-category="tools">
-                                      <i data-lucide="wrench"></i>
-                                      <span>Tools</span>
-                                  </div>
-                              </div>
+                              </details>
 
                               <!-- Pulse status tag -->
                               <div class="sidebar-status">

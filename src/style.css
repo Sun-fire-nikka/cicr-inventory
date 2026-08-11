@@ -4129,7 +4129,53 @@ body.theme-pink .viewport-header::after {
 .header-right {
     display: flex;
     align-items: center;
+    gap: 12px;
     min-width: 0;
+}
+
+.header-theme-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--search-bg);
+    border: 1px solid var(--search-border);
+    border-radius: 14px;
+    padding: 6px 10px;
+    height: 36px;
+    box-sizing: border-box;
+    transition: background var(--transition-speed), border var(--transition-speed);
+    flex-shrink: 0;
+}
+
+.header-theme-box:hover {
+    border-color: var(--neon-cyan);
+}
+
+.header-theme-box .header-theme-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--neon-cyan);
+    flex-shrink: 0;
+}
+
+.header-theme-box select {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-main);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.header-theme-box select option {
+    background: #0d0e19;
+    color: #ffffff;
+}
+
+[data-theme="light"] .header-theme-box select option {
+    background: #ffffff;
+    color: #0f172a;
 }
 
 .header-search {
