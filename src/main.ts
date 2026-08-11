@@ -581,6 +581,7 @@ class DashboardManager {
             item.addEventListener('click', () => {
                 const cat = (item as HTMLElement).dataset.category || 'all';
                 selectCategory(cat);
+                switchSection('inventory-view');
             });
         });
 
@@ -1640,6 +1641,12 @@ class ThemeManager {
 
     public static applyTheme(theme: string) {
         document.documentElement.setAttribute('data-theme', theme);
+        document.body.classList.remove('theme-light', 'theme-pink');
+        if (theme === 'light') {
+            document.body.classList.add('theme-light');
+        } else if (theme === 'pink') {
+            document.body.classList.add('theme-pink');
+        }
         localStorage.setItem('cicr_vault_theme', theme);
 
         if (this.themeSelectEl && this.themeSelectEl.value !== theme) {

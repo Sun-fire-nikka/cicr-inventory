@@ -4779,6 +4779,299 @@ body.theme-light .dash-card.card-green:hover {
     box-shadow: 0 16px 30px rgba(15, 23, 42, 0.09);
 }
 
+/* Light Theme Visibility Fixes */
+body.theme-light,
+[data-theme="light"] {
+    --text-main: #0f172a;
+    --text-muted: #334155;
+    --text-dim: #64748b;
+    --white: #0f172a;
+}
+
+body.theme-light .vault-dropdown summary,
+[data-theme="light"] .vault-dropdown summary {
+    color: var(--text-main);
+}
+
+body.theme-light .vault-dropdown summary svg,
+[data-theme="light"] .vault-dropdown summary svg {
+    color: var(--text-muted);
+}
+
+body.theme-light .sidebar-item,
+[data-theme="light"] .sidebar-item {
+    color: #334155;
+}
+
+body.theme-light .sidebar-item i,
+body.theme-light .sidebar-item svg,
+[data-theme="light"] .sidebar-item i,
+[data-theme="light"] .sidebar-item svg {
+    color: #64748b;
+    opacity: 0.85;
+}
+
+body.theme-light .sidebar-item:hover,
+[data-theme="light"] .sidebar-item:hover {
+    color: #0f172a;
+    background: rgba(14, 165, 233, 0.08);
+    border-left-color: #0284c7;
+}
+
+body.theme-light .sidebar-item:hover i,
+body.theme-light .sidebar-item:hover svg,
+[data-theme="light"] .sidebar-item:hover i,
+[data-theme="light"] .sidebar-item:hover svg {
+    color: #0284c7;
+    opacity: 1;
+}
+
+body.theme-light .sidebar-item.active,
+[data-theme="light"] .sidebar-item.active {
+    color: #0284c7;
+    background: rgba(14, 165, 233, 0.12);
+    border-left-color: #0284c7;
+    box-shadow: inset 3px 0 8px rgba(14, 165, 233, 0.08);
+}
+
+body.theme-light .sidebar-item.active i,
+body.theme-light .sidebar-item.active svg,
+[data-theme="light"] .sidebar-item.active i,
+[data-theme="light"] .sidebar-item.active svg {
+    color: #0284c7;
+    opacity: 1;
+}
+
+/* Stat Bubbles in Light Theme */
+body.theme-light .stat-bubble-new,
+[data-theme="light"] .stat-bubble-new {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+body.theme-light .stat-bubble-new .bubble-label,
+[data-theme="light"] .stat-bubble-new .bubble-label {
+    color: #64748b;
+}
+
+body.theme-light .stat-bubble-new .bubble-value,
+[data-theme="light"] .stat-bubble-new .bubble-value {
+    color: #0f172a;
+}
+
+/* Tag Pills in Light Theme */
+body.theme-light .tag-pill,
+[data-theme="light"] .tag-pill {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    color: #334155;
+}
+
+body.theme-light .tag-pill:hover,
+[data-theme="light"] .tag-pill:hover {
+    background: rgba(14, 165, 233, 0.1);
+    color: #0f172a;
+    border-color: rgba(14, 165, 233, 0.3);
+}
+
+body.theme-light .tag-pill.active,
+[data-theme="light"] .tag-pill.active {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    border-color: #0284c7 !important;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+}
+
+/* Inventory Cards in Light Theme */
+body.theme-light .inventory-card,
+[data-theme="light"] .inventory-card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+body.theme-light .inventory-card:hover,
+[data-theme="light"] .inventory-card:hover {
+    border-color: rgba(14, 165, 233, 0.35);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.1);
+}
+
+body.theme-light .card-title,
+[data-theme="light"] .card-title {
+    color: #0f172a !important;
+}
+
+body.theme-light .card-desc,
+[data-theme="light"] .card-desc {
+    color: #475569 !important;
+}
+
+body.theme-light .card-category,
+body.theme-light .info-title,
+[data-theme="light"] .card-category,
+[data-theme="light"] .info-title {
+    color: #64748b !important;
+}
+
+body.theme-light .info-content,
+[data-theme="light"] .info-content {
+    color: #0f172a !important;
+}
+
+body.theme-light .info-content i,
+body.theme-light .info-content svg,
+[data-theme="light"] .info-content i,
+[data-theme="light"] .info-content svg {
+    color: #64748b !important;
+}
+
+body.theme-light .card-footer,
+[data-theme="light"] .card-footer {
+    border-top-color: rgba(148, 163, 184, 0.16);
+}
+
+/* Form inputs & selects in Light Theme */
+body.theme-light .form-group input,
+body.theme-light .form-group select,
+body.theme-light .form-group textarea,
+[data-theme="light"] .form-group input,
+[data-theme="light"] .form-group select,
+[data-theme="light"] .form-group textarea {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-color: rgba(148, 163, 184, 0.25) !important;
+    color: #0f172a !important;
+}
+
+body.theme-light .form-group input:focus,
+body.theme-light .form-group select:focus,
+body.theme-light .form-group textarea:focus,
+[data-theme="light"] .form-group input:focus,
+[data-theme="light"] .form-group select:focus,
+[data-theme="light"] .form-group textarea:focus {
+    background: #ffffff !important;
+    border-color: #0284c7 !important;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15) !important;
+}
+
+body.theme-light .form-group label,
+[data-theme="light"] .form-group label {
+    color: #334155 !important;
+}
+
+body.theme-light select option,
+[data-theme="light"] select option {
+    background: #ffffff !important;
+    color: #0f172a !important;
+}
+
+body.theme-light #search-input,
+body.theme-light #header-search-input,
+[data-theme="light"] #search-input,
+[data-theme="light"] #header-search-input {
+    color: #0f172a !important;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+body.theme-light #search-input::placeholder,
+body.theme-light #header-search-input::placeholder,
+[data-theme="light"] #search-input::placeholder,
+[data-theme="light"] #header-search-input::placeholder {
+    color: #64748b !important;
+}
+
+/* Modals in Light Theme */
+body.theme-light .modal-content,
+[data-theme="light"] .modal-content {
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-color: rgba(148, 163, 184, 0.25) !important;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18) !important;
+    color: #0f172a;
+}
+
+body.theme-light .modal-header h2,
+[data-theme="light"] .modal-header h2 {
+    color: #0f172a !important;
+}
+
+body.theme-light .modal-header p,
+[data-theme="light"] .modal-header p {
+    color: #475569 !important;
+}
+
+body.theme-light .info-item,
+body.theme-light .borrower-record,
+[data-theme="light"] .info-item,
+[data-theme="light"] .borrower-record {
+    background: rgba(241, 245, 249, 0.8);
+    border-color: rgba(148, 163, 184, 0.2);
+}
+
+body.theme-light .info-value,
+body.theme-light .borrower-name,
+[data-theme="light"] .info-value,
+[data-theme="light"] .borrower-name {
+    color: #0f172a !important;
+}
+
+body.theme-light .close-modal,
+[data-theme="light"] .close-modal {
+    background: rgba(15, 23, 42, 0.05);
+    border-color: rgba(148, 163, 184, 0.2);
+    color: #475569;
+}
+
+body.theme-light .close-modal:hover,
+[data-theme="light"] .close-modal:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Breadcrumbs & Header components in Light Theme */
+body.theme-light .breadcrumbs .breadcrumb-root,
+[data-theme="light"] .breadcrumbs .breadcrumb-root {
+    color: #64748b;
+}
+
+body.theme-light .breadcrumbs .breadcrumb-separator,
+[data-theme="light"] .breadcrumbs .breadcrumb-separator {
+    color: #94a3b8;
+}
+
+body.theme-light .breadcrumbs .breadcrumb-active,
+[data-theme="light"] .breadcrumbs .breadcrumb-active {
+    color: #0284c7;
+}
+
+body.theme-light .header-theme-box,
+[data-theme="light"] .header-theme-box {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(148, 163, 184, 0.22);
+    color: #0f172a;
+}
+
+body.theme-light .header-theme-box select,
+[data-theme="light"] .header-theme-box select {
+    color: #0f172a;
+}
+
+body.theme-light .header-theme-box select option,
+[data-theme="light"] .header-theme-box select option {
+    background: #ffffff;
+    color: #0f172a;
+}
+
+body.theme-light .no-results h3,
+[data-theme="light"] .no-results h3 {
+    color: #0f172a;
+}
+
+body.theme-light .no-results p,
+[data-theme="light"] .no-results p {
+    color: #475569;
+}
+
 body.theme-pink {
     --bg-primary: #160b13;
     --bg-glass: rgba(46, 15, 30, 0.7);
