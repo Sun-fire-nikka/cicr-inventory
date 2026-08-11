@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CICR | Inventory</title>
+    <title>CICR Inventory</title>
     <link rel="icon" type="image/png" href="logo.png" />
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,7 +21,7 @@
         <div class="auth-card glass">
             <div class="auth-header">
                 <img src="logo.png" class="auth-logo" alt="CICR Logo">
-                <h2>CICR INVENTORY</h2>
+                <h2>CICR Inventory</h2>
                 <p id="auth-subtitle"> ~ Creative & Innovative Cell in Robotics</p>
             </div>
             
@@ -100,7 +100,7 @@
             <div class="logo-area" style="cursor: pointer;" id="nav-brand-logo">
                 <img src="logo.png" class="logo-img" alt="CICR Logo">
                 <div class="logo-text-wrapper">
-                    <span class="logo-title">CICR INVENTORY</span>
+                    <span class="logo-title">CICR Inventory</span>
                     <span class="logo-subtitle-nav"> ~ Creative & Innovative Cell in Robotics</span>
                 </div>
                 <span class="user-badge" id="nav-user-badge"><span class="online-indicator"></span> <span id="nav-username"></span></span>
@@ -175,200 +175,292 @@
 
     <!-- App Container (Hidden by default, shown when logged in) -->
     <div class="app-container" id="app-container" style="display: none;">
-        
+        <!-- Left Sidebar Navigation -->
+        <aside class="app-sidebar" id="app-sidebar">
+            <div class="sidebar-header">
+                <img src="logo.png" class="sidebar-logo-img" alt="CICR Logo">
+                <div class="sidebar-brand-text">
+                    <span class="brand-title">CICR Inventory</span>
+                    <span class="brand-subtitle">~ Creative & Innovative Cell in Robotics
+</span>
+                </div>
+            </div>
 
+            <!-- Notifications Button -->
+            <button class="sidebar-action-btn" id="sidebar-notifications-btn">
+                <div class="btn-left-content">
+                    <i data-lucide="bell" class="btn-icon"></i>
+                    <span class="btn-text">NOTIFICATIONS</span>
+                </div>
+                <span class="badge" id="sidebar-notif-badge">5</span>
+            </button>
 
-        <!-- Main Content Grid -->
-        <main class="main-content">
-            <!-- Dashboard view (Slide 1 Hero style welcome) -->
-            <section class="hero-section pinterest-hero" id="dashboard-view">
-                <div class="dashboard-hero-row">
-                    <!-- Left Side: Huge Brand Letters & Orbiting Rings -->
-                    <div class="hero-brand-area">
-                        <!-- Futuristic Orbiting Cyber Rings behind text -->
-                        <div class="orbiting-rings-wrapper">
-                            <div class="orbit-ring ring-1"></div>
-                            <div class="orbit-ring ring-2"></div>
-                            <div class="orbit-ring ring-3"></div>
-                            <div class="orbit-core-glow"></div>
-                        </div>
-                        
-                        <div class="huge-brand-text">
-                            <span class="char-solid">C</span>
-                            <span class="char-outline">I</span>
-                            <span class="char-solid">C</span>
-                            <span class="char-outline">R</span>
-                        </div>
-                        
-                        <!-- Left Corner Micro Labels -->
-                        <div class="micro-labels-left">
-                            <span class="label-item">Instant Component Access</span>
-                            <span class="label-item">Robotics Vault System</span>
-                        </div>
-                    </div>
-
-                    <!-- Right Side: Content & Actions -->
-                    <div class="hero-content-area">
-                        <div class="hero-toggle-wrapper">
-                            <span class="toggle-pill active" id="hero-btn-explore" style="cursor: pointer;">VAULT</span>
-                            <span class="toggle-pill" id="hero-btn-about" style="cursor: pointer;">EXPLORE</span>
-                        </div>
-                        
-                        <h1 class="hero-heading-new">
-                            INSTANTLY MANAGE<br>
-                            ROBOTICS INVENTORY<br>
-                            <span class="text-gradient-new">WITH CICR VAULT.</span>
-                        </h1>
-                        
-                        <p class="hero-subtitle-new">
-                            Your lab's entire hardware stock, live and searchable. Reserve what you need, return what you're done with.
-                        </p>
-                        
-                        <div class="hero-actions-new">
-                            <button class="btn-vault-start" id="hero-btn-start">
-                                GET STARTED WITH VAULT <i data-lucide="arrow-right"></i>
-                            </button>
-                        </div>
+            <!-- Command Palette Button -->
+            <button class="sidebar-action-btn" id="sidebar-command-btn">
+                <div class="btn-left-content">
+                    <i data-lucide="search" class="btn-icon"></i>
+                    <div class="btn-text-stack">
+                        <span class="btn-text-main">COMMAND PALETTE</span>
                     </div>
                 </div>
+                <span class="shortcut-tag">Ctrl K</span>
+            </button>
 
-                <!-- Dashboard Premium Cyberpunk Footer -->
-                <footer class="dashboard-footer">
-                    <div class="footer-left">
-                        <span class="cyber-accent">© 2026 CICR VAULT</span>
-                        <span class="divider-slash">//</span>
-                        <span class="dim-text">AUTOMATED SYSTEM V2.8</span>
-                    </div>
-                    <div class="footer-center">
-                        <span class="pulse-indicator"></span>
-                        <span class="status-pulse-text">SIGNAL STABLE // LATENCY 14MS // NODES ACTIVE</span>
-                    </div>
-                    <div class="footer-right">
-                        <a href="#about" class="footer-link" id="footer-link-about">VAULT CODE</a>
-                        <span class="divider-slash">|</span>
-                        <a href="#docs" class="footer-link" id="footer-link-docs">JIIT CELL</a>
-                    </div>
-                </footer>
-            </section>
-
-            <!-- Slide 3: Pinterest Search Explorer Layout (3-Column Staggered Grid) -->
-            <section class="explorer-layout-section reveal" id="inventory-view">
-                <div class="explorer-header-area">
-                    <span class="pill-badge-innovation">INVENTORY REGISTRY</span>
-                    <h2 class="explorer-heading-title">YOUR NEXT BIG IDEA STARTS HERE</h2>
-                    <p class="explorer-heading-subtitle">Search, request, and track high-fidelity electronics directly from the vault.</p>
+            <!-- Navigation Links Section -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-header">
+                    <span>CORE WORKSPACE</span>
+                    <i data-lucide="chevron-down" class="section-arrow"></i>
                 </div>
-                
-                <div class="explorer-layout-container">
-                    <!-- Column 1: Vertical Sidebar Navigation -->
-                    <aside class="explorer-sidebar">
-                        <div class="sidebar-nav-title">VAULT INDEX</div>
-                        
-                        <div class="sidebar-items-group">
-                            <div class="sidebar-item active" data-category="all">
-                                <i data-lucide="layers"></i>
-                                <span>All Assets</span>
-                            </div>
-                            <div class="sidebar-item" data-category="microcontrollers">
-                                <i data-lucide="cpu"></i>
-                                <span>Micro</span>
-                            </div>
-                            <div class="sidebar-item" data-category="sensors">
-                                <i data-lucide="radar"></i>
-                                <span>Sensors</span>
-                            </div>
-                            <div class="sidebar-item" data-category="actuators">
-                                <i data-lucide="compass"></i>
-                                <span>Actuators</span>
-                            </div>
-                            <div class="sidebar-item" data-category="power">
-                                <i data-lucide="battery-charging"></i>
-                                <span>Power</span>
-                            </div>
-                            <div class="sidebar-item" data-category="tools">
-                                <i data-lucide="wrench"></i>
-                                <span>Tools</span>
-                            </div>
-                        </div>
-
-                        <!-- Pulse status tag -->
-                        <div class="sidebar-status">
-                            <span class="status-indicator-dot pulsing"></span>
-                            <span class="status-text">VAULT SECURE</span>
-                        </div>
-                    </aside>
-                    
-                    <!-- Column 2 & 3: Main Explorer Center -->
-                    <div class="explorer-main-area">
-                        <!-- Top Search Bar & Stats integration -->
-                        <div class="explorer-search-row">
-                            <div class="search-box-new">
-                                <i data-lucide="search" class="search-icon"></i>
-                                <input type="text" id="search-input" placeholder="Search components, modules, tools...">
-                                <button class="clear-search" id="clear-search" style="display: none;">
-                                    <i data-lucide="x"></i>
-                                </button>
-                            </div>
-                            
-                            <!-- Category tags in line (horizontal tags selector) -->
-                            <div class="horizontal-tags-selector">
-                                <span class="tag-pill active" data-category="all">All</span>
-                                <span class="tag-pill" data-category="microcontrollers">MCU</span>
-                                <span class="tag-pill" data-category="sensors">Sensors</span>
-                                <span class="tag-pill" data-category="actuators">Actuators</span>
-                                <span class="tag-pill" data-category="power">Power</span>
-                                <span class="tag-pill" data-category="tools">Tools</span>
-                            </div>
-                        </div>
-
-                        <!-- Quick Stats Panel inside Explorer Layout -->
-                        <div class="explorer-stats-row">
-                            <div class="stat-bubble-new">
-                                <span class="bubble-label">Total Vaulted</span>
-                                <span class="bubble-value" id="stat-total">0</span>
-                            </div>
-                            <div class="stat-bubble-new">
-                                <span class="bubble-label">Active Loans</span>
-                                <span class="bubble-value text-purple" id="stat-borrowed">0</span>
-                            </div>
-                            <div class="stat-bubble-new">
-                                <span class="bubble-label">Low Reserves</span>
-                                <span class="bubble-value text-yellow" id="stat-low">0</span>
-                            </div>
-                            <div class="stat-bubble-new">
-                                <span class="bubble-label">Active Groups</span>
-                                <span class="bubble-value text-pink" id="stat-categories">0</span>
-                            </div>
-                        </div>
-
-                        <!-- Dynamic Items Grid -->
-                        <div class="explorer-grid-container">
-                            <div class="section-title-bar">
-                                <h2>Vault Catalog</h2>
-                                <span class="items-count-badge" id="results-count">Showing 0 items</span>
-                            </div>
-                            
-                            <!-- No Results State -->
-                            <div class="no-results glass" id="no-results" style="display: none;">
-                                <i data-lucide="package-search"></i>
-                                <h3>No items found</h3>
-                                <p>Try adjusting your search keywords or sidebar filters.</p>
-                            </div>
-
-                            <div class="inventory-grid" id="inventory-grid">
-                                <!-- Cards will be dynamically injected by JavaScript -->
-                            </div>
-                        </div>
-                    </div>
+                <div class="sidebar-nav-links">
+                    <a href="#" class="sidebar-nav-link active" id="side-nav-dashboard" data-target="dashboard-view">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" class="sidebar-nav-link" id="side-nav-inventory" data-target="inventory-view">
+                        <i data-lucide="layers"></i>
+                        <span>Inventory</span>
+                    </a>
                 </div>
-            </section>
-        </main>
+            </div>
 
-        <!-- Footer -->
-        <footer class="app-footer">
-            <p>&copy; 2026 Creative & Innovative Cell in Robotics (CICR)</p>
-        </footer>
-    </div>
+            <!-- Theme Selector Widget -->
+            <div class="sidebar-theme-section">
+                <span class="theme-section-title">THEME SELECTOR</span>
+                <div class="theme-buttons-row">
+                    <button class="theme-btn active" id="theme-btn-dark" title="Dark Mode">
+                        <i data-lucide="moon"></i>
+                    </button>
+                    <button class="theme-btn" id="theme-btn-light" title="Light Mode">
+                        <i data-lucide="sun"></i>
+                    </button>
+                    <button class="theme-btn" id="theme-btn-pink" title="Girly Pop Mode">
+                        <i data-lucide="sparkles"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Profile widget section at bottom -->
+            <div class="sidebar-profile-box" id="sidebar-profile-widget">
+                <div class="profile-avatar" id="profile-avatar-initial">S</div>
+                <div class="profile-info">
+                    <span class="profile-name" id="profile-username-display">SRVKILLER09</span>
+                    <span class="profile-role">ADMIN</span>
+                </div>
+                <button class="profile-logout-btn" id="sidebar-logout-btn" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </aside>
+
+        <div class="mobile-sidebar-backdrop" id="mobile-sidebar-backdrop"></div>
+
+        <!-- Right Main Viewport wrapper -->
+        <div class="main-viewport-wrapper">
+             <!-- Viewport Header Bar -->
+             <header class="viewport-header">
+                 <div class="header-left">
+                     <button class="mobile-sidebar-toggle" id="mobile-sidebar-toggle" aria-label="Open navigation" aria-expanded="false">
+                         <i data-lucide="menu"></i>
+                         <span>Menu</span>
+                     </button>
+                     <div class="status-toast">
+                         <i data-lucide="check-circle-2" class="toast-check-icon"></i>
+                         <span>Profile essentials complete.</span>
+                     </div>
+                     <div class="breadcrumbs">
+                         <span class="breadcrumb-root">HOME</span>
+                         <span class="breadcrumb-separator">/</span>
+                         <span class="breadcrumb-active" id="breadcrumb-current">DASHBOARD</span>
+                     </div>
+                 </div>
+                 
+                 <div class="header-right">
+                     <div class="header-search">
+                         <i data-lucide="search" class="search-icon"></i>
+                         <input type="text" id="header-search-input" placeholder="Search...">
+                         <span class="search-kbd">Ctrl K</span>
+                     </div>
+                 </div>
+             </header>
+
+             <!-- Main Content Area -->
+             <main class="main-content" id="app-main-content">
+                  <!-- sections: dashboard-view, inventory-view, projects-view, meetings-view, events-view -->
+                  <!-- Dashboard View -->
+                  <section class="dashboard-section active" id="dashboard-view">
+                      <!-- Greeting card -->
+                      <div class="dashboard-greeting-card glass">
+                          <div class="card-greetings-left">
+                              <span class="dashboard-subtitle-accent">ADMIN DASHBOARD</span>
+                              <h1 class="dashboard-greeting-title" id="dashboard-greeting">Good evening, Operator</h1>
+                              <p class="dashboard-greeting-desc">Here's what's happening across CICR Inventory right now.</p>
+                              
+                               <div class="dashboard-action-pills">
+                                   <button class="action-pill-btn" id="dashboard-pill-catalog"><i data-lucide="layers"></i> Catalog</button>
+                                   <button class="action-pill-btn" id="dashboard-pill-logs"><i data-lucide="clipboard-list"></i> Active Logs</button>
+                                   <button class="action-pill-btn" id="dashboard-pill-orders"><i data-lucide="truck"></i> Logistics</button>
+                                   <button class="action-pill-btn" id="dashboard-pill-diagnostics"><i data-lucide="shield-alert"></i> Diagnostics</button>
+                               </div>
+                           </div>
+ 
+                           <div class="card-clock-right">
+                               <div class="clock-time" id="dashboard-clock">09:28:35 pm</div>
+                               <div class="clock-date" id="dashboard-date">Tuesday, 17 March 2026</div>
+                           </div>
+                       </div>
+ 
+                       <!-- Dashboard grid cards -->
+                       <div class="dashboard-grid">
+                           <div class="dash-card card-blue" id="dash-card-vault">
+                               <div class="dash-card-header">
+                                   <div class="dash-card-icon-wrapper">
+                                       <i data-lucide="layers"></i>
+                                   </div>
+                                   <span class="dash-card-tag">CATALOG</span>
+                               </div>
+                               <div class="dash-card-body">
+                                   <h3 class="dash-card-title">Component Vault</h3>
+                                   <p class="dash-card-desc">Browse and search the repository of microcontrollers, sensors, actuators, and hardware components.</p>
+                               </div>
+                               <div class="dash-card-footer">
+                                   <i data-lucide="arrow-right"></i>
+                               </div>
+                           </div>
+ 
+                           <div class="dash-card card-purple" id="dash-card-logs">
+                               <div class="dash-card-header">
+                                   <div class="dash-card-icon-wrapper">
+                                       <i data-lucide="clipboard-list"></i>
+                                   </div>
+                                   <span class="dash-card-tag">CHECKOUTS</span>
+                               </div>
+                               <div class="dash-card-body">
+                                   <h3 class="dash-card-title">Active Logs</h3>
+                                   <p class="dash-card-desc">Track active checkouts, log due return dates, and review student usage permissions.</p>
+                               </div>
+                               <div class="dash-card-footer">
+                                   <i data-lucide="arrow-right"></i>
+                               </div>
+                           </div>
+ 
+                      </div>
+                  </section>
+
+                  <!-- Slide 3: Pinterest Search Explorer Layout (3-Column Staggered Grid) -->
+                  <section class="explorer-layout-section reveal" id="inventory-view" style="display: none;">
+                      <div class="explorer-header-area">
+                          <span class="pill-badge-innovation">INVENTORY REGISTRY</span>
+                          <h2 class="explorer-heading-title">YOUR NEXT BIG IDEA STARTS HERE</h2>
+                          <p class="explorer-heading-subtitle">Search, request, and track high-fidelity electronics directly from the vault.</p>
+                      </div>
+                      
+                      <div class="explorer-layout-container">
+                          <!-- Column 1: Vertical Sidebar Navigation -->
+                          <aside class="explorer-sidebar">
+                              <div class="sidebar-nav-title">VAULT INDEX</div>
+                              
+                              <div class="sidebar-items-group">
+                                  <div class="sidebar-item active" data-category="all">
+                                      <i data-lucide="layers"></i>
+                                      <span>All Assets</span>
+                                  </div>
+                                  <div class="sidebar-item" data-category="microcontrollers">
+                                      <i data-lucide="cpu"></i>
+                                      <span>Micro</span>
+                                  </div>
+                                  <div class="sidebar-item" data-category="sensors">
+                                      <i data-lucide="radar"></i>
+                                      <span>Sensors</span>
+                                  </div>
+                                  <div class="sidebar-item" data-category="actuators">
+                                      <i data-lucide="compass"></i>
+                                      <span>Actuators</span>
+                                  </div>
+                                  <div class="sidebar-item" data-category="power">
+                                      <i data-lucide="battery-charging"></i>
+                                      <span>Power</span>
+                                  </div>
+                                  <div class="sidebar-item" data-category="tools">
+                                      <i data-lucide="wrench"></i>
+                                      <span>Tools</span>
+                                  </div>
+                              </div>
+
+                              <!-- Pulse status tag -->
+                              <div class="sidebar-status">
+                                  <span class="status-indicator-dot pulsing"></span>
+                                  <span class="status-text">VAULT SECURE</span>
+                              </div>
+                          </aside>
+                          
+                          <!-- Column 2 & 3: Main Explorer Center -->
+                          <div class="explorer-main-area">
+                              <!-- Top Search Bar & Stats integration -->
+                              <div class="explorer-search-row">
+                                  <div class="search-box-new">
+                                      <i data-lucide="search" class="search-icon"></i>
+                                      <input type="text" id="search-input" placeholder="Search components, modules, tools...">
+                                      <button class="clear-search" id="clear-search" style="display: none;">
+                                          <i data-lucide="x"></i>
+                                      </button>
+                                  </div>
+                                  
+                                  <!-- Category tags in line (horizontal tags selector) -->
+                                  <div class="horizontal-tags-selector">
+                                      <span class="tag-pill active" data-category="all">All</span>
+                                      <span class="tag-pill" data-category="microcontrollers">MCU</span>
+                                      <span class="tag-pill" data-category="sensors">Sensors</span>
+                                      <span class="tag-pill" data-category="actuators">Actuators</span>
+                                      <span class="tag-pill" data-category="power">Power</span>
+                                      <span class="tag-pill" data-category="tools">Tools</span>
+                                  </div>
+                              </div>
+
+                              <!-- Quick Stats Panel inside Explorer Layout -->
+                              <div class="explorer-stats-row">
+                                  <div class="stat-bubble-new">
+                                      <span class="bubble-label">Total Vaulted</span>
+                                      <span class="bubble-value" id="stat-total">0</span>
+                                  </div>
+                                  <div class="stat-bubble-new">
+                                      <span class="bubble-label">Active Loans</span>
+                                      <span class="bubble-value text-purple" id="stat-borrowed">0</span>
+                                  </div>
+                                  <div class="stat-bubble-new">
+                                      <span class="bubble-label">Low Reserves</span>
+                                      <span class="bubble-value text-yellow" id="stat-low">0</span>
+                                  </div>
+                                  <div class="stat-bubble-new">
+                                      <span class="bubble-label">Active Groups</span>
+                                      <span class="bubble-value text-pink" id="stat-categories">0</span>
+                                  </div>
+                              </div>
+
+                              <!-- Dynamic Items Grid -->
+                              <div class="explorer-grid-container">
+                                  <div class="section-title-bar">
+                                      <h2>Vault Catalog</h2>
+                                      <span class="items-count-badge" id="results-count">Showing 0 items</span>
+                                  </div>
+                                  
+                                  <!-- No Results State -->
+                                  <div class="no-results glass" id="no-results" style="display: none;">
+                                      <i data-lucide="package-search"></i>
+                                      <h3>No items found</h3>
+                                      <p>Try adjusting your search keywords or sidebar filters.</p>
+                                  </div>
+
+                                  <div class="inventory-grid" id="inventory-grid">
+                                      <!-- Cards will be dynamically injected by JavaScript -->
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </section>
+
+             </main>
+           </div>
 
     <!-- Modals Section -->
     
