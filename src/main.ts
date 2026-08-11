@@ -1959,7 +1959,6 @@ class ThemeManager {
     public static init() {
         this.sakuraAnim = new SakuraAnimation();
         this.avengersAnim = new AvengersAnimation();
-        this.setupHeroRoster();
 
         this.themeSelectEl = document.getElementById('theme-select') as HTMLSelectElement;
         this.navThemeSelectEl = document.getElementById('nav-theme-select') as HTMLSelectElement;
@@ -1991,32 +1990,6 @@ class ThemeManager {
                 this.applyTheme(target.value);
             });
         }
-    }
-
-    private static setupHeroRoster() {
-        const heroQuotes: Record<string, string> = {
-            ironman: '"I am Iron Man." — Mark 85 Arc Reactor Tech Online',
-            cap: '"I can do this all day." — Vibranium Shield Defense Active',
-            thor: '"Bring me Thanos!" — Asgardian Stormbreaker Lightning Online',
-            hulk: '"Hulk... SMASH!" — Gamma Energy Reserves 100%',
-            panther: '"Wakanda Forever!" — Vibranium Kinetic Grid Active',
-            spidey: '"With great power comes great responsibility." — Stark Web Tech Active'
-        };
-
-        const heroBtns = document.querySelectorAll('.hero-pill-btn');
-        const quoteText = document.getElementById('hero-quote-text');
-
-        heroBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const hero = (btn as HTMLElement).dataset.hero || 'ironman';
-                heroBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-
-                if (heroQuotes[hero] && quoteText) {
-                    quoteText.innerText = heroQuotes[hero];
-                }
-            });
-        });
     }
 
     public static applyTheme(theme: string) {
@@ -2054,11 +2027,6 @@ class ThemeManager {
         } else {
             this.sakuraAnim?.stop();
             this.avengersAnim?.stop();
-        }
-
-        const avengersRosterBox = document.getElementById('avengers-roster-box');
-        if (avengersRosterBox) {
-            avengersRosterBox.style.display = (theme === 'avengers') ? 'block' : 'none';
         }
     }
 }
