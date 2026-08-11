@@ -1923,10 +1923,10 @@ class AvengersAnimation {
             this.ctx.fill();
         }
 
-        // 3. CAPTAIN AMERICA SHIELD WITH INTENSE VIBRANIUM RED GLOW & METALLIC GRADIENTS
+        // 3. CAPTAIN AMERICA SHIELD WITH BOLD BLACK CIRCLE BOUNDARIES & GLOW
         // Outer Red Glowing Vibranium Ring
         this.ctx.shadowColor = '#ff0033';
-        this.ctx.shadowBlur = 35;
+        this.ctx.shadowBlur = 30;
 
         const redGrad1 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.74, cx, cy, baseRadius);
         redGrad1.addColorStop(0, '#ef4444');
@@ -1937,12 +1937,12 @@ class AvengersAnimation {
         this.ctx.fillStyle = redGrad1;
         this.ctx.fill();
 
-        // Outer Metallic Bevel Highlight
+        // Outer Black Circle Boundary
         this.ctx.shadowBlur = 0;
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(2, baseRadius * 0.025);
-        this.ctx.strokeStyle = 'rgba(255, 120, 150, 0.8)';
+        this.ctx.lineWidth = Math.max(3.5, baseRadius * 0.025);
+        this.ctx.strokeStyle = '#000000';
         this.ctx.stroke();
 
         // Middle Silver White Ring
@@ -1955,15 +1955,16 @@ class AvengersAnimation {
         this.ctx.fillStyle = silverGrad;
         this.ctx.fill();
 
+        // Middle Silver Black Circle Boundary
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
-        this.ctx.lineWidth = 1.5;
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.018);
+        this.ctx.strokeStyle = '#000000';
         this.ctx.stroke();
 
         // Inner Red Ring with Glow
         this.ctx.shadowColor = '#ff0033';
-        this.ctx.shadowBlur = 25;
+        this.ctx.shadowBlur = 20;
 
         const redGrad2 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.28, cx, cy, baseRadius * 0.48);
         redGrad2.addColorStop(0, '#ff1e43');
@@ -1974,9 +1975,17 @@ class AvengersAnimation {
         this.ctx.fillStyle = redGrad2;
         this.ctx.fill();
 
+        // Inner Red Black Circle Boundary
+        this.ctx.shadowBlur = 0;
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.48, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.018);
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.stroke();
+
         // Center Cobalt Blue Disk
         this.ctx.shadowColor = '#3b82f6';
-        this.ctx.shadowBlur = 20;
+        this.ctx.shadowBlur = 18;
 
         const blueGrad = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, baseRadius * 0.28);
         blueGrad.addColorStop(0, '#3b82f6');
@@ -1986,6 +1995,14 @@ class AvengersAnimation {
         this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
         this.ctx.fillStyle = blueGrad;
         this.ctx.fill();
+
+        // Center Blue Black Circle Boundary
+        this.ctx.shadowBlur = 0;
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.018);
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.stroke();
 
         // Center Luminous White 5-Point Star
         this.ctx.shadowColor = '#ffffff';
