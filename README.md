@@ -46,9 +46,10 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v1.2.1** | ✅ Released | Feature additions, bug fixes & connections. Frontend-backend integration, borrow/return logic refinements, and route bug fixes. |
 | **v1.3.2** | ✅ Released | Base email service setup & route fixes. Nodemailer transport integration, SMTP configuration, and transactional email base. |
 | **v1.4.3** | ⚠️ Pre-release | Admin OTP approval workflow & BOTE analysis. Admin selection (currently Admin **KUSH**), test student accounts (`kush` / `kushgdhi@gmail.com` + four `@jiit.ac.in` students), **1–30 day rental cap**, 6-digit cryptographic OTP verification via `POST /api/borrow/request-otp` and `POST /api/borrow/verify-otp`, automated **Day N-1 return reminders**, and BOTE deliverability + third-party rate-limit analysis. |
-| **v1.4.4** | ⚠️ Pre-release (current) | Email deliverability patch. Custom `Message-ID` generation, X-Header + priority headers (OTP = high), **plain-text fallback on every HTML template**, full SMTP `response`/`accepted`/`rejected` logging, and a `test/test-email.cjs` diagnostic probe for the **Institutional Email Sinkhole** issue (see below). |
+| **v1.4.4** | ✅ Released | Email deliverability patch. Custom `Message-ID` generation, X-Header + priority headers (OTP = high), **plain-text fallback on every HTML template**, full SMTP `response`/`accepted`/`rejected` logging, and a `test/test-email.cjs` diagnostic probe for the **Institutional Email Sinkhole** issue (see below). |
+| **v1.4.5** | ⚠️ Pre-release (current) | Full frontend–backend integration & release docs. Frontend `API_BASE` now points **directly at the backend on port 5000** (`http://localhost:5000/api`) so `/api/borrow/request-otp`, `/api/borrow/verify-otp`, and `/api/items` hit the local API in one click. Confirmation email dispatch on OTP verification verified end-to-end, and the complete connected borrow flow is documented below. |
 
-> The current release is **v1.4.4 — Pre-release (not production-ready)**. It is a functional demo build: real emails/OTPs work, but it sits on the **Gmail free SMTP + Supabase free tier** with hard daily/burst ceilings (see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits)). The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
+> The current release is **v1.4.5 — Pre-release (not production-ready)**. It is a functional demo build: real emails/OTPs work, and the frontend now talks to the backend directly on port 5000, but it sits on the **Gmail free SMTP + Supabase free tier** with hard daily/burst ceilings (see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits)). The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
 
 ---
 
@@ -197,7 +198,7 @@ cd CICR_Inventory
 npm run dev          # Vite dev server → http://localhost:5173
 ```
 
-> **Frontend API target:** the frontend reads a single `API_BASE` constant in `src/main.ts:11`. It defaults to the deployed Render backend (`https://cicr-inventory-backend.onrender.com/api`). To run against your local backend, change it to `http://localhost:5000/api`.
+> **Frontend API target:** the frontend reads a single `API_BASE` constant in `src/main.ts:11`. As of **v1.4.5** it points **directly at the backend on port 5000** (`http://localhost:5000/api`) — so `POST /api/borrow/request-otp`, `POST /api/borrow/verify-otp`, and `GET /api/items` all hit the local Express server. For a deployed build, change it back to `https://cicr-inventory-backend.onrender.com/api`.
 
 ### Test accounts (seeded)
 
@@ -267,8 +268,8 @@ Auth scheme: `Authorization: Bearer <JWT>`
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | `GET` | `/api/borrow/admins` | Bearer | List admin directory (`{ email, name }`) for the OTP approval step — currently Admin **KUSH** (`kushagragargdelhi@gmail.com`) |
-| `POST` | `/api/borrow/request-otp` | Bearer | Step 1 of OTP workflow. Body: `{ admin_email }`. Generates a **6-digit OTP** (TTL **10 min**, 5 attempts), sends it to the chosen admin's email → `201` |
-| `POST` | `/api/borrow/verify-otp` | Bearer | Step 2 of OTP workflow. Body: `{ admin_email, otp }`. Verifies the OTP then creates the `BORROWED` record (same as `/api/borrow`) → `201` |
+| `POST` | `/api/borrow/request-otp` | Bearer | Step 1 of OTP workflow. Body: `{ item_id, quantity, purpose, duration_days?, selected_admin_id }`. Generates a **6-digit OTP** (TTL **10 min**, 5 attempts), sends it to the chosen admin's email → `200` |
+| `POST` | `/api/borrow/verify-otp` | Bearer | Step 2 of OTP workflow. Body: `{ otp }`. Verifies the OTP (6-digit, TTL, attempt budget, same-user), then creates the `BORROWED` record + decrements stock and **immediately dispatches the confirmation email** (see [Full Connected Flow](#-the-full-connected-flow-v145)) → `201` |
 | `POST` | `/api/borrow` | Bearer | Direct borrow (backward compatible). Body: `{ inventory_id, quantity, purpose, duration_days? }`. `duration_days` defaults to **5**, clamped to **1–30**. Computes `due_date = borrowed_at + duration_days`, decrements `available_quantity`, sends **borrow confirmation email to `req.user.email`** → `201` |
 | `POST` | `/api/borrow/return` | Bearer | Return item. Body: `{ borrow_id }`. Sets `status=RETURNED`, `returned_at`, restores `available_quantity`, sends **return confirmation email** → `200` |
 | `GET` | `/api/borrow/history` | Bearer | Borrow history. Members see only their own; Admins see all (joins resolved manually via `users` + `inventory`) |
@@ -328,6 +329,41 @@ All email logic lives in `backend/src/services/emailService.ts`. When `SMTP_USER
 ### 0. Admin OTP approval (immediate, required before borrow)
 
 `POST /api/borrow/request-otp` generates a **6-digit OTP** and emails it to the chosen admin (from `/api/borrow/admins`). The borrower then calls `POST /api/borrow/verify-otp` with that OTP to complete the borrow. OTPs live in an in-memory store with a **10-minute TTL** and a **5-attempt** verification budget — hashed at rest, never persisted.
+
+### 🔄 The Full Connected Flow (v1.4.5)
+
+End-to-end walkthrough of the OTP-approved borrow, across frontend (`src/main.ts` → `API_BASE = http://localhost:5000/api`), backend (`borrow.controller.ts`), and email (`emailService.ts`):
+
+```
+ ┌─────────────── Student (frontend) ───────────────┐   ┌───────────── Backend API (:5000) ─────────────┐   ┌──────────┐
+ │  1. Request OTP → POST /api/borrow/request-otp   │──►│  4. generateOtp() + storeOtp() (10-min TTL)    │   │          │
+ │  2. (waits)                                       │   │  5. sendOtpEmail(admin.email, otp)   ─────────│──►│   Admin   │
+ │  3. Admin shares the OTP with the student         │   │  6. POST /api/borrow/verify-otp { otp } ◄─────│   Inbox   │
+ │  7. Student enters OTP on the frontend ───────────│──►│  7. verifyOtp() + consumeOtp()                 │   │          │
+ │                                                  │   │  8. finalizeBorrow():                           │   │          │
+ │                                                  │   │     • insert borrow_records (BORROWED)          │   │          │
+ │                                                  │   │     • DECREMENT available_quantity ◄───────────►│   Supabase │
+ │                                                  │   │  9. sendBorrowConfirmation(student) ───────────│───────────►│ Student
+ │                                                  │   │ 10. reminderService: Day N-1 due-tomorrow scan  │   │ Inbox    │
+ └──────────────────────────────────────────────────┘   └───────────────────────────────────────────────┘   └──────────┘
+```
+
+The numbered sequence:
+
+| Step | Who | Action | Where |
+|:---:|-----|--------|-------|
+| 1 | Student | Submits the borrow request → `POST /api/borrow/request-otp` with `{ item_id, quantity, purpose, duration_days, selected_admin_id }` | Frontend → `borrow.routes.ts` |
+| 2 | Backend | Validates item/stock, `generateOtp()` → `storeOtp()` with a **10-minute TTL**, sends the OTP email | `borrow.controller.ts:requestOtp` |
+| 3 | Admin | **Receives the OTP email** (`sendOtpEmail` → `[CICR Inventory] Borrow Approval OTP: <otp>`) | `emailService.ts` |
+| 4 | Admin | Shares the OTP with the student (in person / over the group) | — |
+| 5 | Student | **Enters the OTP on the frontend** → `POST /api/borrow/verify-otp` with `{ otp }` | Frontend → `borrow.routes.ts` |
+| 6 | Backend | `verifyOtpCode()` checks the 6-digit code, TTL, 5-attempt budget, and that it was issued to this user; then `consumeOtp()` burns it | `borrow.controller.ts:verifyOtp` |
+| 7 | Backend | `finalizeBorrow()` inserts the `BORROWED` record and **decrements `available_quantity`** | `borrow.controller.ts` |
+| 8 | Backend | **Confirmation email dispatched immediately** — `sendBorrowConfirmation()` fires asynchronously to the student (item, qty, remaining stock, holders table, due date) | `borrow.controller.ts:verifyOtp` → `emailService.ts` |
+| 9 | Backend | **Day N-1 reminder scheduled** — `reminderService` (node-cron, daily 09:00 + boot) picks the new record on its next scan and emails `[CICR Inventory] Return Due Tomorrow: <item>` the day before `due_date` | `reminderService.ts` |
+| 10 | Student | Borrow completed; stock reflects the borrow; reminders stop only after `POST /api/borrow/return` (which also restores stock + emails a return confirmation) | `borrow.controller.ts:returnItem` |
+
+> **v1.4.5 integration guarantee:** the OTP verification handler dispatches the confirmation email **in the same request** as the stock decrement — there is no lag or queued batch between "OTP verified" and "confirmation sent". Email dispatch is fire-and-forget (`.catch()`), so a slow SMTP hop never delays the `201` response.
 
 ### 1. Borrow confirmation (immediate)
 
@@ -513,7 +549,7 @@ Full derivation lives in [`docs/BOTE_ESTIMATION.md`](./docs/BOTE_ESTIMATION.md) 
 | DB > 500 MB, or > 60 pooled connections, or > 50k MAU | **Supabase Pro** | $25/mo |
 | Both at once (true production scale) | Resend/SES + Supabase Pro | ~$45–50/mo |
 
-> **Bottom line:** v1.4.3 is a **pre-release** that runs comfortably on free tiers for club scale (a few dozen borrows/day). Production scaling needs **Resend/SES (~$20/mo)** once email volume grows and **Supabase Pro ($25/mo)** once the DB/connections grow — whichever hits first.
+> **Bottom line:** v1.4.5 is a **pre-release** that runs comfortably on free tiers for club scale (a few dozen borrows/day). Production scaling needs **Resend/SES (~$20/mo)** once email volume grows and **Supabase Pro ($25/mo)** once the DB/connections grow — whichever hits first.
 
 ---
 
@@ -649,19 +685,20 @@ npm run build     # tsc && vite build → dist/
 npm run preview   # verify
 ```
 
-The built frontend reads `API_BASE` from `src/main.ts:11` — point it at the Render backend URL.
+The built frontend reads `API_BASE` from `src/main.ts:11` — v1.4.5 defaults to `http://localhost:5000/api` (local backend); point it at the Render backend URL for production.
 
 ---
 
 ## ⚠️ Known Issues & Roadmap
 
-**Known issues (v1.4.3 — Pre-release):**
+**Known issues (v1.4.5 — Pre-release):**
 
 - `register` accepts `role: 'ADMIN'` from the client (role spoofing).
 - `createItem` accepts negative `quantity`.
 - `GET /api/stats` is public; `GET /api/audit` is visible to any authenticated member.
 - Real email delivery requires a valid Gmail App Password; placeholders produce `535 BadCredentials`.
 - Admin OTPs are in-memory only — a server restart invalidates pending approvals (acceptable for club scale; a Redis-backed store is the production path).
+- The frontend's login/signup UI is still localStorage-based — the borrow OTP flow is driven via the API; wiring the in-UI OTP entry (request → admin shares → enter code) is the next UI milestone.
 
 **Roadmap:**
 

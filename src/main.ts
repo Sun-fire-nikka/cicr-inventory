@@ -8,7 +8,7 @@ declare const lucide: {
 };
 
 // API URL
-const API_BASE = 'https://cicr-inventory-backend.onrender.com/api';
+const API_BASE = 'http://localhost:5000/api';
 // Global state variables
 let inventory: InventoryItem[] = [];
 let logs: ActivityLog[] = [];
