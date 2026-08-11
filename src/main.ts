@@ -109,7 +109,6 @@ class Background3D {
         this.currentTheme = theme;
         let fogHex = 0x06060e;
         if (theme === 'matrix') fogHex = 0x020d07;
-        else if (theme === 'synthwave') fogHex = 0x120318;
         else if (theme === 'midnight') fogHex = 0x060e20;
         else if (theme === 'light') fogHex = 0xf1f5f9;
         else if (theme === 'sakura') fogHex = 0xfff0f5;
@@ -138,10 +137,6 @@ class Background3D {
             color1 = new THREE.Color(0x00ff66);
             color2 = new THREE.Color(0x00cc44);
             color3 = new THREE.Color(0x33ff88);
-        } else if (theme === 'synthwave') {
-            color1 = new THREE.Color(0xff007a);
-            color2 = new THREE.Color(0x7000ff);
-            color3 = new THREE.Color(0x00f0ff);
         } else if (theme === 'midnight') {
             color1 = new THREE.Color(0x38bdf8);
             color2 = new THREE.Color(0x818cf8);

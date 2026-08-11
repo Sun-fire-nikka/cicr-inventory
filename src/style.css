@@ -3439,24 +3439,6 @@ input:-webkit-autofill:active {
     --glow-purple: 0 0 15px rgba(0, 229, 255, 0.35);
 }
 
-[data-theme="synthwave"] {
-    --bg-primary: #120318;
-    --bg-glass: rgba(28, 8, 38, 0.65);
-    --bg-glass-hover: rgba(45, 12, 60, 0.8);
-    --bg-glass-active: rgba(56, 16, 78, 0.9);
-    --border-glass: rgba(255, 0, 122, 0.18);
-    --border-glass-hover: rgba(255, 183, 0, 0.4);
-    --neon-cyan: #ff007a;
-    --neon-purple: #ffb700;
-    --neon-pink: #9d4edd;
-    --neon-yellow: #ff9e00;
-    --neon-green: #00f0ff;
-    --text-main: #fff0f5;
-    --text-muted: #f472b6;
-    --glow-cyan: 0 0 15px rgba(255, 0, 122, 0.35);
-    --glow-purple: 0 0 15px rgba(255, 183, 0, 0.35);
-}
-
 [data-theme="midnight"] {
     --bg-primary: #060e20;
     --bg-glass: rgba(12, 24, 52, 0.65);
@@ -5217,8 +5199,15 @@ body.theme-sakura {
 body.theme-sakura::before {
     background-image: 
         radial-gradient(circle at 50% 0%, rgba(244, 114, 182, 0.15) 0%, transparent 60%),
-        linear-gradient(rgba(244, 114, 182, 0.08) 1.2px, transparent 1.2px),
-        linear-gradient(90deg, rgba(244, 114, 182, 0.08) 1.2px, transparent 1.2px);
+        linear-gradient(rgba(236, 72, 153, 0.16) 1.2px, transparent 1.2px),
+        linear-gradient(90deg, rgba(236, 72, 153, 0.16) 1.2px, transparent 1.2px);
+    background-size: 100% 100%, 40px 40px, 40px 40px;
+    opacity: 1;
+}
+
+body.theme-sakura #canvas-3d,
+[data-theme="sakura"] #canvas-3d {
+    opacity: 0.85 !important;
 }
 
 body.theme-sakura .app-sidebar,
