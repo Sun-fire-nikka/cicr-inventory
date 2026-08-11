@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -45,6 +46,32 @@ const formatSmtpError = (error: any): string => {
   return parts.length ? parts.join(' ') : 'Unknown SMTP error';
 };
 
+// Custom Message-ID: <unixms.random@domain> — stable, unique, and avoids
+// the default nodemailer format that some institutional gateways fingerprint.
+const generateMessageId = (): string =>
+  `<${Date.now()}.${crypto.randomBytes(8).toString('hex')}@cicr-inventory.local>`;
+
+// Shared delivery headers. Priority 'high' is used for the 10-minute OTP so
+// mobile clients surface it immediately; everything else is 'normal'.
+const buildHeaders = (kind: string, priority: 'high' | 'normal' = 'normal') => ({
+  'X-CICR-Mailer': `CICR-Inventory/v1.4.4`,
+  'X-Mailer-Type': kind,
+  'X-Priority': priority === 'high' ? '1 (Highest)' : '3 (Normal)',
+  'Importance': priority === 'high' ? 'High' : 'Normal',
+  'List-Unsubscribe': `<mailto:${process.env.SMTP_USER || 'no-reply@cicr.edu'}?subject=unsubscribe>`,
+});
+
+// Log the FULL SMTP delivery response (info.response is the raw SMTP dialogue
+// tail, e.g. "250 2.0.0 OK 17e-20020a170902a7b0...") plus accepted/rejected
+// recipient arrays — the exact codes needed to debug @mail.jiit.ac.in delivery.
+const logDelivery = (kind: string, info: any): void => {
+  console.log(
+    `[EMAIL SERVICE] ${kind} accepted by SMTP | messageId=${info?.messageId} | ` +
+    `response="${info?.response}" | accepted=${JSON.stringify(info?.accepted || [])} | ` +
+    `rejected=${JSON.stringify(info?.rejected || [])}`
+  );
+};
+
 const buildHoldersTable = (holders: HolderSummary[]): string => {
   if (!holders.length) {
     return '<p style="color:#666;">You are the only one currently holding this item.</p>';
@@ -76,6 +103,9 @@ export const sendBorrowConfirmation = async (
       from: process.env.SMTP_FROM || `"CICR Lab Admin" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
       to: recipientEmail,
       subject: `[CICR Inventory] Borrow Confirmation: ${context.itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('borrow-confirmation'),
+      priority: 'normal' as const,
       text: [
         `Hello ${borrowerName},`,
         '',
@@ -118,7 +148,7 @@ export const sendBorrowConfirmation = async (
     }
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL SERVICE] Borrow email sent successfully: ${info.messageId}`);
+    logDelivery('Borrow email', info);
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send borrow email to ${recipientEmail}: ${formatSmtpError(error)}`);
@@ -140,6 +170,9 @@ export const sendOtpEmail = async (
       from: process.env.SMTP_FROM || `"CICR Lab Admin" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
       to: adminEmail,
       subject: `[CICR Inventory] Borrow Approval OTP: ${otp}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('borrow-otp', 'high'),
+      priority: 'high' as const,
       text: [
         `Hello ${adminName},`,
         '',
@@ -174,7 +207,7 @@ export const sendOtpEmail = async (
     }
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL SERVICE] OTP email sent successfully: ${info.messageId}`);
+    logDelivery('OTP email', info);
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send OTP email to ${adminEmail}: ${formatSmtpError(error)}`);
@@ -194,6 +227,9 @@ export const sendUpcomingReminder = async (
       from: process.env.SMTP_FROM || `"CICR Lab Admin" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
       to: recipientEmail,
       subject: `[CICR Inventory] Return Due Tomorrow: ${itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('upcoming-reminder'),
+      priority: 'normal' as const,
       text: [
         `Hello ${borrowerName},`,
         '',
@@ -219,7 +255,7 @@ export const sendUpcomingReminder = async (
     }
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL SERVICE] Upcoming-due reminder sent successfully: ${info.messageId}`);
+    logDelivery('Upcoming-due reminder', info);
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send upcoming-due reminder to ${recipientEmail}: ${formatSmtpError(error)}`);
@@ -245,6 +281,9 @@ export const sendReturnReminder = async (
       subject: daysOverdue > 0
         ? `[CICR Inventory] OVERDUE Return: ${itemName}`
         : `[CICR Inventory] Return Due Today: ${itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('return-reminder'),
+      priority: 'normal' as const,
       text: [
         `Hello ${borrowerName},`,
         '',
@@ -274,7 +313,7 @@ export const sendReturnReminder = async (
     }
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL SERVICE] Return reminder sent successfully: ${info.messageId}`);
+    logDelivery('Return reminder', info);
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send return reminder to ${recipientEmail}: ${formatSmtpError(error)}`);
@@ -295,6 +334,9 @@ export const sendReturnConfirmation = async (
       from: process.env.SMTP_FROM || `"CICR Lab Admin" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
       to: recipientEmail,
       subject: `[CICR Inventory] Return Confirmation: ${itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('return-confirmation'),
+      priority: 'normal' as const,
       text: `Hello ${borrowerName},\n\nThank you! Your borrowed item ${itemName} has been successfully returned.\n\nReturned At: ${formattedReturnedAt}\n\nNo further reminders will be sent for this borrow.\n\nRegards,\nCICR Management Team`,
       html: `
         <h3>CICR Inventory - Return Confirmation</h3>
@@ -313,7 +355,7 @@ export const sendReturnConfirmation = async (
     }
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL SERVICE] Return email sent successfully: ${info.messageId}`);
+    logDelivery('Return email', info);
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send return email to ${recipientEmail}: ${formatSmtpError(error)}`);

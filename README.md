@@ -46,8 +46,9 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v1.2.1** | ✅ Released | Feature additions, bug fixes & connections. Frontend-backend integration, borrow/return logic refinements, and route bug fixes. |
 | **v1.3.2** | ✅ Released | Base email service setup & route fixes. Nodemailer transport integration, SMTP configuration, and transactional email base. |
 | **v1.4.3** | ⚠️ Pre-release | Admin OTP approval workflow & BOTE analysis. Admin selection (currently Admin **KUSH**), test student accounts (`kush` / `kushgdhi@gmail.com` + four `@jiit.ac.in` students), **1–30 day rental cap**, 6-digit cryptographic OTP verification via `POST /api/borrow/request-otp` and `POST /api/borrow/verify-otp`, automated **Day N-1 return reminders**, and BOTE deliverability + third-party rate-limit analysis. |
+| **v1.4.4** | ⚠️ Pre-release (current) | Email deliverability patch. Custom `Message-ID` generation, X-Header + priority headers (OTP = high), **plain-text fallback on every HTML template**, full SMTP `response`/`accepted`/`rejected` logging, and a `test/test-email.cjs` diagnostic probe for the **Institutional Email Sinkhole** issue (see below). |
 
-> The current release is **v1.4.3 — Pre-release (not production-ready)**. It is a functional demo build: real emails/OTPs work, but it sits on the **Gmail free SMTP + Supabase free tier** with hard daily/burst ceilings (see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits)). The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
+> The current release is **v1.4.4 — Pre-release (not production-ready)**. It is a functional demo build: real emails/OTPs work, but it sits on the **Gmail free SMTP + Supabase free tier** with hard daily/burst ceilings (see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits)). The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
 
 ---
 
@@ -355,6 +356,30 @@ Triggered on `POST /api/borrow/return`. Sent to `req.user.email` with the item n
 3. Sends `sendUpcomingReminder(...)` for tomorrow-due items (`[CICR Inventory] Return Due Tomorrow: <item>`) and `sendReturnReminder(...)` for due/overdue ones — subject `[CICR Inventory] OVERDUE Return: <item>` when `daysOverdue > 0`, otherwise `[CICR Inventory] Return Due Today: <item>`.
 
 > **Gmail notes:** App Passwords require 2-Step Verification on the account. `SMTP_FROM` must use the same account as `SMTP_USER`. Errors are caught, logged with `message / code / response / responseCode`, and never crash the API.
+
+### ⚠️ Institutional Email Sinkhole (v1.4.4)
+
+Institutional gateways (`@mail.jiit.ac.in`, `@jiit.ac.in`, and most `.ac.in` / `.edu` domains) treat low-reputation, HTML-only, or header-light mail as bulk and **silently sinkhole it** — the sender's SMTP server replies `250 OK`, the recipient inbox never sees it. This is exactly why the BOTE model shows 2–5% first-send loss on institutional domains.
+
+**v1.4.4 mitigations** (all in `backend/src/services/emailService.ts`):
+
+| Fix | What it does |
+|-----|--------------|
+| **Plain-text fallback** on every template | Gives the filter a text/plain alternative — HTML-only mail scores as bulk |
+| **Custom Message-ID** | `<<unixms>.<hex>@cicr-inventory.local>` — avoids the default nodemailer format some gateways fingerprint |
+| **X-Header set** | `X-CICR-Mailer: CICR-Inventory/v1.4.4`, `X-Mailer-Type`, `Importance`, `List-Unsubscribe` |
+| **Priority header** | OTP mail flagged `high` (surfaces in mobile notifications); the rest `normal` |
+| **Full SMTP response logging** | Console logs raw `response` (`250 2.0.0 OK …`) + `accepted[]`/`rejected[]` per send |
+
+**Verify delivery with:**
+
+```bash
+cd backend
+npm run build
+node test/test-email.cjs     # probes kushagragargdelhi@gmail.com + 992501030406@mail.jiit.ac.in
+```
+
+> If SMTP accepts (`250 OK`, `rejected=[]`) but the inbox is empty, the mail is **sinkholed upstream** — the fix is SPF/DKIM alignment on the sending domain or moving to Resend/SES, not more SMTP retries.
 
 ---
 

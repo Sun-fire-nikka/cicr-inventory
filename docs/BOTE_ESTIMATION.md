@@ -8,7 +8,7 @@
 - `backend/src/modules/borrow/borrow.controller.ts` — admin-OTP approval workflow (`POST /api/borrow/request-otp` → `POST /api/borrow/verify-otp`), borrow/return confirmation emails fired **asynchronously** (`.catch()` fire-and-forget) so they never block the HTTP response.
 - `backend/src/services/reminderService.ts` — `node-cron` runs a due/overdue scan **daily at 09:00** + on server boot, sending **Day N-1 "due tomorrow" reminders** and due/overdue reminders **sequentially** (`await` per recipient).
 
-> This analysis corresponds to project release **v1.4.3 (Pre-release — not production-ready)** (see the Version History in `README.md`). All numbers assume the 3-email borrow workflow (admin OTP → borrow confirmation → return confirmation).
+> This analysis corresponds to project release **v1.4.4 (Pre-release — not production-ready)** (see the Version History in `README.md`). All numbers assume the 3-email borrow workflow (admin OTP → borrow confirmation → return confirmation).
 
 ---
 
@@ -150,20 +150,42 @@ Email is the only external dependency on the borrow path, so delivery failure di
 
 | Failure mode | Rate (Gmail → institutional domains) | Impact | Mitigation |
 |--------------|:---:|--------|------------|
-| Spam-folder routing | 2–5% of outbound | OTP / confirmation never seen → borrow stalls | DKIM/SPF/DMARC alignment, warm-up, plain-HTML templates |
+| **Institutional Email Sinkhole** (silent drop) | 2–5% of outbound | OTP / confirmation never seen → borrow stalls; SMTP still replies `250 OK` | Plain-text fallback + custom Message-ID + X-headers (v1.4.4); then SPF/DKIM or Resend/SES |
 | SMTP hard-bounce | <1% | Admin OTP not delivered → student blocked | Verify admin addresses in `adminDirectory.ts` |
 | SMTP soft-fail / rate-limit (`421`) | occasional bursts | OTP delayed, retry needed | Retry with backoff in `emailService.ts` |
 | `535 BadCredentials` | config-time | All email dead | Valid Gmail App Password; `SMTP_FROM` must equal `SMTP_USER` |
 
+### The Institutional Email Sinkhole (v1.4.4)
+
+Institutional gateways (`@mail.jiit.ac.in`, `.ac.in`, `.edu`) aggressively filter
+low-reputation, **HTML-only**, or header-light mail. The sender's MTA (Gmail)
+replies `250 OK`, the gateway silently sinks the message, and **no bounce ever
+arrives** — so a "successful" send tells you nothing about inbox landing.
+
+**v1.4.4 patch** (`backend/src/services/emailService.ts`):
+
+- **Plain-text (`text/`) fallback on all five templates** — HTML-only mail scores as bulk;
+- **Custom Message-ID** (`<<unixms>.<hex>@cicr-inventory.local>`) — avoids the default
+  nodemailer format that some gateways fingerprint;
+- **X-header + priority set** — `X-CICR-Mailer: CICR-Inventory/v1.4.4`, `X-Mailer-Type`,
+  `Importance`, `List-Unsubscribe`; OTP mail is `priority: 'high'`;
+- **Full SMTP response logging** — every send logs raw `response` (`250 2.0.0 OK …`)
+  plus `accepted[]` / `rejected[]`; run `node test/test-email.cjs` to probe a real
+  `@mail.jiit.ac.in` inbox.
+
+**Detection rule:** `accepted=["…@mail.jiit.ac.in"]` + `rejected=[]` + empty inbox ⇒
+**sinkholed upstream** — the fix is SPF/DKIM alignment or moving to an ESP
+(Resend/SES), not more SMTP retries.
+
 **Back-of-envelope OTP workflow reliability**
 
 ```
-otp_success = send_success × (1 − spam_rate)
+otp_success = send_success × (1 − sinkhole_rate)
             ≈ 0.97 × 0.96
             ≈ 0.93 (≈ 93% end-to-end OTP delivery on institutional domains)
 ```
 
-> **Delivery math:** with a 2–5% spam/delivery failure rate on institutional domains (missing custom SPF/DKIM headers), roughly **3–5% of OTP emails never reach the admin inbox** on a first send. Borrowing workflows are not lost — the OTP remains valid for 10 minutes and a re-request is idempotent — but a production inbox needs SPF/DKIM configured (or an ESP like Resend/SES) before relying on OTP approval at scale.
+> **Delivery math:** with a 2–5% sinkhole/spam rate on institutional domains (missing custom SPF/DKIM headers), roughly **3–5% of OTP emails never reach the admin inbox** on a first send. Borrowing workflows are not lost — the OTP remains valid for 10 minutes and a re-request is idempotent — but a production inbox needs SPF/DKIM configured (or an ESP like Resend/SES) before relying on OTP approval at scale.
 
 ### Concurrency limits — 500–1000 concurrent users
 
