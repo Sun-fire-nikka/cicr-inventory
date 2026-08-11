@@ -1,7 +1,13 @@
 import { Request, Response } from 'express';
 import { supabase } from '../../app';
 import { AuthRequest } from '../../middleware/auth.middleware';
-import { sendBorrowConfirmation, sendReturnConfirmation } from '../../services/emailService';
+import { sendBorrowConfirmation, sendReturnConfirmation, sendOtpEmail } from '../../services/emailService';
+import { ADMIN_DIRECTORY, getAdminById } from './adminDirectory';
+import { generateOtp, storeOtp, verifyOtp as verifyOtpCode, consumeOtp } from './otpService';
+
+export const MIN_RENTAL_DAYS = 1;
+export const MAX_RENTAL_DAYS = 30;
+export const DEFAULT_RENTAL_DAYS = 5;
 
 // Helper function to insert into audit_logs
 async function logAudit(action: string, userId: string | undefined, itemId: string | null, description: string) {
@@ -14,13 +20,91 @@ async function logAudit(action: string, userId: string | undefined, itemId: stri
   }
 }
 
+const parseRentalDays = (value: any): number | null => {
+  if (value === undefined || value === null || value === '') return DEFAULT_RENTAL_DAYS;
+  const days = Number(value);
+  if (!Number.isInteger(days) || days < MIN_RENTAL_DAYS || days > MAX_RENTAL_DAYS) return null;
+  return days;
+};
+
+const daysErrorMessage = `duration_days must be an integer between ${MIN_RENTAL_DAYS} and ${MAX_RENTAL_DAYS}.`;
+
+const finalizeBorrow = async (
+  payload: { userId: string; userName: string; itemId: string; quantity: number; purpose: string; durationDays: number }
+) => {
+  const { userId, userName, itemId, quantity, purpose, durationDays } = payload;
+
+  const { data: item, error: itemErr } = await supabase
+    .from('inventory')
+    .select('*')
+    .eq('id', itemId)
+    .single();
+
+  if (itemErr || !item) {
+    return { error: { status: 404, message: 'Item not found.' } };
+  }
+
+  if (item.available_quantity < quantity) {
+    return {
+      error: {
+        status: 400,
+        message: `Requested quantity (${quantity}) exceeds available stock (${item.available_quantity}).`
+      }
+    };
+  }
+
+  const borrowedAt = new Date();
+  const dueDate = new Date(borrowedAt);
+  dueDate.setDate(dueDate.getDate() + durationDays);
+
+  const { data: borrowRecord, error: borrowErr } = await supabase
+    .from('borrow_records')
+    .insert([
+      {
+        user_id: userId,
+        borrower_name: userName,
+        inventory_id: itemId,
+        quantity,
+        purpose,
+        borrowed_at: borrowedAt.toISOString(),
+        due_date: dueDate.toISOString(),
+        status: 'BORROWED'
+      }
+    ])
+    .select()
+    .single();
+
+  if (borrowErr) return { error: { status: 500, message: borrowErr.message } };
+
+  const newAvailableQty = item.available_quantity - quantity;
+  const { error: updateErr } = await supabase
+    .from('inventory')
+    .update({ available_quantity: newAvailableQty, updated_at: new Date().toISOString() })
+    .eq('id', itemId);
+
+  if (updateErr) return { error: { status: 500, message: updateErr.message } };
+
+  await logAudit('Borrowed', userId, itemId, `Borrowed ${quantity} units of "${item.name}" for purpose: ${purpose}`);
+
+  return { borrowRecord, item, newAvailableQty, dueDate };
+};
+
+// GET /api/borrow/admins (Admin directory)
+export const getAdmins = async (req: Request, res: Response) => {
+  return res.status(200).json({
+    status: 'success',
+    count: ADMIN_DIRECTORY.length,
+    data: ADMIN_DIRECTORY
+  });
+};
+
 // POST /api/borrow (Borrow Item)
 export const borrowItem = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const userEmail = req.user?.email;
     const userName = req.user?.name || 'Borrower';
-    const { inventory_id, quantity, purpose, duration_days = 7 } = req.body;
+    const { inventory_id, quantity, purpose } = req.body;
 
     if (!inventory_id || !quantity || !purpose) {
       return res.status(400).json({ status: 'error', message: 'inventory_id, quantity, and purpose are required.' });
@@ -31,13 +115,79 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Quantity must be greater than 0.' });
     }
 
-    const days = Number(duration_days) > 0 ? Number(duration_days) : 7;
+    const days = parseRentalDays(req.body.duration_days);
+    if (days === null) {
+      return res.status(400).json({ status: 'error', message: daysErrorMessage });
+    }
 
-    // 1. Fetch item to check stock
+    const result = await finalizeBorrow({ userId: userId || '', userName, itemId: inventory_id, quantity: qty, purpose, durationDays: days });
+    if (result.error) {
+      return res.status(result.error.status).json({ status: 'error', message: result.error.message });
+    }
+
+    const { borrowRecord, item, newAvailableQty, dueDate } = result;
+
+    if (userEmail) {
+      const { data: activeHolders } = await supabase
+        .from('borrow_records')
+        .select('borrower_name, roll_number, quantity, borrowed_at')
+        .eq('inventory_id', inventory_id)
+        .eq('status', 'BORROWED')
+        .neq('id', borrowRecord.id);
+
+      sendBorrowConfirmation(userEmail, userName, {
+        itemName: item.name,
+        category: item.category,
+        quantity: qty,
+        remainingStock: newAvailableQty,
+        holders: activeHolders || [],
+        durationDays: days,
+        dueDate
+      })
+        .catch((err) => console.error('Failed to dispatch borrow email:', err.message));
+    }
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Item borrowed successfully!',
+      data: borrowRecord
+    });
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+// POST /api/borrow/request-otp (Request Admin OTP approval)
+export const requestOtp = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id || '';
+    const userEmail = req.user?.email || '';
+    const userName = req.user?.name || 'Borrower';
+    const { item_id, quantity = 1, purpose = 'Admin OTP approved borrow', duration_days, selected_admin_id } = req.body;
+
+    if (!item_id || !selected_admin_id) {
+      return res.status(400).json({ status: 'error', message: 'item_id, duration_days, and selected_admin_id are required.' });
+    }
+
+    const days = parseRentalDays(duration_days);
+    if (days === null) {
+      return res.status(400).json({ status: 'error', message: daysErrorMessage });
+    }
+
+    const qty = Number(quantity);
+    if (qty <= 0) {
+      return res.status(400).json({ status: 'error', message: 'Quantity must be greater than 0.' });
+    }
+
+    const admin = getAdminById(String(selected_admin_id));
+    if (!admin) {
+      return res.status(404).json({ status: 'error', message: 'Selected admin not found in the admin directory.' });
+    }
+
     const { data: item, error: itemErr } = await supabase
       .from('inventory')
       .select('*')
-      .eq('id', inventory_id)
+      .eq('id', item_id)
       .single();
 
     if (itemErr || !item) {
@@ -51,52 +201,106 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Calculate dates
-    const borrowedAt = new Date();
-    const dueDate = new Date(borrowedAt);
-    dueDate.setDate(dueDate.getDate() + days);
+    const otp = generateOtp();
+    storeOtp(otp, {
+      userId,
+      userName,
+      userEmail,
+      itemId: item_id,
+      quantity: qty,
+      purpose,
+      durationDays: days,
+      adminId: admin.id
+    });
 
-    // 2. Insert borrow record with calculated due_date
-    const { data: borrowRecord, error: borrowErr } = await supabase
-      .from('borrow_records')
-      .insert([
-        {
-          user_id: userId,
-          inventory_id,
-          quantity: qty,
-          purpose,
-          borrowed_at: borrowedAt.toISOString(),
-          due_date: dueDate.toISOString(),
-          status: 'BORROWED'
-        }
-      ])
-      .select()
-      .single();
+    const emailResult = await sendOtpEmail(admin.email, admin.name, userName, otp, item.name, days);
 
-    if (borrowErr) throw borrowErr;
+    if (!emailResult.success) {
+      return res.status(502).json({ status: 'error', message: 'OTP generated but failed to send to admin email.', data: emailResult });
+    }
 
-    // 3. Decrement available_quantity in inventory
-    const newAvailableQty = item.available_quantity - qty;
-    const { error: updateErr } = await supabase
-      .from('inventory')
-      .update({ available_quantity: newAvailableQty, updated_at: new Date().toISOString() })
-      .eq('id', inventory_id);
+    await logAudit('OTP Requested', userId, item_id, `OTP approval requested from ${admin.name} (${admin.email}) for "${item.name}" (${days} days)`);
 
-    if (updateErr) throw updateErr;
+    return res.status(200).json({
+      status: 'success',
+      message: `OTP sent to admin ${admin.name} (${admin.email}). It expires in 10 minutes.`,
+      data: {
+        expires_in_seconds: 600,
+        item_id,
+        duration_days: days,
+        selected_admin: { id: admin.id, name: admin.name, email: admin.email }
+      }
+    });
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
 
-    // 4. Audit Log
-    await logAudit('Borrowed', userId, inventory_id, `Borrowed ${qty} units of "${item.name}" for purpose: ${purpose}`);
+// POST /api/borrow/verify-otp (Verify admin OTP and confirm borrow)
+export const verifyOtp = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id || '';
+    const userEmail = req.user?.email || '';
+    const userName = req.user?.name || 'Borrower';
+    const { otp } = req.body;
 
-    // 5. Send Email Confirmation
+    if (!otp) {
+      return res.status(400).json({ status: 'error', message: 'otp is required.' });
+    }
+
+    const payload = verifyOtpCode(String(otp));
+    if (!payload) {
+      return res.status(400).json({ status: 'error', message: 'Invalid or expired OTP.' });
+    }
+
+    if (payload.userId !== userId) {
+      return res.status(400).json({ status: 'error', message: 'OTP was issued to a different user.' });
+    }
+
+    consumeOtp(String(otp));
+
+    const result = await finalizeBorrow({
+      userId,
+      userName,
+      itemId: payload.itemId,
+      quantity: payload.quantity,
+      purpose: payload.purpose,
+      durationDays: payload.durationDays
+    });
+
+    if (result.error) {
+      return res.status(result.error.status).json({ status: 'error', message: result.error.message });
+    }
+
+    const { borrowRecord, item, newAvailableQty, dueDate } = result;
+
     if (userEmail) {
-      sendBorrowConfirmation(userEmail, userName, item.name, qty, days, dueDate)
+      const { data: activeHolders } = await supabase
+        .from('borrow_records')
+        .select('borrower_name, roll_number, quantity, borrowed_at')
+        .eq('inventory_id', payload.itemId)
+        .eq('status', 'BORROWED')
+        .neq('id', borrowRecord.id);
+
+      sendBorrowConfirmation(userEmail, userName, {
+        itemName: item.name,
+        category: item.category,
+        quantity: payload.quantity,
+        remainingStock: newAvailableQty,
+        holders: activeHolders || [],
+        durationDays: payload.durationDays,
+        dueDate
+      })
         .catch((err) => console.error('Failed to dispatch borrow email:', err.message));
     }
 
     return res.status(201).json({
       status: 'success',
-      message: 'Item borrowed successfully!',
-      data: borrowRecord
+      message: 'OTP verified. Borrow confirmed successfully!',
+      data: {
+        borrow: borrowRecord,
+        approved_by_admin_id: payload.adminId
+      }
     });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });

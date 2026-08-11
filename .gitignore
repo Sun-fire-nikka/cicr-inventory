@@ -1,4 +1,4 @@
-# Logs
+# Logs & Debug Output
 logs
 *.log
 npm-debug.log*
@@ -7,19 +7,31 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Dependencies
+node_modules/
 
-# Editor directories and files
+# Build & Dist Outputs
+dist/
+dist-ssr/
+build/
+
+# Environment Files & Secrets (NEVER COMMIT THESE)
+.env
+.env.*
+!.env.example
+
+# Temporary Test Files (OpenCode & Nodemailer tests)
+_mailtest.cjs
+*.tmp
+
+# Editor & System Files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-.env*
