@@ -1876,30 +1876,40 @@ class AvengersAnimation {
 
         const cx = w / 2;
         const cy = h / 2;
-        const baseRadius = Math.min(w, h) * 0.25;
-        const pulse = Math.sin(this.pulseTime) * 0.025;
-        const opacity = 0.16 + pulse; // Smooth breathing energy pulse
+        const baseRadius = Math.min(w, h) * 0.27;
+        const pulse = Math.sin(this.pulseTime) * 0.03;
+        const opacity = 0.28 + pulse; // Enhanced, clear, glowing opacity
 
         this.ctx.save();
         this.ctx.globalAlpha = opacity;
 
-        // 1. Outer Stark Gold Tech Accent Ring
+        // 1. Intense Red Vibranium Energy Background Aura Glow
+        const bgGlow = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.3, cx, cy, baseRadius * 1.4);
+        bgGlow.addColorStop(0, 'rgba(255, 0, 60, 0.45)');
+        bgGlow.addColorStop(0.5, 'rgba(239, 68, 68, 0.25)');
+        bgGlow.addColorStop(0.85, 'rgba(220, 38, 38, 0.08)');
+        bgGlow.addColorStop(1, 'transparent');
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 1.4, 0, Math.PI * 2);
+        this.ctx.fillStyle = bgGlow;
+        this.ctx.fill();
+
+        // 2. Arc Cyan & Stark Gold Outer Tech Halo Rings
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 1.25, 0, Math.PI * 2);
         this.ctx.lineWidth = Math.max(2, baseRadius * 0.035);
-        this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+        this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
         this.ctx.stroke();
 
-        // 2. Arc Cyan Outer HUD Ring with Glow
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 1.15, 0, Math.PI * 2);
         this.ctx.lineWidth = Math.max(3, baseRadius * 0.045);
         this.ctx.strokeStyle = '#00f0ff';
         this.ctx.shadowColor = '#00f0ff';
-        this.ctx.shadowBlur = 16;
+        this.ctx.shadowBlur = 18;
         this.ctx.stroke();
 
-        // 12 Stark Energy Nodes around Arc Reactor Ring
+        // 12 Stark Nodes
         const nodes = 12;
         for (let i = 0; i < nodes; i++) {
             const angle = (i * Math.PI * 2) / nodes + this.pulseTime * 0.15;
@@ -1908,40 +1918,89 @@ class AvengersAnimation {
             this.ctx.beginPath();
             this.ctx.arc(nx, ny, Math.max(3, baseRadius * 0.03), 0, Math.PI * 2);
             this.ctx.fillStyle = '#ffffff';
+            this.ctx.shadowColor = '#00f0ff';
+            this.ctx.shadowBlur = 10;
             this.ctx.fill();
         }
 
-        // 3. Centered Captain America Shield
-        // Outer Vibranium Crimson Red Ring
+        // 3. CAPTAIN AMERICA SHIELD WITH INTENSE VIBRANIUM RED GLOW & METALLIC GRADIENTS
+        // Outer Red Glowing Vibranium Ring
+        this.ctx.shadowColor = '#ff0033';
+        this.ctx.shadowBlur = 35;
+
+        const redGrad1 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.74, cx, cy, baseRadius);
+        redGrad1.addColorStop(0, '#ef4444');
+        redGrad1.addColorStop(0.6, '#dc2626');
+        redGrad1.addColorStop(1, '#991b1b');
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
-        this.ctx.fillStyle = '#dc2626';
+        this.ctx.fillStyle = redGrad1;
         this.ctx.fill();
+
+        // Outer Metallic Bevel Highlight
+        this.ctx.shadowBlur = 0;
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2, baseRadius * 0.025);
+        this.ctx.strokeStyle = 'rgba(255, 120, 150, 0.8)';
+        this.ctx.stroke();
 
         // Middle Silver White Ring
+        const silverGrad = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.48, cx, cy, baseRadius * 0.74);
+        silverGrad.addColorStop(0, '#ffffff');
+        silverGrad.addColorStop(0.5, '#e2e8f0');
+        silverGrad.addColorStop(1, '#cbd5e1');
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
-        this.ctx.fillStyle = '#f8fafc';
+        this.ctx.fillStyle = silverGrad;
         this.ctx.fill();
 
-        // Inner Vibranium Crimson Red Ring
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
+        this.ctx.lineWidth = 1.5;
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.stroke();
+
+        // Inner Red Ring with Glow
+        this.ctx.shadowColor = '#ff0033';
+        this.ctx.shadowBlur = 25;
+
+        const redGrad2 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.28, cx, cy, baseRadius * 0.48);
+        redGrad2.addColorStop(0, '#ff1e43');
+        redGrad2.addColorStop(0.7, '#dc2626');
+        redGrad2.addColorStop(1, '#991b1b');
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 0.48, 0, Math.PI * 2);
-        this.ctx.fillStyle = '#dc2626';
+        this.ctx.fillStyle = redGrad2;
         this.ctx.fill();
 
-        // Center Cobalt Blue Circle
+        // Center Cobalt Blue Disk
+        this.ctx.shadowColor = '#3b82f6';
+        this.ctx.shadowBlur = 20;
+
+        const blueGrad = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, baseRadius * 0.28);
+        blueGrad.addColorStop(0, '#3b82f6');
+        blueGrad.addColorStop(0.7, '#1d4ed8');
+        blueGrad.addColorStop(1, '#1e3a8a');
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
-        this.ctx.fillStyle = '#1d4ed8';
+        this.ctx.fillStyle = blueGrad;
         this.ctx.fill();
 
-        // Center White 5-Point Star
+        // Center Luminous White 5-Point Star
+        this.ctx.shadowColor = '#ffffff';
+        this.ctx.shadowBlur = 15;
         this.drawStar(this.ctx, cx, cy, 5, baseRadius * 0.25, baseRadius * 0.11, '#ffffff');
 
+        // Star Outline Highlight
+        this.ctx.shadowBlur = 0;
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.stroke();
+
         // 4. Stark HUD Target Crosshair Marks
-        this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
-        this.ctx.lineWidth = 1.5;
+        this.ctx.strokeStyle = 'rgba(255, 0, 80, 0.5)';
+        this.ctx.lineWidth = 1.8;
 
         const notchLen = baseRadius * 0.22;
         // Top
