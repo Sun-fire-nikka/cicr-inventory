@@ -1869,13 +1869,13 @@ class AvengersAnimation {
         const h = this.canvas.height;
         this.ctx.clearRect(0, 0, w, h);
 
-        // 1. Captain America Shield Watermark (Top-Right Ambient Background)
-        const shieldRadius = Math.min(w, h) * 0.18;
-        const shieldX = w - shieldRadius * 0.9;
-        const shieldY = shieldRadius * 1.1;
+        // Captain America Shield Centered in Mid of Screen with Low Opacity
+        const shieldRadius = Math.min(w, h) * 0.28;
+        const shieldX = w / 2;
+        const shieldY = h / 2;
 
         this.ctx.save();
-        this.ctx.globalAlpha = 0.16;
+        this.ctx.globalAlpha = 0.08; // Low opacity
 
         // Outer Red Ring
         this.ctx.beginPath();
@@ -1903,53 +1903,6 @@ class AvengersAnimation {
 
         // Center Star
         this.drawStar(this.ctx, shieldX, shieldY, 5, shieldRadius * 0.25, shieldRadius * 0.11, '#ffffff');
-        this.ctx.restore();
-
-        // 2. Iron Man Arc Reactor Watermark (Bottom-Left Ambient Background)
-        const arcRadius = Math.min(w, h) * 0.16;
-        const arcX = arcRadius * 1.1;
-        const arcY = h - arcRadius * 1.1;
-
-        this.ctx.save();
-        this.ctx.globalAlpha = 0.18;
-
-        // Stark Gold Outer Ring
-        this.ctx.beginPath();
-        this.ctx.arc(arcX, arcY, arcRadius, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(2, arcRadius * 0.08);
-        this.ctx.strokeStyle = '#fbbf24';
-        this.ctx.stroke();
-
-        // Arc Cyan Outer Ring
-        this.ctx.beginPath();
-        this.ctx.arc(arcX, arcY, arcRadius * 0.8, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(3, arcRadius * 0.12);
-        this.ctx.strokeStyle = '#00f0ff';
-        this.ctx.stroke();
-
-        // 10 Radial Energy Nodes
-        const nodes = 10;
-        for (let i = 0; i < nodes; i++) {
-            const angle = (i * Math.PI * 2) / nodes;
-            const nx = arcX + Math.cos(angle) * (arcRadius * 0.8);
-            const ny = arcY + Math.sin(angle) * (arcRadius * 0.8);
-            this.ctx.beginPath();
-            this.ctx.arc(nx, ny, Math.max(2, arcRadius * 0.06), 0, Math.PI * 2);
-            this.ctx.fillStyle = '#ffffff';
-            this.ctx.fill();
-        }
-
-        // Inner Glowing Core
-        this.ctx.beginPath();
-        this.ctx.arc(arcX, arcY, arcRadius * 0.35, 0, Math.PI * 2);
-        this.ctx.fillStyle = '#00f0ff';
-        this.ctx.fill();
-
-        this.ctx.beginPath();
-        this.ctx.arc(arcX, arcY, arcRadius * 0.18, 0, Math.PI * 2);
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.fill();
-
         this.ctx.restore();
     }
 }

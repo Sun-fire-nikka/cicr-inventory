@@ -5297,12 +5297,12 @@ body.theme-sakura select option {
    Avengers Assemble Protocol Theme Styling
    ========================================== */
 [data-theme="avengers"] {
-    --bg-primary: #080a15;
-    --bg-glass: rgba(15, 23, 42, 0.75);
-    --bg-glass-hover: rgba(30, 41, 59, 0.85);
-    --bg-glass-active: rgba(30, 58, 138, 0.9);
-    --border-glass: rgba(56, 189, 248, 0.25);
-    --border-glass-hover: rgba(239, 68, 68, 0.45);
+    --bg-primary: #04050a;
+    --bg-glass: rgba(10, 14, 26, 0.8);
+    --bg-glass-hover: rgba(20, 28, 48, 0.88);
+    --bg-glass-active: rgba(30, 41, 64, 0.92);
+    --border-glass: rgba(56, 189, 248, 0.22);
+    --border-glass-hover: rgba(239, 68, 68, 0.4);
     
     --neon-cyan: #00f0ff;
     --neon-purple: #a855f7;
@@ -5315,12 +5315,12 @@ body.theme-sakura select option {
     --text-dim: #94a3b8;
     --white: #ffffff;
 
-    --card-bg-gradient: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.9) 100%);
-    --card-item-bg: rgba(15, 23, 42, 0.8);
-    --glow-card: 0 14px 35px rgba(0, 240, 255, 0.12);
+    --card-bg-gradient: linear-gradient(135deg, rgba(20, 28, 48, 0.85) 0%, rgba(10, 14, 26, 0.92) 100%);
+    --card-item-bg: rgba(10, 14, 26, 0.85);
+    --glow-card: 0 14px 35px rgba(0, 240, 255, 0.1);
 
-    --search-bg: rgba(15, 23, 42, 0.85);
-    --search-border: rgba(56, 189, 248, 0.25);
+    --search-bg: rgba(10, 14, 26, 0.88);
+    --search-border: rgba(56, 189, 248, 0.22);
     --badge-bg: rgba(239, 68, 68, 0.18);
     --active-bg: rgba(0, 240, 255, 0.12);
     --active-border: rgba(0, 240, 255, 0.35);
@@ -5329,7 +5329,7 @@ body.theme-sakura select option {
 
 [data-theme="avengers"] body,
 body.theme-avengers {
-    background-color: #080a15;
+    background-color: #04050a;
     color: #f8fafc;
 }
 
