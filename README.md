@@ -44,7 +44,7 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v1.1.0** | ✅ Released | Supabase database & core APIs. Supabase schema integration, JWT auth, and core inventory routes. |
 | **v1.2.1** | ✅ Released | Feature additions, bug fixes & connections. Frontend-backend integration, borrow/return logic refinements, and route bug fixes. |
 | **v1.3.2** | ✅ Released | Base email service setup & route fixes. Nodemailer transport integration, SMTP configuration, and transactional email base. |
-| **v1.4.3** | ✅ Current | Admin OTP approval workflow & BOTE analysis. Admin selection (including Admin **KUSH**), test student account setup (`kush` / `kushgdhi@gmail.com`), **1–30 day rental cap**, 6-digit cryptographic OTP verification via `POST /api/borrow/request-otp` and `POST /api/borrow/verify-otp`, automated **Day N-1 return reminders**, and BOTE deliverability breakdown. |
+| **v1.4.3** | ✅ Current | Admin OTP approval workflow & BOTE analysis. Admin selection (currently Admin **KUSH**), test student accounts (`kush` / `kushgdhi@gmail.com` + four `@jiit.ac.in` students), **1–30 day rental cap**, 6-digit cryptographic OTP verification via `POST /api/borrow/request-otp` and `POST /api/borrow/verify-otp`, automated **Day N-1 return reminders**, and BOTE deliverability breakdown. |
 
 > The current release is **v1.4.3**. The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
 
@@ -197,6 +197,19 @@ npm run dev          # Vite dev server → http://localhost:5173
 
 > **Frontend API target:** the frontend reads a single `API_BASE` constant in `src/main.ts:11`. It defaults to the deployed Render backend (`https://cicr-inventory-backend.onrender.com/api`). To run against your local backend, change it to `http://localhost:5000/api`.
 
+### Test accounts (seeded)
+
+| Role | Email | Notes |
+|------|-------|-------|
+| **Admin** | `kushagragargdelhi@gmail.com` | KUSH — the only admin in the OTP approval directory |
+| Student | `kushgdhi@gmail.com` | `kush` — original seeded test student |
+| Student | `992501030406@mail.jiit.ac.in` | Institutional test account |
+| Student | `992501030399@gmail.jiit.ac.in` | Institutional test account |
+| Student | `992401210050@gmail.jiit.ac.in` | Institutional test account |
+| Student | `992401030154@mail.jiit.ac.in` | Institutional test account |
+
+> The four `@jiit.ac.in` students share the seeded password **`JiitCICR@2026!`**. All are `MEMBER` role; borrow/reminder emails land in the real inboxes.
+
 ---
 
 ## 🔑 Environment Variables
@@ -251,7 +264,7 @@ Auth scheme: `Authorization: Bearer <JWT>`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `GET` | `/api/borrow/admins` | Bearer | List admin directory (`{ email, name }`) for the OTP approval step — includes Admin **KUSH**, Yasharth, Aryan, Dhruvi |
+| `GET` | `/api/borrow/admins` | Bearer | List admin directory (`{ email, name }`) for the OTP approval step — currently Admin **KUSH** (`kushagragargdelhi@gmail.com`) |
 | `POST` | `/api/borrow/request-otp` | Bearer | Step 1 of OTP workflow. Body: `{ admin_email }`. Generates a **6-digit OTP** (TTL **10 min**, 5 attempts), sends it to the chosen admin's email → `201` |
 | `POST` | `/api/borrow/verify-otp` | Bearer | Step 2 of OTP workflow. Body: `{ admin_email, otp }`. Verifies the OTP then creates the `BORROWED` record (same as `/api/borrow`) → `201` |
 | `POST` | `/api/borrow` | Bearer | Direct borrow (backward compatible). Body: `{ inventory_id, quantity, purpose, duration_days? }`. `duration_days` defaults to **5**, clamped to **1–30**. Computes `due_date = borrowed_at + duration_days`, decrements `available_quantity`, sends **borrow confirmation email to `req.user.email`** → `201` |

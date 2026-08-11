@@ -214,18 +214,15 @@ or insufficient stock; `404` item not found.
 **Auth required.**
 
 Lists the **admin directory** used for OTP approval. Each entry: `{ id, name, email }`
-(currently **KUSH**, Yasharth, Aryan, Dhruvi).
+(currently **KUSH**).
 
 **Response `200`**
 ```json
 {
   "status": "success",
-  "count": 4,
+  "count": 1,
   "data": [
-    { "id": "kush", "name": "KUSH", "email": "kushagragargdelhi@gmail.com" },
-    { "id": "yasharth", "name": "Yasharth", "email": "yasharth@cicr.edu" },
-    { "id": "aryan", "name": "Aryan", "email": "aryan@cicr.edu" },
-    { "id": "dhruvi", "name": "Dhruvi", "email": "dhruvi@cicr.edu" }
+    { "id": "kush", "name": "KUSH", "email": "kushagragargdelhi@gmail.com" }
   ]
 }
 ```
