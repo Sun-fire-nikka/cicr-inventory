@@ -5738,3 +5738,51 @@ body.theme-avengers #avengers-canvas,
         line-height: 1.4;
     }
 }
+
+/* Enhanced Mobile Touch & Interactivity Scalability */
+@media (max-width: 768px) {
+    .modal-content,
+    .modal-card {
+        width: 94vw !important;
+        max-width: 94vw !important;
+        max-height: 88vh !important;
+        overflow-y: auto !important;
+        padding: 16px !important;
+        border-radius: 20px !important;
+    }
+
+    .modal-header h2 {
+        font-size: 18px !important;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 15px !important;
+        padding: 10px 12px !important;
+    }
+
+    .modal-footer {
+        flex-direction: column-reverse !important;
+        gap: 8px !important;
+    }
+
+    .modal-footer button {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    .header-theme-box,
+    .nav-theme-box {
+        width: 100% !important;
+    }
+
+    .header-theme-box select,
+    .nav-theme-box select {
+        width: 100% !important;
+    }
+
+    .inventory-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
