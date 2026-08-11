@@ -834,18 +834,6 @@ class ModalManager {
         return this.getCurrentRole() === 'ADMIN';
     }
 
-    private static updateRoleLabels() {
-        const profileRole = document.getElementById('profile-role-display');
-        if (profileRole) {
-            profileRole.innerText = this.isAdmin() ? 'ADMIN' : 'MEMBER';
-        }
-
-        const dashboardLabel = document.getElementById('dashboard-subtitle-accent');
-        if (dashboardLabel) {
-            dashboardLabel.innerText = this.isAdmin() ? 'ADMIN DASHBOARD' : 'MEMBER REQUEST PORTAL';
-        }
-    }
-
     private static setBorrowModalMode(mode: 'borrow' | 'request', componentName: string, available: number) {
         const modalTitle = document.getElementById('borrow-form-title');
         const subtitle = document.getElementById('borrow-form-subtitle');
@@ -1046,7 +1034,6 @@ class ModalManager {
             returnBtn.style.display = 'none';
         }
 
-        const borrowIcon = borrowBtn.querySelector('i');
         if (role === 'ADMIN') {
             borrowBtn.innerHTML = '<i data-lucide="shopping-cart"></i> Checkout / Borrow';
         } else {
