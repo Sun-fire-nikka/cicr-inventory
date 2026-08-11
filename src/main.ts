@@ -117,6 +117,12 @@ class Background3D {
             this.scene.fog = new THREE.FogExp2(fogHex, theme === 'sakura' ? 0.01 : 0.015);
         }
 
+        if (this.grid1 && this.grid2) {
+            const showHorizontalGrids = theme !== 'sakura';
+            this.grid1.visible = showHorizontalGrids;
+            this.grid2.visible = showHorizontalGrids;
+        }
+
         this.setParticleColorsForTheme(theme);
     }
 

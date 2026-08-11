@@ -5199,9 +5199,8 @@ body.theme-sakura {
 body.theme-sakura::before {
     background-image: 
         radial-gradient(circle at 50% 0%, rgba(244, 114, 182, 0.15) 0%, transparent 60%),
-        linear-gradient(rgba(236, 72, 153, 0.16) 1.2px, transparent 1.2px),
         linear-gradient(90deg, rgba(236, 72, 153, 0.16) 1.2px, transparent 1.2px);
-    background-size: 100% 100%, 40px 40px, 40px 40px;
+    background-size: 100% 100%, 40px 40px;
     opacity: 1;
 }
 
