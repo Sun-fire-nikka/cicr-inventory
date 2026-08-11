@@ -2,6 +2,11 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { default: app, supabase } = require('../dist/app.js');
 
+if (!process.env.SUPABASE_URL || process.env.SUPABASE_URL.includes('placeholder') || process.env.SUPABASE_URL === 'http://localhost:54321') {
+  console.log('Skipping live Supabase integration tests (no live SUPABASE_URL configured).');
+  return;
+}
+
 let server, base;
 const ts = Date.now();
 const ADMIN_EMAIL = `admin.${ts}@cicr.test`;

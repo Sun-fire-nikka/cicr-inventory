@@ -103,6 +103,18 @@ class Background3D {
         this.scene.add(this.wallGrid);
     }
 
+    public updateThemeColors(theme: string) {
+        let fogHex = 0x06060e;
+        if (theme === 'matrix') fogHex = 0x020d07;
+        else if (theme === 'synthwave') fogHex = 0x120318;
+        else if (theme === 'midnight') fogHex = 0x060e20;
+        else if (theme === 'light') fogHex = 0xf1f5f9;
+
+        if (this.scene) {
+            this.scene.fog = new THREE.FogExp2(fogHex, 0.015);
+        }
+    }
+
     private createParticles() {
         const particleCount = 250;
         const geometry = new THREE.BufferGeometry();
@@ -1586,20 +1598,59 @@ declare global {
 }
 
 // ==========================================
+// Theme Manager System
+// ==========================================
+class ThemeManager {
+    private static themeSelectEl: HTMLSelectElement | null = null;
+    private static navThemeSelectEl: HTMLSelectElement | null = null;
+
+    public static init() {
+        this.themeSelectEl = document.getElementById('theme-select') as HTMLSelectElement;
+        this.navThemeSelectEl = document.getElementById('nav-theme-select') as HTMLSelectElement;
+
+        const savedTheme = localStorage.getItem('cicr_vault_theme') || 'cyberpunk';
+        this.applyTheme(savedTheme);
+
+        if (this.themeSelectEl) {
+            this.themeSelectEl.value = savedTheme;
+            this.themeSelectEl.addEventListener('change', (e) => {
+                const target = e.target as HTMLSelectElement;
+                this.applyTheme(target.value);
+            });
+        }
+
+        if (this.navThemeSelectEl) {
+            this.navThemeSelectEl.value = savedTheme;
+            this.navThemeSelectEl.addEventListener('change', (e) => {
+                const target = e.target as HTMLSelectElement;
+                this.applyTheme(target.value);
+            });
+        }
+    }
+
+    public static applyTheme(theme: string) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('cicr_vault_theme', theme);
+
+        if (this.themeSelectEl && this.themeSelectEl.value !== theme) {
+            this.themeSelectEl.value = theme;
+        }
+        if (this.navThemeSelectEl && this.navThemeSelectEl.value !== theme) {
+            this.navThemeSelectEl.value = theme;
+        }
+
+        if (window.bg3D) {
+            window.bg3D.updateThemeColors(theme);
+        }
+    }
+}
+
+// ==========================================
 // 7. Application Bootstrap
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    // Apply persisted theme instantly on page load before render to prevent flash
-    const savedTheme = localStorage.getItem('cicr_theme') || 'dark';
-    document.body.classList.remove('theme-light', 'theme-pink');
-    if (savedTheme === 'light') {
-        document.body.classList.add('theme-light');
-    } else if (savedTheme === 'pink') {
-        document.body.classList.add('theme-pink');
-    }
-
+    ThemeManager.init();
     DatabaseManager.init();
-    // Disabled 3D canvas background to support static high-fidelity green gridlines
     // window.bg3D = new Background3D();
     ModalManager.init();
     AuthManager.init();
