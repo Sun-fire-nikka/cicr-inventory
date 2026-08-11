@@ -1803,6 +1803,141 @@ class SakuraAnimation {
     }
 }
 
+// ==========================================
+// Avengers Assemble Character & Energy Engine
+// ==========================================
+interface HeroParticle {
+    x: number;
+    y: number;
+    size: number;
+    speedY: number;
+    speedX: number;
+    rotation: number;
+    rotationSpeed: number;
+    opacity: number;
+    symbol: string;
+    color: string;
+}
+
+class AvengersAnimation {
+    private canvas: HTMLCanvasElement | null = null;
+    private ctx: CanvasRenderingContext2D | null = null;
+    private particles: HeroParticle[] = [];
+    private animationFrameId: number | null = null;
+    private isRunning = false;
+    private width = window.innerWidth;
+    private height = window.innerHeight;
+
+    private heroSymbols = [
+        { symbol: '⚛️', color: '#00f0ff' },
+        { symbol: '🛡️', color: '#3b82f6' },
+        { symbol: '⚡', color: '#fbbf24' },
+        { symbol: '💚', color: '#10b981' },
+        { symbol: '🐾', color: '#a855f7' },
+        { symbol: '🕸️', color: '#ef4444' },
+        { symbol: '🅰️', color: '#f43f5e' },
+    ];
+
+    constructor() {
+        this.canvas = document.getElementById('avengers-canvas') as HTMLCanvasElement;
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        this.initParticles(35);
+        this.setupEvents();
+    }
+
+    private resize() {
+        if (!this.canvas) return;
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+    }
+
+    private initParticles(count: number) {
+        this.particles = [];
+        for (let i = 0; i < count; i++) {
+            this.particles.push(this.createParticle(true));
+        }
+    }
+
+    private createParticle(randomY = false): HeroParticle {
+        const item = this.heroSymbols[Math.floor(Math.random() * this.heroSymbols.length)];
+        return {
+            x: Math.random() * this.width,
+            y: randomY ? Math.random() * this.height : this.height + 20 + Math.random() * 40,
+            size: Math.random() * 12 + 16,
+            speedY: -(Math.random() * 0.8 + 0.4),
+            speedX: (Math.random() - 0.5) * 0.6,
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: (Math.random() - 0.5) * 0.02,
+            opacity: Math.random() * 0.4 + 0.45,
+            symbol: item.symbol,
+            color: item.color,
+        };
+    }
+
+    private setupEvents() {
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    public start() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.loop();
+    }
+
+    public stop() {
+        this.isRunning = false;
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+        if (this.ctx && this.canvas) {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    }
+
+    private drawParticle(p: HeroParticle) {
+        if (!this.ctx) return;
+        this.ctx.save();
+        this.ctx.translate(p.x, p.y);
+        this.ctx.rotate(p.rotation);
+        this.ctx.globalAlpha = p.opacity;
+
+        this.ctx.font = `${p.size}px sans-serif`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+
+        this.ctx.shadowColor = p.color;
+        this.ctx.shadowBlur = 12;
+
+        this.ctx.fillText(p.symbol, 0, 0);
+        this.ctx.restore();
+    }
+
+    private loop() {
+        if (!this.isRunning || !this.ctx || !this.canvas) return;
+        this.ctx.clearRect(0, 0, this.width, this.height);
+
+        for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
+            p.y += p.speedY;
+            p.x += p.speedX;
+            p.rotation += p.rotationSpeed;
+
+            if (p.y < -40 || p.x < -40 || p.x > this.width + 40) {
+                this.particles[i] = this.createParticle(false);
+            }
+
+            this.drawParticle(p);
+        }
+
+        this.animationFrameId = requestAnimationFrame(() => this.loop());
+    }
+}
+
 // Extend global window interface for development debugging
 declare global {
     interface Window {
@@ -1819,9 +1954,13 @@ class ThemeManager {
     private static navThemeSelectEl: HTMLSelectElement | null = null;
     private static headerThemeSelectEl: HTMLSelectElement | null = null;
     private static sakuraAnim: SakuraAnimation | null = null;
+    private static avengersAnim: AvengersAnimation | null = null;
 
     public static init() {
         this.sakuraAnim = new SakuraAnimation();
+        this.avengersAnim = new AvengersAnimation();
+        this.setupHeroRoster();
+
         this.themeSelectEl = document.getElementById('theme-select') as HTMLSelectElement;
         this.navThemeSelectEl = document.getElementById('nav-theme-select') as HTMLSelectElement;
         this.headerThemeSelectEl = document.getElementById('header-theme-select') as HTMLSelectElement;
@@ -1854,6 +1993,32 @@ class ThemeManager {
         }
     }
 
+    private static setupHeroRoster() {
+        const heroQuotes: Record<string, string> = {
+            ironman: '"I am Iron Man." — Mark 85 Arc Reactor Tech Online',
+            cap: '"I can do this all day." — Vibranium Shield Defense Active',
+            thor: '"Bring me Thanos!" — Asgardian Stormbreaker Lightning Online',
+            hulk: '"Hulk... SMASH!" — Gamma Energy Reserves 100%',
+            panther: '"Wakanda Forever!" — Vibranium Kinetic Grid Active',
+            spidey: '"With great power comes great responsibility." — Stark Web Tech Active'
+        };
+
+        const heroBtns = document.querySelectorAll('.hero-pill-btn');
+        const quoteText = document.getElementById('hero-quote-text');
+
+        heroBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const hero = (btn as HTMLElement).dataset.hero || 'ironman';
+                heroBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                if (heroQuotes[hero] && quoteText) {
+                    quoteText.innerText = heroQuotes[hero];
+                }
+            });
+        });
+    }
+
     public static applyTheme(theme: string) {
         document.documentElement.setAttribute('data-theme', theme);
         document.body.classList.remove('theme-light', 'theme-pink', 'theme-sakura', 'theme-avengers');
@@ -1882,8 +2047,18 @@ class ThemeManager {
 
         if (theme === 'sakura' || theme === 'pink') {
             this.sakuraAnim?.start();
+            this.avengersAnim?.stop();
+        } else if (theme === 'avengers') {
+            this.sakuraAnim?.stop();
+            this.avengersAnim?.start();
         } else {
             this.sakuraAnim?.stop();
+            this.avengersAnim?.stop();
+        }
+
+        const avengersRosterBox = document.getElementById('avengers-roster-box');
+        if (avengersRosterBox) {
+            avengersRosterBox.style.display = (theme === 'avengers') ? 'block' : 'none';
         }
     }
 }

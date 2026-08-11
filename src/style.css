@@ -5388,6 +5388,108 @@ body.theme-avengers select option {
     color: #f8fafc !important;
 }
 
+/* Avengers Hero Roster & Character Widget */
+.avengers-roster-box {
+    margin-top: 16px;
+    padding: 16px 20px;
+    border-radius: 18px;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    box-shadow: 0 10px 30px rgba(0, 240, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.avengers-roster-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #00f0ff;
+    text-transform: uppercase;
+}
+
+.avengers-hero-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.hero-pill-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 14px;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.hero-pill-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.4);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 240, 255, 0.2);
+}
+
+.hero-pill-btn.active {
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(239, 68, 68, 0.25)) !important;
+    border-color: #00f0ff !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 18px rgba(0, 240, 255, 0.35) !important;
+}
+
+.hero-icon {
+    font-size: 14px;
+}
+
+.hero-quote-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(2, 6, 23, 0.6);
+    border-left: 3px solid #00f0ff;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #e2e8f0;
+    font-style: italic;
+}
+
+.hero-quote-banner i,
+.hero-quote-banner svg {
+    width: 16px;
+    height: 16px;
+    color: #00f0ff;
+    flex-shrink: 0;
+}
+
+#avengers-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+}
+
+body.theme-avengers #avengers-canvas,
+[data-theme="avengers"] #avengers-canvas {
+    opacity: 1;
+}
+
 /* Responsiveness media queries */
 @media (max-width: 1100px) {
     .app-container {
