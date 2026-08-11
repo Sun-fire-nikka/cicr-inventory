@@ -5155,6 +5155,139 @@ body.theme-pink .theme-btn.active {
     border-color: rgba(251, 191, 219, 0.24) !important;
 }
 
+/* ==========================================
+   Cherry Blossom (Sakura) Theme Styling
+   ========================================== */
+[data-theme="sakura"],
+body.theme-sakura {
+    --bg-primary: #fff0f5;
+    --bg-glass: rgba(255, 255, 255, 0.88);
+    --bg-glass-hover: rgba(255, 255, 255, 0.96);
+    --bg-glass-active: rgba(253, 242, 248, 1);
+    --border-glass: rgba(244, 114, 182, 0.22);
+    --border-glass-hover: rgba(236, 72, 153, 0.45);
+    
+    --neon-cyan: #ec4899;
+    --neon-purple: #d946ef;
+    --neon-pink: #f43f5e;
+    --neon-yellow: #fb7185;
+    --neon-green: #10b981;
+    
+    --text-main: #4c0519;
+    --text-muted: #881337;
+    --text-dim: #9f1239;
+    --white: #ffffff;
+
+    --card-bg-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(253, 242, 248, 0.95) 100%);
+    --card-item-bg: rgba(255, 255, 255, 0.9);
+    --glow-card: 0 12px 30px rgba(244, 114, 182, 0.12);
+
+    --search-bg: rgba(255, 255, 255, 0.92);
+    --search-border: rgba(244, 114, 182, 0.25);
+    --badge-bg: rgba(236, 72, 153, 0.15);
+    --active-bg: rgba(236, 72, 153, 0.12);
+    --active-border: rgba(236, 72, 153, 0.3);
+    --active-color: #db2777;
+}
+
+[data-theme="sakura"] body,
+body.theme-sakura {
+    background-color: #fff0f5;
+    color: #4c0519;
+}
+
+[data-theme="sakura"] body::before,
+body.theme-sakura::before {
+    background-image: 
+        radial-gradient(circle at 50% 0%, rgba(244, 114, 182, 0.15) 0%, transparent 60%),
+        linear-gradient(rgba(244, 114, 182, 0.08) 1.2px, transparent 1.2px),
+        linear-gradient(90deg, rgba(244, 114, 182, 0.08) 1.2px, transparent 1.2px);
+}
+
+body.theme-sakura .app-sidebar,
+body.theme-sakura .dashboard-greeting-card,
+body.theme-sakura .dash-card,
+body.theme-sakura .header-search,
+body.theme-sakura .sidebar-action-btn,
+body.theme-sakura .sidebar-nav-link,
+body.theme-sakura .modal-content,
+body.theme-sakura .stat-bubble-new,
+body.theme-sakura .inventory-card,
+body.theme-sakura .header-theme-box {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(244, 114, 182, 0.22);
+    box-shadow: 0 10px 28px rgba(244, 114, 182, 0.1);
+    color: #4c0519;
+}
+
+body.theme-sakura .brand-title,
+body.theme-sakura .dashboard-greeting-title,
+body.theme-sakura .dash-card-title,
+body.theme-sakura .card-title,
+body.theme-sakura .section-title-bar h2,
+body.theme-sakura .modal-header h2,
+body.theme-sakura .info-value,
+body.theme-sakura .borrower-name,
+body.theme-sakura .vault-dropdown summary,
+body.theme-sakura .no-results h3 {
+    color: #4c0519 !important;
+}
+
+body.theme-sakura .dashboard-greeting-desc,
+body.theme-sakura .dash-card-desc,
+body.theme-sakura .card-desc,
+body.theme-sakura .clock-date,
+body.theme-sakura .items-count-badge,
+body.theme-sakura .sidebar-section-header,
+body.theme-sakura .search-kbd,
+body.theme-sakura .card-category,
+body.theme-sakura .info-title,
+body.theme-sakura .bubble-label,
+body.theme-sakura .no-results p {
+    color: #881337 !important;
+}
+
+body.theme-sakura .sidebar-nav-link.active,
+body.theme-sakura .sidebar-item.active,
+body.theme-sakura .tag-pill.active {
+    background: linear-gradient(135deg, #ec4899, #f43f5e) !important;
+    color: #ffffff !important;
+    border-color: #ec4899 !important;
+    box-shadow: 0 6px 18px rgba(236, 72, 153, 0.3) !important;
+}
+
+body.theme-sakura .sidebar-nav-link.active i,
+body.theme-sakura .sidebar-item.active i,
+body.theme-sakura .sidebar-item.active svg {
+    color: #ffffff !important;
+}
+
+body.theme-sakura .tag-pill {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(244, 114, 182, 0.25);
+    color: #881337;
+}
+
+body.theme-sakura .tag-pill:hover {
+    background: rgba(244, 114, 182, 0.15);
+    color: #4c0519;
+}
+
+body.theme-sakura .form-group input,
+body.theme-sakura .form-group select,
+body.theme-sakura .form-group textarea,
+body.theme-sakura #search-input,
+body.theme-sakura #header-search-input {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-color: rgba(244, 114, 182, 0.3) !important;
+    color: #4c0519 !important;
+}
+
+body.theme-sakura select option {
+    background: #ffffff !important;
+    color: #4c0519 !important;
+}
+
 /* Responsiveness media queries */
 @media (max-width: 1100px) {
     .app-container {

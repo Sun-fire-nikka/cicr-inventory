@@ -32,6 +32,8 @@ class Background3D {
     private grid2!: THREE.GridHelper;
     private wallGrid!: THREE.GridHelper;
     private particles!: THREE.Points;
+    private particlePhases: Float32Array = new Float32Array(0);
+    private currentTheme = 'cyberpunk';
     
     private mouseX = 0;
     private mouseY = 0;
@@ -44,6 +46,7 @@ class Background3D {
 
     constructor() {
         this.canvas = document.getElementById('canvas-3d') as HTMLCanvasElement;
+        if (!this.canvas) return;
         this.init();
         this.createGrid();
         this.createParticles();
@@ -84,7 +87,7 @@ class Background3D {
         this.grid2.position.z = -this.gridSize;
         this.scene.add(this.grid2);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         this.scene.add(ambientLight);
 
         const pointLight = new THREE.PointLight(0xbd00ff, 1.5, 100);
@@ -95,7 +98,6 @@ class Background3D {
         pointLight2.position.set(20, 5, 10);
         this.scene.add(pointLight2);
 
-        // Vertical background wall grid for depth
         const wallColor = new THREE.Color(0x00f0ff);
         this.wallGrid = new THREE.GridHelper(this.gridSize, this.gridDivisions, wallColor, helperColor);
         this.wallGrid.rotation.x = Math.PI / 2;
@@ -104,62 +106,94 @@ class Background3D {
     }
 
     public updateThemeColors(theme: string) {
+        this.currentTheme = theme;
         let fogHex = 0x06060e;
         if (theme === 'matrix') fogHex = 0x020d07;
         else if (theme === 'synthwave') fogHex = 0x120318;
         else if (theme === 'midnight') fogHex = 0x060e20;
         else if (theme === 'light') fogHex = 0xf1f5f9;
+        else if (theme === 'sakura') fogHex = 0xfff0f5;
 
         if (this.scene) {
-            this.scene.fog = new THREE.FogExp2(fogHex, 0.015);
+            this.scene.fog = new THREE.FogExp2(fogHex, theme === 'sakura' ? 0.01 : 0.015);
         }
+
+        this.setParticleColorsForTheme(theme);
+    }
+
+    private setParticleColorsForTheme(theme: string) {
+        if (!this.particles) return;
+        const colors = this.particles.geometry.attributes.color.array as Float32Array;
+        const count = colors.length / 3;
+
+        let color1 = new THREE.Color(0x00f0ff);
+        let color2 = new THREE.Color(0xbd00ff);
+        let color3 = new THREE.Color(0xff007a);
+
+        if (theme === 'sakura') {
+            color1 = new THREE.Color(0xec4899); // Sakura Pink
+            color2 = new THREE.Color(0xf43f5e); // Rose Petal Red
+            color3 = new THREE.Color(0xfbcfe8); // Soft Blossom White
+        } else if (theme === 'matrix') {
+            color1 = new THREE.Color(0x00ff66);
+            color2 = new THREE.Color(0x00cc44);
+            color3 = new THREE.Color(0x33ff88);
+        } else if (theme === 'synthwave') {
+            color1 = new THREE.Color(0xff007a);
+            color2 = new THREE.Color(0x7000ff);
+            color3 = new THREE.Color(0x00f0ff);
+        } else if (theme === 'midnight') {
+            color1 = new THREE.Color(0x38bdf8);
+            color2 = new THREE.Color(0x818cf8);
+            color3 = new THREE.Color(0xc084fc);
+        } else if (theme === 'light') {
+            color1 = new THREE.Color(0x0284c7);
+            color2 = new THREE.Color(0x7c3aed);
+            color3 = new THREE.Color(0xdb2777);
+        }
+
+        for (let i = 0; i < count; i++) {
+            const rand = Math.random();
+            let c = color1;
+            if (rand > 0.6) c = color2;
+            else if (rand > 0.3) c = color3;
+
+            colors[i * 3] = c.r;
+            colors[i * 3 + 1] = c.g;
+            colors[i * 3 + 2] = c.b;
+        }
+
+        this.particles.geometry.attributes.color.needsUpdate = true;
     }
 
     private createParticles() {
-        const particleCount = 250;
+        const particleCount = 350;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
-
-        const cyanColor = new THREE.Color(0x00f0ff);
-        const purpleColor = new THREE.Color(0xbd00ff);
-        const pinkColor = new THREE.Color(0xff007a);
+        this.particlePhases = new Float32Array(particleCount);
 
         for (let i = 0; i < particleCount; i++) {
-            const x = (Math.random() - 0.5) * 120;
-            const y = Math.random() * 35 - 5;
-            const z = (Math.random() - 0.7) * 150;
-
-            positions[i * 3] = x;
-            positions[i * 3 + 1] = y;
-            positions[i * 3 + 2] = z;
-
-            const rand = Math.random();
-            let mixedColor = cyanColor;
-            if (rand > 0.6) {
-                mixedColor = purpleColor;
-            } else if (rand > 0.3) {
-                mixedColor = pinkColor;
-            }
-
-            colors[i * 3] = mixedColor.r;
-            colors[i * 3 + 1] = mixedColor.g;
-            colors[i * 3 + 2] = mixedColor.b;
+            positions[i * 3] = (Math.random() - 0.5) * 120;
+            positions[i * 3 + 1] = Math.random() * 40 - 10;
+            positions[i * 3 + 2] = (Math.random() - 0.7) * 150;
+            this.particlePhases[i] = Math.random() * Math.PI * 2;
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
         const material = new THREE.PointsMaterial({
-            size: 0.18,
+            size: 0.24,
             vertexColors: true,
             transparent: true,
-            opacity: 0.85,
+            opacity: 0.88,
             blending: THREE.AdditiveBlending
         });
 
         this.particles = new THREE.Points(geometry, material);
         this.scene.add(this.particles);
+        this.setParticleColorsForTheme(this.currentTheme);
     }
 
     private setupEvents() {
@@ -189,22 +223,37 @@ class Background3D {
             this.grid2.position.z = this.grid1.position.z - this.gridSize;
         }
 
-        const positions = this.particles.geometry.attributes.position.array as Float32Array;
-        const particleCount = positions.length / 3;
+        if (this.particles) {
+            const positions = this.particles.geometry.attributes.position.array as Float32Array;
+            const particleCount = positions.length / 3;
+            const time = Date.now() * 0.001;
 
-        for (let i = 0; i < particleCount; i++) {
-            positions[i * 3 + 1] += 0.015;
-            positions[i * 3 + 2] += 0.03;
+            for (let i = 0; i < particleCount; i++) {
+                if (this.currentTheme === 'sakura') {
+                    // Gentle falling & swaying Sakura Cherry Blossom petals
+                    positions[i * 3 + 1] -= 0.035;
+                    positions[i * 3] += Math.sin(time * 1.5 + this.particlePhases[i]) * 0.025;
+                    positions[i * 3 + 2] += Math.cos(time * 1.0 + this.particlePhases[i]) * 0.015;
 
-            if (positions[i * 3 + 1] > 30) {
-                positions[i * 3 + 1] = -5;
+                    if (positions[i * 3 + 1] < -10) {
+                        positions[i * 3 + 1] = 30;
+                        positions[i * 3] = (Math.random() - 0.5) * 120;
+                    }
+                } else {
+                    positions[i * 3 + 1] += 0.015;
+                    positions[i * 3 + 2] += 0.03;
+
+                    if (positions[i * 3 + 1] > 30) {
+                        positions[i * 3 + 1] = -5;
+                    }
+                    if (positions[i * 3 + 2] > 20) {
+                        positions[i * 3 + 2] = -120;
+                        positions[i * 3] = (Math.random() - 0.5) * 120;
+                    }
+                }
             }
-            if (positions[i * 3 + 2] > 20) {
-                positions[i * 3 + 2] = -120;
-                positions[i * 3] = (Math.random() - 0.5) * 120;
-            }
+            this.particles.geometry.attributes.position.needsUpdate = true;
         }
-        this.particles.geometry.attributes.position.needsUpdate = true;
 
         this.targetCameraX = this.mouseX * 3;
         this.targetCameraY = 4 + (this.mouseY * 1.5);
@@ -1641,11 +1690,11 @@ class ThemeManager {
 
     public static applyTheme(theme: string) {
         document.documentElement.setAttribute('data-theme', theme);
-        document.body.classList.remove('theme-light', 'theme-pink');
+        document.body.classList.remove('theme-light', 'theme-pink', 'theme-sakura');
         if (theme === 'light') {
             document.body.classList.add('theme-light');
-        } else if (theme === 'pink') {
-            document.body.classList.add('theme-pink');
+        } else if (theme === 'pink' || theme === 'sakura') {
+            document.body.classList.add('theme-sakura');
         }
         localStorage.setItem('cicr_vault_theme', theme);
 
@@ -1669,9 +1718,9 @@ class ThemeManager {
 // 7. Application Bootstrap
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    window.bg3D = new Background3D();
     ThemeManager.init();
     DatabaseManager.init();
-    // window.bg3D = new Background3D();
     ModalManager.init();
     AuthManager.init();
     lucide.createIcons();
