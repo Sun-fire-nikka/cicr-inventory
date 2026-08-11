@@ -5155,6 +5155,23 @@ body.theme-pink .theme-btn.active {
     border-color: rgba(251, 191, 219, 0.24) !important;
 }
 
+#sakura-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+}
+
+body.theme-sakura #sakura-canvas,
+[data-theme="sakura"] #sakura-canvas {
+    opacity: 1;
+}
+
 /* ==========================================
    Cherry Blossom (Sakura) Theme Styling
    ========================================== */
