@@ -6,6 +6,21 @@ export interface BorrowRecord {
     date: string;
 }
 
+export interface RequestRecord {
+    id: string;
+    itemId: string;
+    itemName: string;
+    name: string;
+    roll: string;
+    qty: number;
+    purpose: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    requestedAt: string;
+    reviewedAt?: string;
+    reviewedBy?: string;
+    reviewNote?: string;
+}
+
 export interface InventoryItem {
     id: string;
     name: string;
@@ -17,7 +32,7 @@ export interface InventoryItem {
 }
 
 export interface ActivityLog {
-    type: 'system' | 'borrow' | 'return' | 'add';
+    type: 'system' | 'borrow' | 'return' | 'add' | 'request' | 'approve' | 'reject';
     timestamp: string;
     text: string;
 }
