@@ -4,6 +4,7 @@ dotenv.config();
 import app from './app';
 import { supabase } from './app';
 import systemRoutes from './routes/system.routes';
+import { startReminderScheduler } from './services/reminderScheduler';
 
 const PORT = process.env.PORT || 5000;
 
