@@ -1804,23 +1804,21 @@ class SakuraAnimation {
 }
 
 // ==========================================
-// Avengers Ambient Background Engine (Captain America Shield & Iron Man Arc Reactor)
+// Avengers Cinematic Ambient Engine (Shield + Arc Reactor HUD)
 // ==========================================
 class AvengersAnimation {
     private canvas: HTMLCanvasElement | null = null;
     private ctx: CanvasRenderingContext2D | null = null;
+    private animationFrameId: number | null = null;
+    private isRunning = false;
+    private pulseTime = 0;
 
     constructor() {
         this.canvas = document.getElementById('avengers-canvas') as HTMLCanvasElement;
         if (!this.canvas) return;
         this.ctx = this.canvas.getContext('2d');
         this.resize();
-        window.addEventListener('resize', () => {
-            this.resize();
-            if (document.body.classList.contains('theme-avengers')) {
-                this.drawBackground();
-            }
-        });
+        window.addEventListener('resize', () => this.resize());
     }
 
     private resize() {
@@ -1830,11 +1828,18 @@ class AvengersAnimation {
     }
 
     public start() {
+        if (this.isRunning) return;
+        this.isRunning = true;
         this.resize();
-        this.drawBackground();
+        this.loop();
     }
 
     public stop() {
+        this.isRunning = false;
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
         if (this.ctx && this.canvas) {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         }
@@ -1869,41 +1874,108 @@ class AvengersAnimation {
         const h = this.canvas.height;
         this.ctx.clearRect(0, 0, w, h);
 
-        // Captain America Shield Centered in Mid of Screen with Low Opacity
-        const shieldRadius = Math.min(w, h) * 0.28;
-        const shieldX = w / 2;
-        const shieldY = h / 2;
+        const cx = w / 2;
+        const cy = h / 2;
+        const baseRadius = Math.min(w, h) * 0.25;
+        const pulse = Math.sin(this.pulseTime) * 0.025;
+        const opacity = 0.16 + pulse; // Smooth breathing energy pulse
 
         this.ctx.save();
-        this.ctx.globalAlpha = 0.08; // Low opacity
+        this.ctx.globalAlpha = opacity;
 
-        // Outer Red Ring
+        // 1. Outer Stark Gold Tech Accent Ring
         this.ctx.beginPath();
-        this.ctx.arc(shieldX, shieldY, shieldRadius, 0, Math.PI * 2);
+        this.ctx.arc(cx, cy, baseRadius * 1.25, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2, baseRadius * 0.035);
+        this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+        this.ctx.stroke();
+
+        // 2. Arc Cyan Outer HUD Ring with Glow
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 1.15, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(3, baseRadius * 0.045);
+        this.ctx.strokeStyle = '#00f0ff';
+        this.ctx.shadowColor = '#00f0ff';
+        this.ctx.shadowBlur = 16;
+        this.ctx.stroke();
+
+        // 12 Stark Energy Nodes around Arc Reactor Ring
+        const nodes = 12;
+        for (let i = 0; i < nodes; i++) {
+            const angle = (i * Math.PI * 2) / nodes + this.pulseTime * 0.15;
+            const nx = cx + Math.cos(angle) * (baseRadius * 1.15);
+            const ny = cy + Math.sin(angle) * (baseRadius * 1.15);
+            this.ctx.beginPath();
+            this.ctx.arc(nx, ny, Math.max(3, baseRadius * 0.03), 0, Math.PI * 2);
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.fill();
+        }
+
+        // 3. Centered Captain America Shield
+        // Outer Vibranium Crimson Red Ring
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
         this.ctx.fillStyle = '#dc2626';
         this.ctx.fill();
 
-        // Middle White Ring
+        // Middle Silver White Ring
         this.ctx.beginPath();
-        this.ctx.arc(shieldX, shieldY, shieldRadius * 0.74, 0, Math.PI * 2);
+        this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
         this.ctx.fillStyle = '#f8fafc';
         this.ctx.fill();
 
-        // Inner Red Ring
+        // Inner Vibranium Crimson Red Ring
         this.ctx.beginPath();
-        this.ctx.arc(shieldX, shieldY, shieldRadius * 0.48, 0, Math.PI * 2);
+        this.ctx.arc(cx, cy, baseRadius * 0.48, 0, Math.PI * 2);
         this.ctx.fillStyle = '#dc2626';
         this.ctx.fill();
 
-        // Center Blue Circle
+        // Center Cobalt Blue Circle
         this.ctx.beginPath();
-        this.ctx.arc(shieldX, shieldY, shieldRadius * 0.28, 0, Math.PI * 2);
+        this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
         this.ctx.fillStyle = '#1d4ed8';
         this.ctx.fill();
 
-        // Center Star
-        this.drawStar(this.ctx, shieldX, shieldY, 5, shieldRadius * 0.25, shieldRadius * 0.11, '#ffffff');
+        // Center White 5-Point Star
+        this.drawStar(this.ctx, cx, cy, 5, baseRadius * 0.25, baseRadius * 0.11, '#ffffff');
+
+        // 4. Stark HUD Target Crosshair Marks
+        this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+        this.ctx.lineWidth = 1.5;
+
+        const notchLen = baseRadius * 0.22;
+        // Top
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy - baseRadius * 1.35);
+        this.ctx.lineTo(cx, cy - baseRadius * 1.35 + notchLen);
+        this.ctx.stroke();
+
+        // Bottom
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy + baseRadius * 1.35);
+        this.ctx.lineTo(cx, cy + baseRadius * 1.35 - notchLen);
+        this.ctx.stroke();
+
+        // Left
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx - baseRadius * 1.35, cy);
+        this.ctx.lineTo(cx - baseRadius * 1.35 + notchLen, cy);
+        this.ctx.stroke();
+
+        // Right
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx + baseRadius * 1.35, cy);
+        this.ctx.lineTo(cx + baseRadius * 1.35 - notchLen, cy);
+        this.ctx.stroke();
+
         this.ctx.restore();
+    }
+
+    private loop() {
+        if (!this.isRunning) return;
+        this.pulseTime += 0.02;
+        this.drawBackground();
+        this.animationFrameId = requestAnimationFrame(() => this.loop());
     }
 }
 
