@@ -8,7 +8,7 @@
 - `backend/src/modules/borrow/borrow.controller.ts` — admin-OTP approval workflow (`POST /api/borrow/request-otp` → `POST /api/borrow/verify-otp`), borrow/return confirmation emails fired **asynchronously** (`.catch()` fire-and-forget) so they never block the HTTP response.
 - `backend/src/services/reminderService.ts` — `node-cron` runs a due/overdue scan **daily at 09:00** + on server boot, sending **Day N-1 "due tomorrow" reminders** and due/overdue reminders **sequentially** (`await` per recipient).
 
-> This analysis corresponds to project release **v1.4.3** (see the Version History in `README.md`). All numbers assume the 3-email borrow workflow (admin OTP → borrow confirmation → return confirmation).
+> This analysis corresponds to project release **v1.4.3 (Pre-release — not production-ready)** (see the Version History in `README.md`). All numbers assume the 3-email borrow workflow (admin OTP → borrow confirmation → return confirmation).
 
 ---
 
@@ -214,6 +214,78 @@ AWS SES: 40,000 × $0.10 / 1,000 = $4.00 / month
 
 ---
 
+## 5. Third-party integration bottlenecks & rate limits
+
+The system has two hard external dependencies: **Gmail SMTP** (email pipeline) and
+**Supabase** (database + auth). Both ship free-tier ceilings that bite well before
+the API tier does. This section is the "when do we need to pay?" answer for each.
+
+### 5.1 Gmail SMTP — burst limit & connection throttle
+
+The daily 500-emails cap (§1) is only one side of the constraint. Gmail also
+throttles **bursts**:
+
+| Limit | Operational value | Effect when exceeded |
+|-------|:---:|-------|
+| Sustained send rate | **~20–30 emails / min** | Sends slow down; SMTP `421 4.7.0` "temporary rate limit" responses appear |
+| Concurrent SMTP connections | **~10–15** | Additional connections are refused; Nodemailer queues in-process |
+| Per-message latency | ~1 s (serialized) | A 30-email burst ≈ 30 s wall-clock |
+| Daily recipients | 500 / account / day | Hard stop; further `sendMail()` calls fail |
+
+**Burst behavior under load (250–300 requests/min):**
+
+```
+250 requests/min ÷ ~25 msgs/min sustainable = ~10 min to drain the burst
+→ backpressure: some sends return `421` (retryable), others queue
+→ with no queue (fire-and-forget), mails can silently drop after cap
+```
+
+In practice a **250–300 req/min** burst (e.g. a club-wide reminder kick or a
+stress test) exceeds the sustainable Gmail throughput by **~10×**, so the
+pipeline must either (a) queue + rate-limit to ~25/min, or (b) move to an ESP
+with a real per-minute budget. This is a **threshold, not a hard failure** —
+Gmail returns `421` retryable errors rather than hard bounces, so a
+BullMQ/Redis queue with retries absorbs the burst; the API stays responsive.
+
+**Upgrade trigger:** sustained send rate approaching 20–30/min or bursts
+> 100 in a single minute → switch `emailService.ts` to **Resend** or **AWS SES**
+(both handle thousands/min on paid tiers).
+
+### 5.2 Supabase Free Tier — database, storage & auth ceilings
+
+| Resource | Free tier cap | Pro tier ($25/mo) |
+|----------|:---:|:---:|
+| Direct DB connections (`max_connections`) | **60** | 120 |
+| Database storage | **500 MB** | 8 GB |
+| File storage | 1 GB | 100 GB |
+| Monthly active users (auth) | **50,000** | 100,000 |
+| Edge/API requests | 500k/mo | 2M/mo |
+| Projects | 2 | 1 (paid, unlimited-ish) |
+
+The **60 direct-connection limit** is the practical bottleneck for a Node server:
+every Express route that touches Supabase holds a pooled Postgres connection, and
+Node's `pg` pool default can exhaust 60 connections under >60 simultaneous
+latent queries. Mitigation: keep `pool` sized ≤ 40 and use the Supabase
+connection pooler (port `6543`) for serverless/many-instance deploys.
+
+**Upgrade trigger:** sustained >40 concurrent pooled queries, DB >500 MB, or
+>50k auth users/month → **Supabase Pro ($25/mo)**.
+
+### 5.3 The two "pay now" thresholds at a glance
+
+| Symptom | Cap hit | Fix | Cost |
+|---------|---------|-----|------|
+| Send rate > ~20–30 msgs/min, or a 100+ burst in 1 min | Gmail SMTP burst throttle | **Resend** (50k msgs tier) or **AWS SES** | ~$20/mo (Resend) / ~$4–5/mo (SES usage) |
+| DB > 500 MB or concurrent connections > 60 | Supabase Free limits | **Supabase Pro** | $25/mo |
+| Both of the above simultaneously | Production scale | Resend/SES + Supabase Pro | ~$45–50/mo total |
+
+> **The math to remember:** Gmail caps you at ~**166 full borrow workflows/day**
+> and ~**20–30 emails/min**; Supabase caps you at **60 connections / 500 MB**.
+> A paid tier is required at ~10,000 students (≈1,333 emails/day) or once the DB
+> passes 500 MB — whichever comes first.
+
+---
+
 ## Summary
 
 | Question | Answer |
@@ -221,6 +293,10 @@ AWS SES: 40,000 × $0.10 / 1,000 = $4.00 / month
 | How many full borrow workflows/day can Gmail sustain? | **~166** (500 emails ÷ 3 emails/workflow) |
 | What is the web-tier concurrency limit? | **500–1000 concurrent users**, <1s API latency |
 | What is the OTP delivery failure rate? | **2–5%** on institutional domains (missing SPF/DKIM) — ≈93% end-to-end first-send OTP success |
+| Gmail burst / connection limits? | **~20–30 emails/min**, **~10–15 concurrent SMTP connections** — `421` throttling beyond that |
+| Supabase Free Tier caps? | **60 direct DB connections**, **500 MB DB**, **50k MAU** |
+| When do we need Resend/SES? | Send rate > ~25/min sustained or >100-email burst/min → ~**$20/mo** (Resend) / ~$4–5/mo (SES) |
+| When do we need Supabase Pro? | DB > 500 MB or > 60 pooled connections → **$25/mo** |
 | What happens at 10,000 students? | ~1,333 emails/day — **3× over Gmail's cap** |
 | Reminder job latency at scale (sequential)? | 10,000 × ~1 s = **~2.8 h** — use a queue + workers |
 | Memory for a 10,000-job queue? | **~20 MB** — non-issue for the process/Redis |

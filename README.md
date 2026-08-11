@@ -28,6 +28,7 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 - [Email Notification Workflow](#-email-notification-workflow)
 - [Back-of-the-Envelope (BOTE) Estimation & Scalability](#-back-of-the-envelope-bote-estimation--scalability)
 - ["Crack vs Smooth Surface" — System Analysis](#-crack-vs-smooth-surface--system-analysis)
+- [Third-Party Integration Bottlenecks & Rate Limits](#-third-party-integration-bottlenecks--rate-limits)
 - [Database Schema](#-database-schema)
 - [Testing](#-testing)
 - [Deployment](#-deployment)
@@ -44,9 +45,9 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v1.1.0** | ✅ Released | Supabase database & core APIs. Supabase schema integration, JWT auth, and core inventory routes. |
 | **v1.2.1** | ✅ Released | Feature additions, bug fixes & connections. Frontend-backend integration, borrow/return logic refinements, and route bug fixes. |
 | **v1.3.2** | ✅ Released | Base email service setup & route fixes. Nodemailer transport integration, SMTP configuration, and transactional email base. |
-| **v1.4.3** | ✅ Current | Admin OTP approval workflow & BOTE analysis. Admin selection (currently Admin **KUSH**), test student accounts (`kush` / `kushgdhi@gmail.com` + four `@jiit.ac.in` students), **1–30 day rental cap**, 6-digit cryptographic OTP verification via `POST /api/borrow/request-otp` and `POST /api/borrow/verify-otp`, automated **Day N-1 return reminders**, and BOTE deliverability breakdown. |
+| **v1.4.3** | ⚠️ Pre-release | Admin OTP approval workflow & BOTE analysis. Admin selection (currently Admin **KUSH**), test student accounts (`kush` / `kushgdhi@gmail.com` + four `@jiit.ac.in` students), **1–30 day rental cap**, 6-digit cryptographic OTP verification via `POST /api/borrow/request-otp` and `POST /api/borrow/verify-otp`, automated **Day N-1 return reminders**, and BOTE deliverability + third-party rate-limit analysis. |
 
-> The current release is **v1.4.3**. The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
+> The current release is **v1.4.3 — Pre-release (not production-ready)**. It is a functional demo build: real emails/OTPs work, but it sits on the **Gmail free SMTP + Supabase free tier** with hard daily/burst ceilings (see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits)). The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
 
 ---
 
@@ -455,6 +456,42 @@ A two-sided engineering read of the CICR Inventory stack.
 
 ---
 
+## ⛓️ Third-Party Integration Bottlenecks & Rate Limits
+
+Full derivation lives in [`docs/BOTE_ESTIMATION.md`](./docs/BOTE_ESTIMATION.md) §5. Summary of the two hard external ceilings:
+
+### Gmail SMTP (current email pipeline)
+
+| Limit | Value | Effect when exceeded |
+|-------|:---:|-------|
+| Sustained send rate | **~20–30 emails/min** | SMTP `421` "temporary rate limit" → sends slow/queue |
+| Concurrent SMTP connections | **~10–15** | Extra connections refused |
+| Daily recipients | **500 / account / day** | Hard stop — further sends fail |
+| Full borrow workflows/day | **~166** (3 emails each) | The real product ceiling |
+
+**Burst behavior under 250–300 requests/min:** that rate is ~10× Gmail's sustainable ~25/min throughput. Gmail replies with retryable `421` errors (not hard bounces), so a **BullMQ/Redis queue with rate-limiting to ~25/min + retries** absorbs the burst — the API stays responsive, mail doesn't silently drop. This is a **threshold to plan for, not a crash**.
+
+### Supabase free tier
+
+| Limit | Free cap |
+|-------|:---:|
+| Direct DB connections | **60** (keep the Node `pg` pool ≤ 40; use pooler port `6543`) |
+| Database storage | **500 MB** |
+| Monthly active users | **50,000** |
+| Edge/API requests | 500k / mo |
+
+### "Pay now" thresholds
+
+| Symptom | Fix | Cost |
+|---------|-----|------|
+| Send rate > ~25/min sustained, or >100-email burst in 1 min | **Resend** (50k msgs) or **AWS SES** | ~$20/mo · ~$4–5/mo |
+| DB > 500 MB, or > 60 pooled connections, or > 50k MAU | **Supabase Pro** | $25/mo |
+| Both at once (true production scale) | Resend/SES + Supabase Pro | ~$45–50/mo |
+
+> **Bottom line:** v1.4.3 is a **pre-release** that runs comfortably on free tiers for club scale (a few dozen borrows/day). Production scaling needs **Resend/SES (~$20/mo)** once email volume grows and **Supabase Pro ($25/mo)** once the DB/connections grow — whichever hits first.
+
+---
+
 ## 🗄️ Database Schema
 
 Tables: `users`, `inventory`, `borrow_records`, `audit_logs`.
@@ -593,7 +630,7 @@ The built frontend reads `API_BASE` from `src/main.ts:11` — point it at the Re
 
 ## ⚠️ Known Issues & Roadmap
 
-**Known issues (v1.4.3):**
+**Known issues (v1.4.3 — Pre-release):**
 
 - `register` accepts `role: 'ADMIN'` from the client (role spoofing).
 - `createItem` accepts negative `quantity`.
