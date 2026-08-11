@@ -112,6 +112,7 @@ class Background3D {
         else if (theme === 'midnight') fogHex = 0x060e20;
         else if (theme === 'light') fogHex = 0xf1f5f9;
         else if (theme === 'sakura') fogHex = 0xfff0f5;
+        else if (theme === 'avengers') fogHex = 0x090a15;
 
         if (this.scene) {
             this.scene.fog = new THREE.FogExp2(fogHex, theme === 'sakura' ? 0.01 : 0.015);
@@ -135,7 +136,11 @@ class Background3D {
         let color2 = new THREE.Color(0xbd00ff);
         let color3 = new THREE.Color(0xff007a);
 
-        if (theme === 'sakura') {
+        if (theme === 'avengers') {
+            color1 = new THREE.Color(0x00f0ff); // Stark Arc Cyan
+            color2 = new THREE.Color(0xa855f7); // Wakanda Vibranium Purple
+            color3 = new THREE.Color(0xef4444); // Iron Crimson Energy
+        } else if (theme === 'sakura') {
             color1 = new THREE.Color(0xec4899); // Sakura Pink
             color2 = new THREE.Color(0xf43f5e); // Rose Petal Red
             color3 = new THREE.Color(0xfbcfe8); // Soft Blossom White
@@ -1851,11 +1856,13 @@ class ThemeManager {
 
     public static applyTheme(theme: string) {
         document.documentElement.setAttribute('data-theme', theme);
-        document.body.classList.remove('theme-light', 'theme-pink', 'theme-sakura');
+        document.body.classList.remove('theme-light', 'theme-pink', 'theme-sakura', 'theme-avengers');
         if (theme === 'light') {
             document.body.classList.add('theme-light');
         } else if (theme === 'pink' || theme === 'sakura') {
             document.body.classList.add('theme-sakura');
+        } else if (theme === 'avengers') {
+            document.body.classList.add('theme-avengers');
         }
         localStorage.setItem('cicr_vault_theme', theme);
 
