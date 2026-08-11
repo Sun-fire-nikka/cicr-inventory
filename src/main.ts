@@ -1804,19 +1804,18 @@ class SakuraAnimation {
 }
 
 // ==========================================
-// Avengers Assemble Character & Energy Engine
+// Avengers Background Graphics Engine (Iron Man Arc Reactor & Captain America Shield)
 // ==========================================
 interface HeroParticle {
     x: number;
     y: number;
-    size: number;
+    radius: number;
     speedY: number;
     speedX: number;
     rotation: number;
     rotationSpeed: number;
     opacity: number;
-    symbol: string;
-    color: string;
+    type: 'shield' | 'arc';
 }
 
 class AvengersAnimation {
@@ -1828,22 +1827,12 @@ class AvengersAnimation {
     private width = window.innerWidth;
     private height = window.innerHeight;
 
-    private heroSymbols = [
-        { symbol: '⚛️', color: '#00f0ff' },
-        { symbol: '🛡️', color: '#3b82f6' },
-        { symbol: '⚡', color: '#fbbf24' },
-        { symbol: '💚', color: '#10b981' },
-        { symbol: '🐾', color: '#a855f7' },
-        { symbol: '🕸️', color: '#ef4444' },
-        { symbol: '🅰️', color: '#f43f5e' },
-    ];
-
     constructor() {
         this.canvas = document.getElementById('avengers-canvas') as HTMLCanvasElement;
         if (!this.canvas) return;
         this.ctx = this.canvas.getContext('2d');
         this.resize();
-        this.initParticles(35);
+        this.initParticles(24);
         this.setupEvents();
     }
 
@@ -1863,18 +1852,17 @@ class AvengersAnimation {
     }
 
     private createParticle(randomY = false): HeroParticle {
-        const item = this.heroSymbols[Math.floor(Math.random() * this.heroSymbols.length)];
+        const type: 'shield' | 'arc' = Math.random() > 0.5 ? 'shield' : 'arc';
         return {
             x: Math.random() * this.width,
-            y: randomY ? Math.random() * this.height : this.height + 20 + Math.random() * 40,
-            size: Math.random() * 12 + 16,
-            speedY: -(Math.random() * 0.8 + 0.4),
-            speedX: (Math.random() - 0.5) * 0.6,
+            y: randomY ? Math.random() * this.height : this.height + 40 + Math.random() * 60,
+            radius: Math.random() * 16 + 18,
+            speedY: -(Math.random() * 0.7 + 0.3),
+            speedX: (Math.random() - 0.5) * 0.5,
             rotation: Math.random() * Math.PI * 2,
             rotationSpeed: (Math.random() - 0.5) * 0.02,
-            opacity: Math.random() * 0.4 + 0.45,
-            symbol: item.symbol,
-            color: item.color,
+            opacity: Math.random() * 0.35 + 0.45,
+            type,
         };
     }
 
@@ -1899,22 +1887,113 @@ class AvengersAnimation {
         }
     }
 
-    private drawParticle(p: HeroParticle) {
-        if (!this.ctx) return;
-        this.ctx.save();
-        this.ctx.translate(p.x, p.y);
-        this.ctx.rotate(p.rotation);
-        this.ctx.globalAlpha = p.opacity;
+    private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number, color: string) {
+        let rot = (Math.PI / 2) * 3;
+        let step = Math.PI / spikes;
 
-        this.ctx.font = `${p.size}px sans-serif`;
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+            let x = cx + Math.cos(rot) * outerRadius;
+            let y = cy + Math.sin(rot) * outerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
 
-        this.ctx.shadowColor = p.color;
-        this.ctx.shadowBlur = 12;
+            x = cx + Math.cos(rot) * innerRadius;
+            y = cy + Math.sin(rot) * innerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+    }
 
-        this.ctx.fillText(p.symbol, 0, 0);
-        this.ctx.restore();
+    private drawCaptainShield(ctx: CanvasRenderingContext2D, p: HeroParticle) {
+        const { x, y, radius, opacity, rotation } = p;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rotation);
+        ctx.globalAlpha = opacity;
+
+        // Outer Red Ring
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#dc2626';
+        ctx.fill();
+
+        // Middle White Ring
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.74, 0, Math.PI * 2);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fill();
+
+        // Inner Red Ring
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.48, 0, Math.PI * 2);
+        ctx.fillStyle = '#dc2626';
+        ctx.fill();
+
+        // Center Blue Circle
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.28, 0, Math.PI * 2);
+        ctx.fillStyle = '#1d4ed8';
+        ctx.fill();
+
+        // Center White 5-Point Star
+        this.drawStar(ctx, 0, 0, 5, radius * 0.25, radius * 0.11, '#ffffff');
+
+        ctx.restore();
+    }
+
+    private drawArcReactor(ctx: CanvasRenderingContext2D, p: HeroParticle) {
+        const { x, y, radius, opacity, rotation } = p;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rotation);
+        ctx.globalAlpha = opacity;
+
+        // Outer Stark Gold Tech Ring
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.lineWidth = Math.max(1, radius * 0.1);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.stroke();
+
+        // Arc Cyan Outer Ring
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.8, 0, Math.PI * 2);
+        ctx.lineWidth = Math.max(2, radius * 0.15);
+        ctx.strokeStyle = '#00f0ff';
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+
+        // 8 Energy Nodes around the ring
+        const nodes = 8;
+        for (let i = 0; i < nodes; i++) {
+            const angle = (i * Math.PI * 2) / nodes;
+            const nx = Math.cos(angle) * (radius * 0.8);
+            const ny = Math.sin(angle) * (radius * 0.8);
+            ctx.beginPath();
+            ctx.arc(nx, ny, Math.max(1, radius * 0.08), 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+        }
+
+        // Inner Glowing Core
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
+        ctx.fillStyle = '#00f0ff';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.18, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+
+        ctx.restore();
     }
 
     private loop() {
@@ -1927,11 +2006,15 @@ class AvengersAnimation {
             p.x += p.speedX;
             p.rotation += p.rotationSpeed;
 
-            if (p.y < -40 || p.x < -40 || p.x > this.width + 40) {
+            if (p.y < -50 || p.x < -50 || p.x > this.width + 50) {
                 this.particles[i] = this.createParticle(false);
             }
 
-            this.drawParticle(p);
+            if (p.type === 'shield') {
+                this.drawCaptainShield(this.ctx, p);
+            } else {
+                this.drawArcReactor(this.ctx, p);
+            }
         }
 
         this.animationFrameId = requestAnimationFrame(() => this.loop());
