@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
-import type { InventoryItem, ActivityLog, UserDatabase } from './types';
+import type { InventoryItem, ActivityLog, RequestRecord, UserDatabase } from './types';
 
 // Global declarations for CDN libraries
 declare const lucide: {
@@ -9,126 +9,15 @@ declare const lucide: {
 
 // API URL
 const API_BASE = 'https://cicr-inventory-backend.onrender.com/api';
+const ADMIN_USERNAME = 'SRVKILLER09';
+
+type UserRole = 'ADMIN' | 'MEMBER';
+
 // Global state variables
 let inventory: InventoryItem[] = [];
 let logs: ActivityLog[] = [];
+let requests: RequestRecord[] = [];
 let selectedItem: InventoryItem | null = null;
-
-// ==========================================
-// 1. Initial Sample Dataset
-// ==========================================
-const DEFAULT_INVENTORY: InventoryItem[] = [
-    {
-        id: "mc-01",
-        name: "Arduino Uno R3",
-        category: "microcontrollers",
-        quantity: 15,
-        location: "Lab Shelf A2",
-        specs: "ATmega328P microcontroller, 5V operating voltage, 14 digital I/O pins, 6 analog inputs. Industry standard for learning electronics and rapid prototyping.",
-        borrowedBy: [
-            { name: "Rahul Sharma", roll: "21102045", qty: 2, purpose: "Robo Soccer Chassis testing", date: "2026-08-05" }
-        ]
-    },
-    {
-        id: "mc-02",
-        name: "ESP32 NodeMCU Development Board",
-        category: "microcontrollers",
-        quantity: 20,
-        location: "Lab Shelf A3",
-        specs: "Dual-core Tensilica LX6 microprocessor, integrated Wi-Fi and Bluetooth (WROOM-32 module), 38 pins. Perfect for IoT, smart automation, and wireless telemetry.",
-        borrowedBy: []
-    },
-    {
-        id: "mc-03",
-        name: "Raspberry Pi 4 Model B (4GB)",
-        category: "microcontrollers",
-        quantity: 5,
-        location: "Lab Shelf A1",
-        specs: "Broadcom BCM2711 quad-core Cortex-A72 64-bit SoC @ 1.5GHz, 4GB LPDDR4-3200 SDRAM. Supports dual 4K displays, gigabit Ethernet, USB 3.0. Used for computer vision and ROS.",
-        borrowedBy: [
-            { name: "Sneha Gupta", roll: "22103112", qty: 2, purpose: "Object detection using OpenCV", date: "2026-08-06" },
-            { name: "Amit Patel", roll: "21103099", qty: 2, purpose: "ROS 2 Navigation simulation", date: "2026-08-07" }
-        ]
-    },
-    {
-        id: "sn-01",
-        name: "HC-SR04 Ultrasonic Distance Sensor",
-        category: "sensors",
-        quantity: 35,
-        location: "Drawer B1",
-        specs: "Operating Voltage: 5V DC, Range: 2cm to 400cm, Effectual Angle: < 15 degrees. Uses ultrasonic waves to determine distance to objects. Crucial for obstacle avoidance.",
-        borrowedBy: []
-    },
-    {
-        id: "sn-02",
-        name: "MPU6050 Accelerometer & Gyroscope",
-        category: "sensors",
-        quantity: 12,
-        location: "Drawer B2",
-        specs: "3-axis gyroscope and 3-axis accelerometer on a single chip, with an onboard Digital Motion Processor (DMP). Communicates via I2C interface. Ideal for self-balancing robots.",
-        borrowedBy: [
-            { name: "Vikram Singh", roll: "23102201", qty: 1, purpose: "Quadcopter IMU alignment", date: "2026-08-04" }
-        ]
-    },
-    {
-        id: "ac-01",
-        name: "SG90 Micro Servo Motor",
-        category: "actuators",
-        quantity: 25,
-        location: "Drawer C1",
-        specs: "Operating speed: 0.12s/60 degrees (4.8V), Stall torque: 1.6 kg/cm, Rotation angle: 180 degrees. Light weight (9g). Used for robotic arms, steering, and active pan-tilts.",
-        borrowedBy: []
-    },
-    {
-        id: "ac-02",
-        name: "NEMA 17 Stepper Motor (High Torque)",
-        category: "actuators",
-        quantity: 8,
-        location: "Lab Shelf B4",
-        specs: "1.8 degree step angle (200 steps/rev), holding torque: 40Ncm, rated current 1.7A. Standard motor for 3D printers, CNC routers, and high-precision motion controls.",
-        borrowedBy: []
-    },
-    {
-        id: "pw-01",
-        name: "Orange LiPo 11.1V 2200mAh 30C Battery",
-        category: "power",
-        quantity: 6,
-        location: "Fireproof Cabinet",
-        specs: "3S1P configuration, 11.1V nominal voltage, 2200mAh capacity, 30C continuous discharge rate. Balanced charging lead with XT60 connector. High energy density battery.",
-        borrowedBy: [
-            { name: "Rohit Verma", roll: "21102014", qty: 4, purpose: "Drone propulsion test runs", date: "2026-08-06" },
-            { name: "Divya Teja", roll: "22104085", qty: 2, purpose: "Autonomous Rover endurance test", date: "2026-08-07" }
-        ]
-    },
-    {
-        id: "tl-01",
-        name: "TS100 Smart Soldering Iron",
-        category: "tools",
-        quantity: 4,
-        location: "Tool Cabinet A",
-        specs: "65W power, dual-temperature sensors, OLED screen, STM32 MCU inside. Connects to 12-24V power supply. Rapid heating up to 400C in 15 seconds. Portable precision soldering.",
-        borrowedBy: [
-            { name: "Arjun Reddy", roll: "21102144", qty: 1, purpose: "Soldering PCB nodes at hostel", date: "2026-08-06" }
-        ]
-    },
-    {
-        id: "tl-02",
-        name: "Creality Ender 3 V2 3D Printer",
-        category: "tools",
-        quantity: 2,
-        location: "3D Printing Zone",
-        specs: "Build Volume: 220 x 220 x 250 mm, Silent TMC2208 stepper drivers, carborundum glass platform, rotary knob interface. Prints PLA, ABS, PETG filaments. Crucial for custom mechanical brackets.",
-        borrowedBy: []
-    }
-];
-
-const DEFAULT_LOGS: ActivityLog[] = [
-    { type: "system", timestamp: "2026-08-01 10:00", text: "Database initialized with base robotics stock." },
-    { type: "borrow", timestamp: "2026-08-05 14:32", text: "<span>Rahul Sharma</span> checked out 2x <span>Arduino Uno R3</span> for 'Robo Soccer Chassis testing'." },
-    { type: "borrow", timestamp: "2026-08-06 11:15", text: "<span>Sneha Gupta</span> checked out 2x <span>Raspberry Pi 4 Model B (4GB)</span> for 'Object detection using OpenCV'." },
-    { type: "borrow", timestamp: "2026-08-06 16:45", text: "<span>Arjun Reddy</span> checked out 1x <span>TS100 Smart Soldering Iron</span> for 'Soldering PCB nodes at hostel'." },
-    { type: "borrow", timestamp: "2026-08-07 09:20", text: "<span>Amit Patel</span> checked out 2x <span>Raspberry Pi 4 Model B (4GB)</span> for 'ROS 2 Navigation simulation'." }
-];
 
 // ==========================================
 // 2. Three.js 3D Background Engine
@@ -335,18 +224,23 @@ class Background3D {
 class DatabaseManager {
     static init() {
         if (!localStorage.getItem('cicr_inventory')) {
-            localStorage.setItem('cicr_inventory', JSON.stringify(DEFAULT_INVENTORY));
+            localStorage.setItem('cicr_inventory', JSON.stringify([]));
         }
         if (!localStorage.getItem('cicr_logs')) {
-            localStorage.setItem('cicr_logs', JSON.stringify(DEFAULT_LOGS));
+            localStorage.setItem('cicr_logs', JSON.stringify([]));
+        }
+        if (!localStorage.getItem('cicr_requests')) {
+            localStorage.setItem('cicr_requests', JSON.stringify([]));
         }
         inventory = JSON.parse(localStorage.getItem('cicr_inventory')!);
         logs = JSON.parse(localStorage.getItem('cicr_logs')!);
+        requests = JSON.parse(localStorage.getItem('cicr_requests')!);
     }
 
     static save() {
         localStorage.setItem('cicr_inventory', JSON.stringify(inventory));
         localStorage.setItem('cicr_logs', JSON.stringify(logs));
+        localStorage.setItem('cicr_requests', JSON.stringify(requests));
     }
 
     static addLog(type: ActivityLog['type'], text: string) {
@@ -363,7 +257,10 @@ class DatabaseManager {
 class DashboardManager {
     private activeCategory = 'all';
     private searchQuery = '';
+    private listenersInitialized = false;
+    private mobileSidebarOpen = false;
 
+    private appContainer: HTMLElement;
     private inventoryGrid: HTMLElement;
     private noResults: HTMLElement;
     private searchInput: HTMLInputElement;
@@ -374,14 +271,15 @@ class DashboardManager {
     private statBorrowed: HTMLElement;
     private statLow: HTMLElement;
     private statCategories: HTMLElement;
+    private mobileSidebarToggle: HTMLButtonElement | null;
+    private mobileSidebarBackdrop: HTMLElement | null;
 
-    private btnAddTrigger: HTMLElement;
-    private btnLogs: HTMLElement;
-    private navDashboard: HTMLElement;
-    private navInventory: HTMLElement;
-    private navAbout: HTMLElement;
+    private clockTimerId: any = null;
 
     constructor() {
+        this.appContainer = document.getElementById('app-container')!;
+        this.mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle') as HTMLButtonElement | null;
+        this.mobileSidebarBackdrop = document.getElementById('mobile-sidebar-backdrop');
         this.inventoryGrid = document.getElementById('inventory-grid')!;
         this.noResults = document.getElementById('no-results')!;
         this.searchInput = document.getElementById('search-input') as HTMLInputElement;
@@ -393,14 +291,6 @@ class DashboardManager {
         this.statLow = document.getElementById('stat-low')!;
         this.statCategories = document.getElementById('stat-categories')!;
 
-        this.btnAddTrigger = document.getElementById('nav-add-item')!;
-        this.btnLogs = document.getElementById('nav-logs-bell')!;
-        this.navDashboard = document.getElementById('nav-dashboard')!;
-        this.navInventory = document.getElementById('nav-inventory')!;
-        this.navAbout = document.getElementById('nav-about')!;
-
-
-
         this.init();
         this.loadInventory();
     }
@@ -408,10 +298,243 @@ class DashboardManager {
     public init() {
         this.renderStats();
         this.renderInventory();
-        this.setupEventListeners();
+        if (!this.listenersInitialized) {
+            this.setupEventListeners();
+            this.listenersInitialized = true;
+        }
+    }
+
+    private setMobileSidebar(open: boolean) {
+        const shouldOpen = open && window.innerWidth <= 1100;
+        this.mobileSidebarOpen = shouldOpen;
+        this.appContainer.classList.toggle('sidebar-open', shouldOpen);
+        this.mobileSidebarToggle?.setAttribute('aria-expanded', String(shouldOpen));
+        if (this.mobileSidebarBackdrop) {
+            this.mobileSidebarBackdrop.style.display = shouldOpen ? 'block' : 'none';
+        }
+    }
+
+    private startClock() {
+        if (this.clockTimerId) clearInterval(this.clockTimerId);
+
+        const updateTime = () => {
+            const now = new Date();
+            
+            // Format time: hh:mm:ss am/pm
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'pm' : 'am';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            const formattedHours = String(hours).padStart(2, '0');
+            
+            const clockEl = document.getElementById('dashboard-clock');
+            if (clockEl) {
+                clockEl.innerText = `${formattedHours}:${minutes}:${seconds} ${ampm}`;
+            }
+
+            // Format date: Tuesday, 17 March 2026
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            const dayName = days[now.getDay()];
+            const dateNum = now.getDate();
+            const monthName = months[now.getMonth()];
+            const year = now.getFullYear();
+
+            const dateEl = document.getElementById('dashboard-date');
+            if (dateEl) {
+                dateEl.innerText = `${dayName}, ${dateNum} ${monthName} ${year}`;
+            }
+
+            // Update time-of-day greeting
+            const curHour = now.getHours();
+            let timeOfDay = 'evening';
+            if (curHour < 12) {
+                timeOfDay = 'morning';
+            } else if (curHour < 17) {
+                timeOfDay = 'afternoon';
+            }
+            
+            const username = localStorage.getItem('cicr_auth') || 'Operator';
+            const greetingEl = document.getElementById('dashboard-greeting');
+            if (greetingEl) {
+                greetingEl.innerText = `Good ${timeOfDay}, ${username}`;
+            }
+        };
+
+        updateTime();
+        this.clockTimerId = setInterval(updateTime, 1000);
     }
 
     private setupEventListeners() {
+        // Ticking Clock and dynamic greeting initialization
+        this.startClock();
+
+        const closeMobileSidebar = () => this.setMobileSidebar(false);
+        const toggleMobileSidebar = () => this.setMobileSidebar(!this.mobileSidebarOpen);
+
+        this.mobileSidebarToggle?.addEventListener('click', () => {
+            toggleMobileSidebar();
+        });
+
+        this.mobileSidebarBackdrop?.addEventListener('click', () => {
+            closeMobileSidebar();
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 1100) {
+                closeMobileSidebar();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeMobileSidebar();
+            }
+        });
+
+        // 1. Sidebar Nav click listeners
+        const sidebarLinks = document.querySelectorAll('.sidebar-nav-link');
+        const sections = document.querySelectorAll('#app-main-content > section');
+        const breadcrumbActive = document.getElementById('breadcrumb-current');
+
+        const switchSection = (targetId: string) => {
+            sections.forEach(node => {
+                const sec = node as HTMLElement;
+                if (sec.id === targetId) {
+                    sec.classList.add('active');
+                    sec.style.display = 'flex';
+                    if (sec.id === 'inventory-view' || sec.id === 'projects-view' || sec.id === 'meetings-view' || sec.id === 'events-view') {
+                        sec.style.display = 'block';
+                    }
+                } else {
+                    sec.classList.remove('active');
+                    sec.style.display = 'none';
+                }
+            });
+
+            // Update sidebar link active class
+            sidebarLinks.forEach(link => {
+                const target = (link as HTMLElement).dataset.target;
+                if (target === targetId) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+
+            // Update breadcrumbs text
+            if (breadcrumbActive) {
+                const nameMap: Record<string, string> = {
+                    'dashboard-view': 'DASHBOARD',
+                    'projects-view': 'PROJECTS',
+                    'meetings-view': 'MEETINGS',
+                    'events-view': 'EVENTS',
+                    'inventory-view': 'INVENTORY'
+                };
+                breadcrumbActive.innerText = nameMap[targetId] || 'WORKSPACE';
+            }
+
+            closeMobileSidebar();
+        };
+
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = (link as HTMLElement).dataset.target;
+                if (target) {
+                    switchSection(target);
+                    closeMobileSidebar();
+                }
+            });
+        });
+
+        // 2. Dashboard action pills switching listeners
+        const pillProjects = document.getElementById('dashboard-pill-projects');
+        if (pillProjects) {
+            pillProjects.addEventListener('click', () => switchSection('projects-view'));
+        }
+        const pillMeetings = document.getElementById('dashboard-pill-meetings');
+        if (pillMeetings) {
+            pillMeetings.addEventListener('click', () => switchSection('meetings-view'));
+        }
+        const pillEvents = document.getElementById('dashboard-pill-events');
+        if (pillEvents) {
+            pillEvents.addEventListener('click', () => switchSection('events-view'));
+        }
+        const pillAdmin = document.getElementById('dashboard-pill-admin');
+        if (pillAdmin) {
+            pillAdmin.addEventListener('click', () => {
+                ModalManager.open('add-item-modal');
+            });
+        }
+        const pillCommunity = document.getElementById('dashboard-pill-community');
+        if (pillCommunity) {
+            pillCommunity.addEventListener('click', () => {
+                ModalManager.openAboutModal();
+            });
+        }
+
+        // 3. Dashboard card switching listeners
+        const cardProjects = document.getElementById('dash-card-projects');
+        if (cardProjects) {
+            cardProjects.addEventListener('click', () => switchSection('projects-view'));
+        }
+        const cardMeetings = document.getElementById('dash-card-meetings');
+        if (cardMeetings) {
+            cardMeetings.addEventListener('click', () => switchSection('meetings-view'));
+        }
+        const cardDiscussions = document.getElementById('dash-card-discussions');
+        if (cardDiscussions) {
+            cardDiscussions.addEventListener('click', () => {
+                ModalManager.openAboutModal();
+            });
+        }
+        const cardRecruitment = document.getElementById('dash-card-recruitment');
+        if (cardRecruitment) {
+            cardRecruitment.addEventListener('click', () => {
+                ModalManager.openAboutModal();
+            });
+        }
+
+        // 4. Notifications & History Drawer trigger
+        const notifBtn = document.getElementById('sidebar-notifications-btn');
+        if (notifBtn) {
+            notifBtn.addEventListener('click', () => {
+                ModalManager.openLogsDrawer();
+            });
+        }
+
+        // 5. Command palette mock trigger
+        const commandBtn = document.getElementById('sidebar-command-btn');
+        if (commandBtn) {
+            commandBtn.addEventListener('click', () => {
+                const headerSearch = document.getElementById('header-search-input');
+                if (headerSearch) {
+                    headerSearch.focus();
+                }
+            });
+        }
+
+        // 6. Profile Logout button
+        const logoutBtn = document.getElementById('sidebar-logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // trigger logout directly on AuthManager
+                const oldLogoutBtn = document.getElementById('nav-logout');
+                if (oldLogoutBtn) {
+                    oldLogoutBtn.click();
+                } else {
+                    localStorage.removeItem('cicr_auth');
+                    window.location.reload();
+                }
+            });
+        }
+
+        // 7. Inventory Search Input listeners
         this.searchInput.addEventListener('input', (e) => {
             this.searchQuery = (e.target as HTMLInputElement).value.toLowerCase().trim();
             this.clearSearchBtn.style.display = this.searchQuery ? 'block' : 'none';
@@ -426,7 +549,7 @@ class DashboardManager {
             this.searchInput.focus();
         });
 
-        // Sync active category states between sidebar items and tag pills
+        // 8. Sync active category states between sidebar items and tag pills
         const sidebarItems = document.querySelectorAll('.sidebar-item');
         const tagPills = document.querySelectorAll('.tag-pill');
 
@@ -468,87 +591,36 @@ class DashboardManager {
             });
         });
 
-        const closeWelcomeScreen = () => {
-            const welcomeScreen = document.getElementById('welcome-screen');
-            if (welcomeScreen && welcomeScreen.style.display !== 'none') {
-                welcomeScreen.style.transform = 'translateY(-100%)';
-                welcomeScreen.style.transition = 'transform 0.8s cubic-bezier(0.85, 0, 0.15, 1)';
-                setTimeout(() => {
-                    welcomeScreen.style.display = 'none';
-                }, 800);
+        // 9. Theme Switcher Buttons listeners
+        const themeBtnDark = document.getElementById('theme-btn-dark');
+        const themeBtnLight = document.getElementById('theme-btn-light');
+        const themeBtnPink = document.getElementById('theme-btn-pink');
+        const themeBtns = [themeBtnDark, themeBtnLight, themeBtnPink];
+
+        const applyTheme = (themeName: 'dark' | 'light' | 'pink') => {
+            document.body.classList.remove('theme-light', 'theme-pink');
+            themeBtns.forEach(btn => btn?.classList.remove('active'));
+
+            if (themeName === 'light') {
+                document.body.classList.add('theme-light');
+                themeBtnLight?.classList.add('active');
+            } else if (themeName === 'pink') {
+                document.body.classList.add('theme-pink');
+                themeBtnPink?.classList.add('active');
+            } else {
+                themeBtnDark?.classList.add('active');
             }
+
+            localStorage.setItem('cicr_theme', themeName);
         };
 
-        this.btnAddTrigger.addEventListener('click', (e) => {
-            e.preventDefault();
-            closeWelcomeScreen();
-            ModalManager.open('add-item-modal');
-        });
+        themeBtnDark?.addEventListener('click', () => applyTheme('dark'));
+        themeBtnLight?.addEventListener('click', () => applyTheme('light'));
+        themeBtnPink?.addEventListener('click', () => applyTheme('pink'));
 
-        this.btnLogs.addEventListener('click', () => {
-            closeWelcomeScreen();
-            ModalManager.openLogsDrawer();
-        });
-
-        // Dashboard Tab click listener
-        this.navDashboard.addEventListener('click', (e) => {
-            e.preventDefault();
-            closeWelcomeScreen();
-            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            this.navDashboard.classList.add('active');
-            
-            const appContainer = document.getElementById('app-container')!;
-            appContainer.classList.add('view-mode-landing');
-            appContainer.classList.remove('view-mode-vault');
-        });
-
-        // Inventory Tab click listener
-        const showInventoryTab = () => {
-            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            this.navInventory.classList.add('active');
-            
-            const appContainer = document.getElementById('app-container')!;
-            appContainer.classList.remove('view-mode-landing');
-            appContainer.classList.add('view-mode-vault');
-        };
-
-        this.navInventory.addEventListener('click', (e) => {
-            e.preventDefault();
-            closeWelcomeScreen();
-            this.searchInput.value = '';
-            this.searchQuery = '';
-            this.clearSearchBtn.style.display = 'none';
-            selectCategory('all');
-            showInventoryTab();
-        });
-
-        // "GET STARTED WITH VAULT" button click listener
-        const startBtn = document.getElementById('hero-btn-start');
-        if (startBtn) {
-            startBtn.addEventListener('click', () => {
-                showInventoryTab();
-            });
-        }
-
-        this.navAbout.addEventListener('click', (e) => {
-            e.preventDefault();
-            closeWelcomeScreen();
-            ModalManager.openAboutModal();
-        });
-
-        const heroExplore = document.getElementById('hero-btn-explore');
-        const heroAbout = document.getElementById('hero-btn-about');
-        
-        if (heroExplore) {
-            heroExplore.addEventListener('click', () => {
-                showInventoryTab();
-            });
-        }
-        if (heroAbout) {
-            heroAbout.addEventListener('click', () => {
-                ModalManager.openAboutModal();
-            });
-        }
+        // Load active theme state on dashboard init
+        const activeTheme = (localStorage.getItem('cicr_theme') || 'dark') as 'dark' | 'light' | 'pink';
+        applyTheme(activeTheme);
     }
 
     private renderStats() {
@@ -601,7 +673,6 @@ class DashboardManager {
             card.style.transitionDelay = `${(index % 4) * 0.08}s`;
             this.inventoryGrid.appendChild(card);
             
-            // Stagger addition of active class so transition plays
             requestAnimationFrame(() => {
                 setTimeout(() => {
                     card.classList.add('active');
@@ -762,6 +833,165 @@ class ModalManager {
         selectedItem = null;
     }
 
+    private static getCurrentRole(): UserRole {
+        const storedRole = localStorage.getItem('cicr_role');
+        if (storedRole === 'ADMIN' || storedRole === 'MEMBER') {
+            return storedRole;
+        }
+
+        return localStorage.getItem('cicr_auth') === ADMIN_USERNAME ? 'ADMIN' : 'MEMBER';
+    }
+
+    private static isAdmin() {
+        return this.getCurrentRole() === 'ADMIN';
+    }
+
+    private static setBorrowModalMode(mode: 'borrow' | 'request', componentName: string, available: number) {
+        const modalTitle = document.getElementById('borrow-form-title');
+        const subtitle = document.getElementById('borrow-form-subtitle');
+        const submitBtn = document.getElementById('borrow-form-submit') as HTMLButtonElement | null;
+        const qtyLimit = document.getElementById('borrow-qty-limit');
+
+        if (modalTitle) {
+            modalTitle.innerText = mode === 'borrow' ? 'Borrow Component' : 'Request Component';
+        }
+        if (subtitle) {
+            subtitle.innerText = `${mode === 'borrow' ? 'Borrowing' : 'Requesting'} ${componentName}`;
+        }
+        if (submitBtn) {
+            submitBtn.innerText = mode === 'borrow' ? 'Confirm Borrow' : 'Send Request';
+        }
+        if (qtyLimit) {
+            qtyLimit.innerText = `Max units available: ${available}`;
+        }
+    }
+
+    private static renderRequests() {
+        const requestInbox = document.getElementById('request-inbox') as HTMLElement | null;
+        const requestList = document.getElementById('request-list');
+        const requestCountBadge = document.getElementById('request-count-badge');
+
+        if (!requestInbox || !requestList || !requestCountBadge) return;
+
+        if (!this.isAdmin()) {
+            requestInbox.style.display = 'none';
+            requestCountBadge.innerText = '0';
+            return;
+        }
+
+        requestInbox.style.display = 'flex';
+        const pendingRequests = requests.filter((request) => request.status === 'PENDING');
+        requestCountBadge.innerText = String(pendingRequests.length);
+        requestList.innerHTML = '';
+
+        if (pendingRequests.length === 0) {
+            requestList.innerHTML = '<div class="request-empty-state">No pending member requests right now.</div>';
+            return;
+        }
+
+        pendingRequests.forEach((request) => {
+            const requestEl = document.createElement('div');
+            requestEl.className = 'request-item';
+            requestEl.innerHTML = `
+                <div class="request-item-header">
+                    <div>
+                        <h4 class="request-item-title">${request.itemName}</h4>
+                        <div class="request-item-meta">
+                            <span>${request.name}</span>
+                            <span>${request.roll}</span>
+                            <span>${request.qty} units</span>
+                        </div>
+                    </div>
+                    <span class="request-status-chip request-status-pending">${request.status}</span>
+                </div>
+                <div class="request-item-meta">
+                    <span>Purpose: ${request.purpose}</span>
+                    <span>Requested: ${request.requestedAt}</span>
+                </div>
+                <div class="request-item-actions">
+                    <button class="btn btn-primary request-approve-btn" data-request-id="${request.id}">
+                        <i data-lucide="check"></i> Approve
+                    </button>
+                    <button class="btn btn-secondary request-reject-btn" data-request-id="${request.id}">
+                        <i data-lucide="x"></i> Reject
+                    </button>
+                </div>
+            `;
+
+            requestList.appendChild(requestEl);
+        });
+
+        requestList.querySelectorAll('.request-approve-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                const requestId = (button as HTMLButtonElement).dataset.requestId;
+                if (requestId) {
+                    this.reviewRequest(requestId, 'APPROVED');
+                }
+            });
+        });
+
+        requestList.querySelectorAll('.request-reject-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                const requestId = (button as HTMLButtonElement).dataset.requestId;
+                if (requestId) {
+                    this.reviewRequest(requestId, 'REJECTED');
+                }
+            });
+        });
+    }
+
+    private static reviewRequest(requestId: string, nextStatus: 'APPROVED' | 'REJECTED') {
+        if (!this.isAdmin()) return;
+
+        const request = requests.find((entry) => entry.id === requestId);
+        if (!request || request.status !== 'PENDING') return;
+
+        if (nextStatus === 'APPROVED') {
+            const item = inventory.find((entry) => entry.id === request.itemId);
+            const borrowedSum = item ? item.borrowedBy.reduce((sum, rec) => sum + rec.qty, 0) : 0;
+            const available = item ? item.quantity - borrowedSum : 0;
+
+            if (!item || available < request.qty) {
+                request.status = 'REJECTED';
+                request.reviewedAt = new Date().toISOString();
+                request.reviewedBy = localStorage.getItem('cicr_auth') || 'ADMIN';
+                request.reviewNote = 'Auto-rejected because stock was no longer available.';
+                DatabaseManager.addLog('reject', `<span>${request.name}</span>'s request for <span>${request.itemName}</span> was rejected because stock ran out.`);
+                DatabaseManager.save();
+                this.renderRequests();
+                if (selectedItem && selectedItem.id === request.itemId) {
+                    this.openDetailModal(selectedItem);
+                }
+                window.dashboard?.init();
+                return;
+            }
+
+            item.borrowedBy.push({
+                name: request.name,
+                roll: request.roll,
+                qty: request.qty,
+                purpose: request.purpose,
+                date: new Date().toISOString().split('T')[0]
+            });
+
+            DatabaseManager.addLog('approve', `<span>${request.name}</span>'s request for <span>${request.itemName}</span> was approved by admin.`);
+            request.status = 'APPROVED';
+        } else {
+            DatabaseManager.addLog('reject', `<span>${request.name}</span>'s request for <span>${request.itemName}</span> was rejected by admin.`);
+            request.status = 'REJECTED';
+        }
+
+        request.reviewedAt = new Date().toISOString();
+        request.reviewedBy = localStorage.getItem('cicr_auth') || 'ADMIN';
+        DatabaseManager.save();
+        this.renderRequests();
+        if (selectedItem && selectedItem.id === request.itemId) {
+            this.openDetailModal(selectedItem);
+        }
+        window.dashboard?.init();
+        lucide.createIcons();
+    }
+
     static openAboutModal() {
         this.open('about-modal');
     }
@@ -790,6 +1020,8 @@ class ModalManager {
         badge.className = 'modal-status-badge'; 
         
         const borrowBtn = document.getElementById('btn-borrow') as HTMLButtonElement;
+        const returnBtn = document.getElementById('btn-return') as HTMLButtonElement;
+        const role = this.getCurrentRole();
 
         if (available === 0) {
             badge.innerText = 'Out of Stock';
@@ -806,6 +1038,18 @@ class ModalManager {
             badge.classList.add('status-available');
             borrowBtn.disabled = false;
             borrowBtn.style.opacity = '1';
+        }
+
+        if (role === 'ADMIN' && item.borrowedBy.length > 0) {
+            returnBtn.style.display = 'inline-flex';
+        } else {
+            returnBtn.style.display = 'none';
+        }
+
+        if (role === 'ADMIN') {
+            borrowBtn.innerHTML = '<i data-lucide="shopping-cart"></i> Checkout / Borrow';
+        } else {
+            borrowBtn.innerHTML = '<i data-lucide="send"></i> Request Issue';
         }
 
         const borrowersPanel = document.getElementById('borrowers-panel')!;
@@ -851,10 +1095,7 @@ class ModalManager {
         const borrowedSum = selectedItem.borrowedBy.reduce((sum, rec) => sum + rec.qty, 0);
         const available = selectedItem.quantity - borrowedSum;
 
-        document.getElementById('borrow-form-subtitle')!.innerText = `Component: ${selectedItem.name}`;
-        
-        const qtyLimit = document.getElementById('borrow-qty-limit')!;
-        qtyLimit.innerText = `Max units available: ${available}`;
+        this.setBorrowModalMode(this.isAdmin() ? 'borrow' : 'request', selectedItem.name, available);
 
         const qtyInput = document.getElementById('borrow-qty') as HTMLInputElement;
         qtyInput.max = String(available);
@@ -865,11 +1106,13 @@ class ModalManager {
     }
 
     static openLogsDrawer() {
+        this.renderRequests();
+
         const logsList = document.getElementById('logs-list')!;
         logsList.innerHTML = '';
 
         if (logs.length === 0) {
-            logsList.innerHTML = '<div style="text-align: center; color: var(--text-dim); margin-top:40px;">No logs logged.</div>';
+            logsList.innerHTML = '<div class="request-empty-state">No logs logged.</div>';
         } else {
             logs.forEach(log => {
                 const logEl = document.createElement('div');
@@ -879,6 +1122,9 @@ class ModalManager {
                 if (log.type === 'borrow') icon = 'shopping-cart';
                 if (log.type === 'return') icon = 'corner-up-left';
                 if (log.type === 'add') icon = 'plus';
+                if (log.type === 'request') icon = 'send';
+                if (log.type === 'approve') icon = 'check';
+                if (log.type === 'reject') icon = 'x';
 
                 logEl.innerHTML = `
                     <div class="log-meta">
@@ -941,21 +1187,43 @@ class ModalManager {
             return;
         }
 
-        const date = new Date().toISOString().split('T')[0];
+        const requestMode = !this.isAdmin();
 
-        selectedItem.borrowedBy.push({
-            name: borrowerName,
-            roll: rollNum,
-            qty: qty,
-            purpose: purpose,
-            date: date
-        });
+        if (requestMode) {
+            const request: RequestRecord = {
+                id: `req-${Date.now()}`,
+                itemId: selectedItem.id,
+                itemName: selectedItem.name,
+                name: borrowerName,
+                roll: rollNum,
+                qty,
+                purpose,
+                status: 'PENDING',
+                requestedAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+            };
 
-        DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
+            requests.unshift(request);
+            DatabaseManager.addLog('request', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
+        } else {
+            const date = new Date().toISOString().split('T')[0];
+
+            selectedItem.borrowedBy.push({
+                name: borrowerName,
+                roll: rollNum,
+                qty: qty,
+                purpose: purpose,
+                date: date
+            });
+
+            DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
+        }
 
         (document.getElementById('borrow-form') as HTMLFormElement).reset();
         DatabaseManager.save();
         this.close('borrow-form-modal');
+        if (requestMode) {
+            this.openLogsDrawer();
+        }
         window.dashboard!.init();
     }
 
@@ -1087,41 +1355,11 @@ class AuthManager {
     private static checkAuth() {
         const currentUser = localStorage.getItem('cicr_auth');
         const welcomeScreen = document.getElementById('welcome-screen');
+        if (welcomeScreen) welcomeScreen.style.display = 'none';
         
         if (currentUser) {
-            // Logged in: show welcome screen first on top of dashboard
-            if (welcomeScreen) {
-                welcomeScreen.style.display = 'flex';
-                welcomeScreen.style.transform = 'translateY(0)';
-                
-                const enterBtn = document.getElementById('welcome-btn-enter');
-                if (enterBtn) {
-                    enterBtn.onclick = () => {
-                        welcomeScreen.style.transform = 'translateY(-100%)';
-                        welcomeScreen.style.transition = 'transform 0.8s cubic-bezier(0.85, 0, 0.15, 1)';
-                        setTimeout(() => {
-                            welcomeScreen.style.display = 'none';
-                            // Immediately switch to Inventory view mode
-                            this.appContainer.classList.remove('view-mode-landing');
-                            this.appContainer.classList.add('view-mode-vault');
-                            
-                            const dashboardLink = document.getElementById('nav-dashboard');
-                            const inventoryLink = document.getElementById('nav-inventory');
-                            if (dashboardLink && inventoryLink) {
-                                dashboardLink.classList.remove('active');
-                                inventoryLink.classList.add('active');
-                            }
-                        }, 800);
-                    };
-                }
-            }
-            this.appContainer.classList.add('view-mode-landing');
-            this.appContainer.classList.remove('view-mode-vault');
-            this.globalNavbar.style.display = 'flex';
-            this.loginSuccess(currentUser, true); // Pass a flag to indicate we bypassed the login form transition
+            this.loginSuccess(currentUser);
         } else {
-            // Not logged in: show login screen immediately, hide welcome screen
-            if (welcomeScreen) welcomeScreen.style.display = 'none';
             this.globalNavbar.style.display = 'none';
             this.authOverlay.classList.remove('hidden');
             this.authOverlay.style.display = 'flex';
@@ -1153,80 +1391,59 @@ class AuthManager {
         this.loginErr.style.animation = 'shake-error 0.4s ease';
     }
 
-    private static loginSuccess(username: string, bypassWelcome: boolean = false) {
+    private static loginSuccess(username: string) {
         localStorage.setItem('cicr_auth', username);
-        this.navUsername.innerText = username;
-        this.globalNavbar.style.display = 'flex';
-
-        const welcomeScreen = document.getElementById('welcome-screen')!;
-
-        // Reset active view styles
-        this.appContainer.classList.add('view-mode-landing');
-        this.appContainer.classList.remove('view-mode-vault');
-        
-        // Reset active link state in global navbar
-        const dashboardLink = document.getElementById('nav-dashboard');
-        const inventoryLink = document.getElementById('nav-inventory');
-        if (dashboardLink && inventoryLink) {
-            dashboardLink.classList.add('active');
-            inventoryLink.classList.remove('active');
+        if (this.navUsername) {
+            this.navUsername.innerText = username;
         }
 
-        if (bypassWelcome) {
-            // Already logged in on load: show appContainer in background
-            this.authOverlay.style.display = 'none';
-            this.appContainer.style.display = 'flex';
-            
-            if (!window.dashboard) {
-                window.dashboard = new DashboardManager();
-            } else {
-                window.dashboard.init();
-            }
-            lucide.createIcons();
-            TerminalSimulator.start();
-        } else {
-            // Fresh login: fade out auth form, show welcome screen, prepare appContainer
-            this.authOverlay.classList.add('hidden');
-            setTimeout(() => {
-                this.authOverlay.style.display = 'none';
-                
-                // Show welcome screen with entrance animations
-                welcomeScreen.style.display = 'flex';
-                welcomeScreen.style.transform = 'translateY(0)';
-                
-                // Setup enter vault trigger to slide welcome screen away
-                const enterBtn = document.getElementById('welcome-btn-enter');
-                if (enterBtn) {
-                    enterBtn.onclick = () => {
-                        welcomeScreen.style.transform = 'translateY(-100%)';
-                        welcomeScreen.style.transition = 'transform 0.8s cubic-bezier(0.85, 0, 0.15, 1)';
-                        setTimeout(() => {
-                            welcomeScreen.style.display = 'none';
-                            // Immediately switch to Inventory view mode
-                            this.appContainer.classList.remove('view-mode-landing');
-                            this.appContainer.classList.add('view-mode-vault');
-                            
-                            const dashboardLink = document.getElementById('nav-dashboard');
-                            const inventoryLink = document.getElementById('nav-inventory');
-                            if (dashboardLink && inventoryLink) {
-                                dashboardLink.classList.remove('active');
-                                inventoryLink.classList.add('active');
-                            }
-                        }, 800);
-                    };
-                }
+        // Set username and initial in the left sidebar profile card
+        const profileUserDisplay = document.getElementById('profile-username-display');
+        const profileAvatarInitial = document.getElementById('profile-avatar-initial');
+        if (profileUserDisplay) profileUserDisplay.innerText = username;
+        if (profileAvatarInitial) profileAvatarInitial.innerText = username.charAt(0).toUpperCase();
 
-                // Render dashboard behind the scenes
-                this.appContainer.style.display = 'flex';
-                if (!window.dashboard) {
-                    window.dashboard = new DashboardManager();
+        const welcomeScreen = document.getElementById('welcome-screen');
+        if (welcomeScreen) welcomeScreen.style.display = 'none';
+
+        // Directly transition: hide auth form, show app container
+        this.authOverlay.style.display = 'none';
+        this.appContainer.style.display = 'grid';
+
+        // Select Dashboard link in the left sidebar by default
+        const activeNavClass = () => {
+            const sidebarLinks = document.querySelectorAll('.sidebar-nav-link');
+            sidebarLinks.forEach(link => {
+                const target = (link as HTMLElement).dataset.target;
+                if (target === 'dashboard-view') {
+                    link.classList.add('active');
                 } else {
-                    window.dashboard.init();
+                    link.classList.remove('active');
                 }
-                lucide.createIcons();
-                TerminalSimulator.start();
-            }, 400);
+            });
+            const sections = document.querySelectorAll('#app-main-content > section');
+            sections.forEach(node => {
+                const sec = node as HTMLElement;
+                if (sec.id === 'dashboard-view') {
+                    sec.classList.add('active');
+                    sec.style.display = 'flex';
+                } else {
+                    sec.classList.remove('active');
+                    sec.style.display = 'none';
+                }
+            });
+            const breadcrumbActive = document.getElementById('breadcrumb-current');
+            if (breadcrumbActive) breadcrumbActive.innerText = 'DASHBOARD';
+        };
+        activeNavClass();
+
+        if (!window.dashboard) {
+            window.dashboard = new DashboardManager();
+        } else {
+            window.dashboard.init();
         }
+        lucide.createIcons();
+        TerminalSimulator.start();
     }
 
     private static handleSignup() {
