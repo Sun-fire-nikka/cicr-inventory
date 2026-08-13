@@ -51,6 +51,26 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 
 > The current release is **v1.4.5 — Pre-release (not production-ready)**. It is a functional demo build: real emails/OTPs work, and the frontend now talks to the backend directly on port 5000, but it sits on the **Gmail free SMTP + Supabase free tier** with hard daily/burst ceilings (see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits)). The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
 
+### 🏷️ Version Registry (Git Tags)
+
+Complete tag set for the project history (all tags created/synced on branch `kush-backend`):
+
+| Version | Git Tag | Tag target (commit) | Status |
+|---------|---------|---------------------|--------|
+| **v1.0.0** | `v1.0.0` | `342740a` (annotated tag `ea55187`) | ✅ Released |
+| **v1.1.0** | `v1.1.0` | `c06c929` | ✅ Released |
+| **v1.2.1** | `v1.2.1` | `6d123e3` | ✅ Released |
+| **v1.3.2** | `v1.3.2` | `0fa3390` | ✅ Released |
+| **v1.4.3** | `v1.4.3` | `3e85811` (annotated tag `7d9eb5b`) | ⚠️ Pre-release |
+| **v1.4.4** | `v1.4.4` | `38b3d68` | ✅ Released |
+| **v1.4.5** | `v1.4.5` | `07aaf0a` | ⚠️ Pre-release (current) |
+
+`v1.0.0`, `v1.4.3`, `v1.4.4`, `v1.4.5` were retained from the existing history; `v1.1.0`, `v1.2.1`, `v1.3.2` were added to close the registry gaps:
+
+- `v1.1.0 → c06c929` — **Supabase database & core APIs**: schema alignment, JWT auth, and the integration test suite.
+- `v1.2.1 → 6d123e3` — **frontend–backend connection**: feature additions, bug fixes & connections (frontend wired to the live backend).
+- `v1.3.2 → 0fa3390` — **base email service**: Nodemailer transport, SMTP configuration, and the transactional email base (due-date tracking + email receipts).
+
 ---
 
 ## 🏗️ System Architecture
@@ -243,6 +263,8 @@ Auth scheme: `Authorization: Bearer <JWT>`
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | `GET` | `/api/health` | Public | Health check → `{ status, message }` |
+| `GET` | `/api/system/bote-metrics` | Public | Live BOTE capacity snapshot → `data: { capacity, peak, latency, memory, inventory }` (daily 500-email cap, peak burst, SMTP latency, Redis queue memory). See [BOTE & Scalability](#-back-of-the-envelope-bote-estimation--scalability) |
+| `GET` | `/api/system/simulate-scale` | Public | BOTE scale simulation. Query: `?users=` (required, non-negative), `?borrowsPerUserPerMonth=` (default 2), `?jobsPerUser=` (default 1) → `data: { scenario, gmail_accounts_needed, exceeds_single_gmail_cap, cost, capacity, latency, memory }` |
 
 ### Auth
 
@@ -649,6 +671,73 @@ CREATE INDEX IF NOT EXISTS idx_borrow_due_date   ON public.borrow_records (due_d
 
 ---
 
+## 🔍 System Audit & Health Check (v1.4.5)
+
+### Route audit — complete Express endpoint inventory
+
+All routes are TypeScript, mounted from `backend/src`:
+
+| Mount | Route file | Method | Path | Auth |
+|-------|-----------|--------|------|------|
+| `/api/auth` | `modules/auth/auth.routes.ts` | `POST` | `/register` | Public |
+| | | `POST` | `/login` | Public |
+| | | `GET` | `/profile` | Bearer |
+| `/api/items` | `modules/inventory/inventory.routes.ts` | `GET` | `/` | Public |
+| | | `GET` | `/categories` | Public |
+| | | `GET` | `/:id` | Public |
+| | | `POST` | `/` | Bearer + Admin |
+| | | `PATCH` | `/:id` | Bearer + Admin |
+| | | `DELETE` | `/:id` | Bearer + Admin |
+| `/api/borrow` | `modules/borrow/borrow.routes.ts` | `GET` | `/admins` | Bearer |
+| | | `POST` | `/` | Bearer |
+| | | `POST` | `/request-otp` | Bearer |
+| | | `POST` | `/verify-otp` | Bearer |
+| | | `POST` | `/return` | Bearer |
+| | | `GET` | `/history` | Bearer |
+| `/api` | `modules/dashboard/dashboard.routes.ts` | `GET` | `/stats` | Public |
+| | | `GET` | `/audit` | Bearer |
+| `/api/system` | `routes/system.routes.ts` | `GET` | `/bote-metrics` | Public |
+| | | `GET` | `/simulate-scale` | Public |
+| — | `app.ts` | `GET` | `/api/health` | Public |
+
+Audit notes:
+
+- **Rental cap** is enforced in `modules/borrow/borrow.controller.ts` via `parseRentalDays` — `duration_days` must be an integer in **[1, 30]**, defaulting to **5**.
+- **Admin OTP directory** is restricted to a single entry in `modules/borrow/adminDirectory.ts`: Admin **KUSH** (`kushagragargdelhi@gmail.com`).
+- **Stale / unreferenced files** (legacy stubs, safe to ignore or remove): `src/routes/borrow.routes.ts` (empty), `src/routes/inventory.routes.ts` (empty), `src/controllers/inventory.controller.ts` (empty), `src/services/app.ts`, `src/services/borrow.service.ts`, `src/services/inventory.service.ts` — none are imported by any active module.
+- **Mounting quirk:** `/api/system` is mounted in `server.ts` (the listen entry point), **not** in `app.ts` — so unit/integration tests that import the bare `app` must mount `systemRoutes` themselves (the health-check script below does this).
+
+### Health-check script
+
+```bash
+cd backend
+npm run build
+node test/system-health-check.cjs
+```
+
+`test/system-health-check.cjs` is a **diagnostic** script (deliberately not named `*.test.cjs`, so `npm test` never runs it — it performs live DB + SMTP calls). It verifies:
+
+1. `GET /api/system/bote-metrics` and `GET /api/system/simulate-scale` (valid + invalid inputs).
+2. Admin directory contains **KUSH**; seeded student **`kush`** (`kushgdhi@gmail.com`) exists as `MEMBER`.
+3. **1–30 day rental cap** — live API checks: `duration_days` 31 → 400, 0 → 400, 1 → 201, 30 → 201 (with its own temp users/item, cleaned up after).
+4. **Live Nodemailer SMTP** transport to `kushagragargdelhi@gmail.com`, logging the SMTP response status code.
+
+### Live email test log (v1.4.5 audit run)
+
+```
+== (c) Live Nodemailer SMTP transport ==
+  SMTP response status code: 250 2.0.0 OK  1786632754 98e67ed59e1d1-3931f2a7b8bsm3362246a91.7 - gsmtp
+  accepted=["kushagragargdelhi@gmail.com"] rejected=[]
+PASS | live SMTP transport to kushagragargdelhi@gmail.com | SMTP 250 messageId=<07647618-1a25-f294-3b4f-8981008ea43b@gmail.com>
+
+========== System Health Check Summary ==========
+  23/23 checks passed.
+```
+
+> Gmail accepted the probe (`250 2.0.0 OK`, `rejected=[]`) — the same response line the `emailService.ts` `logDelivery()` helper prints on every transactional send. As documented in the sinkhole section, `250 OK` proves SMTP acceptance, not inbox landing; verify the subject line `[CICR Inventory] System Health Check (v1.4.5) OTP: …` in the admin Gmail inbox.
+
+---
+
 ## 🧪 Testing
 
 ```bash
@@ -660,6 +749,7 @@ npm test          # node --test "test/*.test.cjs" — 72 tests
 - `test/otp.unit.test.cjs` — 4 unit tests for the admin-OTP store (generation, verify, consume).
 - `test/api.integration.test.cjs` — 45 integration tests against the live Supabase project (health, auth, inventory, borrow/return, admin-OTP approval, rental-duration cap, audit).
 - `test/bote.test.cjs` — 17 unit tests for the BOTE capacity/latency math.
+- `test/system-health-check.cjs` — diagnostic health check (BOTE endpoints, admin directory, seeded student, 1–30 day cap, live SMTP). Not part of `npm test`; run manually with `node test/system-health-check.cjs` (see [System Audit & Health Check](#-system-audit--health-check-v145)).
 
 > Integration tests register `*@cicr.test` users. RLS prevents anonymous deletion, so leftovers accumulate — clean them via the SQL Editor.
 

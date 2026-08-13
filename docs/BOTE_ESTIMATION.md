@@ -8,7 +8,65 @@
 - `backend/src/modules/borrow/borrow.controller.ts` — admin-OTP approval workflow (`POST /api/borrow/request-otp` → `POST /api/borrow/verify-otp`), borrow/return confirmation emails fired **asynchronously** (`.catch()` fire-and-forget) so they never block the HTTP response.
 - `backend/src/services/reminderService.ts` — `node-cron` runs a due/overdue scan **daily at 09:00** + on server boot, sending **Day N-1 "due tomorrow" reminders** and due/overdue reminders **sequentially** (`await` per recipient).
 
-> This analysis corresponds to project release **v1.4.4 (Pre-release — not production-ready)** (see the Version History in `README.md`). All numbers assume the 3-email borrow workflow (admin OTP → borrow confirmation → return confirmation).
+> This analysis corresponds to project release **v1.4.5 (Pre-release — not production-ready)** (see the Version History and [Version Registry (Git Tags)](../README.md#-version-registry-git-tags) in `README.md`). All numbers assume the 3-email borrow workflow (admin OTP → borrow confirmation → return confirmation).
+
+---
+
+## 0. BOTE formulas — as implemented (`boteService.ts`)
+
+The math below is not just napkin analysis — it ships as a live metrics engine in
+`backend/src/services/boteService.ts`, exposed by two API endpoints (mounted at
+`/api/system` in `backend/src/server.ts`):
+
+| Endpoint | Returns |
+|----------|---------|
+| `GET /api/system/bote-metrics` | live snapshot `{ capacity, peak, latency, memory, inventory }` built from real Supabase counts (`borrow_records`, `users`, `inventory`) |
+| `GET /api/system/simulate-scale?users=&borrowsPerUserPerMonth=&jobsPerUser=` | forward-looking simulation `{ scenario, gmail_accounts_needed, exceeds_single_gmail_cap, cost, capacity, latency, memory }` |
+
+**Canonical constants** (`DEFAULT_BOTE_CONFIG`): `smtpDailyCap = 500`,
+`emailsPerBorrowCycle = 2`, `smtpAvgLatencyMs = 1000`, `reminderWorkers = 25`,
+`jobSizeBytes = 2048`, `redisOverheadFactor = 1.5`.
+
+```
+# Capacity (per day)
+used              = emailsUsedToday
+remaining         = max(0, cap − used)
+utilization_pct   = (used / cap) × 100
+max_transactions  = floor(cap / emailsPerBorrowCycle)      # 500 / 2 = 250
+transactions_used = floor(used / emailsPerBorrowCycle)
+
+# Peak load (burst check)
+burst        = emailsUsedToday + dueTodayEmails
+exceeds_cap  = burst > cap
+headroom     = max(0, cap − burst)
+
+# Latency
+sequential_ms = emails × smtpAvgLatencyMs
+parallel_ms   = sequential_ms / reminderWorkers             # 25 workers
+speedup_x     = sequential_ms / parallel_ms                 # = workers
+
+# Redis queue memory
+total_jobs    = users × jobsPerUser
+queue_bytes   = total_jobs × jobSizeBytes                   # 2 KB / job
+redis_bytes   = queue_bytes × redisOverheadFactor           # 1.5× overhead
+
+# Scale simulation (per month → per day)
+emails_per_month     = users × borrowsPerUserPerMonth × emailsPerBorrowCycle
+emails_per_day       = emails_per_month / 30
+transactions_per_day = emails_per_month / 30 / emailsPerBorrowCycle
+gmail_accounts_needed = ceil(emails_per_day / smtpDailyCap)
+ses_usd_per_month    = emails_per_month / 1000 × 0.10
+resend_usd_per_month = emails_per_month / 1000 × 0.20
+```
+
+Worked example (matches the `bote.test.cjs` suite): 10,000 users × 2
+borrows/user/month → `emails_per_day = 1,333.3`, `gmail_accounts_needed = 3`,
+`exceeds_single_gmail_cap = true`, SES ≈ **$4/mo**, Resend ≈ **$8/mo**.
+
+> Note: the live engine counts **2** emails per borrow workflow (borrow confirmation
+> + return confirmation) — admin OTP emails and reminders ride on top of the same
+> 500/day pool. The prose sections below use **3** emails/workflow when reasoning
+> about the *full* OTP-approved workflow ceiling (~166/day).
 
 ---
 
@@ -200,6 +258,23 @@ The web tier (Express + Supabase PostgREST) is **not** the bottleneck — it com
 | **True ceiling → Gmail inbox capacity** | **~166 full workflows/day** | 500 emails ÷ 3 emails/workflow |
 
 > The concurrency sweet-spot of 500–1000 simultaneous web users is real for the API tier, but the **email tier caps daily throughput** at ~166 full borrow workflows. Concurrency and daily-capacity are orthogonal: web concurrency scales horizontally (more Render/Vercel instances), the Gmail cap does not. Migrating `emailService.ts` to Resend/SES + BullMQ/Redis workers is the planned escape hatch (see §4/§6).
+
+### Live SMTP email test log (v1.4.5 audit run)
+
+Run as part of `node test/system-health-check.cjs` (see the [System Audit & Health Check](../README.md#-system-audit--health-check-v145) section of `README.md`). Nodemailer → `smtp.gmail.com:587` (STARTTLS, App Password) → admin inbox `kushagragargdelhi@gmail.com`:
+
+```
+== (c) Live Nodemailer SMTP transport ==
+  SMTP response status code: 250 2.0.0 OK  1786632754 98e67ed59e1d1-3931f2a7b8bsm3362246a91.7 - gsmtp
+  accepted=["kushagragargdelhi@gmail.com"] rejected=[]
+PASS | live SMTP transport to kushagragargdelhi@gmail.com | SMTP 250 messageId=<07647618-1a25-f294-3b4f-8981008ea43b@gmail.com>
+```
+
+The `250 2.0.0 OK … - gsmtp` tail is the raw SMTP dialogue the app's
+`logDelivery()` helper echoes on every transactional send. Per the sinkhole
+analysis above, `250 OK` + `rejected=[]` confirms **SMTP acceptance** — for an
+institutional `.ac.in` recipient, an empty inbox with the same response would
+mean upstream sinkholing (fix: SPF/DKIM or an ESP).
 
 ---
 
