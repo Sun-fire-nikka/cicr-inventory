@@ -8,7 +8,7 @@
 - `backend/src/modules/borrow/borrow.controller.ts` — admin-OTP approval workflow (`POST /api/borrow/request-otp` → `POST /api/borrow/verify-otp`), borrow/return confirmation emails fired **asynchronously** (`.catch()` fire-and-forget) so they never block the HTTP response.
 - `backend/src/services/reminderService.ts` — `node-cron` runs a due/overdue scan **daily at 09:00** + on server boot, sending **Day N-1 "due tomorrow" reminders** and due/overdue reminders **sequentially** (`await` per recipient).
 
-> This analysis corresponds to project release **v1.4.5 (Pre-release — not production-ready)** (see the Version History and [Version Registry (Git Tags)](../README.md#-version-registry-git-tags) in `README.md`). All numbers assume the 3-email borrow workflow (admin OTP → borrow confirmation → return confirmation).
+> This analysis corresponds to project release **v1.4.6 (Pre-release — not production-ready)** (see the Version History and [Version Registry (Git Tags)](../README.md#-version-registry-git-tags) in `README.md`). All numbers assume the 3-email borrow workflow (admin OTP → borrow confirmation → return confirmation). Test OTP mail is routed from the verified sender **`kushagragargdelhi@gmail.com`** to **`kushgdhi@gmail.com`** (see the [Test OTP mail routing](../README.md#-test-accounts-seeded) note in `README.md`).
 
 ---
 
@@ -225,11 +225,11 @@ arrives** — so a "successful" send tells you nothing about inbox landing.
 - **Plain-text (`text/`) fallback on all five templates** — HTML-only mail scores as bulk;
 - **Custom Message-ID** (`<<unixms>.<hex>@cicr-inventory.local>`) — avoids the default
   nodemailer format that some gateways fingerprint;
-- **X-header + priority set** — `X-CICR-Mailer: CICR-Inventory/v1.4.4`, `X-Mailer-Type`,
+- **X-header + priority set** — `X-CICR-Mailer: CICR-Inventory/v1.4.6`, `X-Mailer-Type`,
   `Importance`, `List-Unsubscribe`; OTP mail is `priority: 'high'`;
 - **Full SMTP response logging** — every send logs raw `response` (`250 2.0.0 OK …`)
-  plus `accepted[]` / `rejected[]`; run `node test/test-email.cjs` to probe a real
-  `@mail.jiit.ac.in` inbox.
+  plus the complete `envelope`, `accepted[]` / `rejected[]` and `messageId`; run
+  `node test/test-email.cjs` to probe the live route `kushagragargdelhi@gmail.com → kushgdhi@gmail.com`.
 
 **Detection rule:** `accepted=["…@mail.jiit.ac.in"]` + `rejected=[]` + empty inbox ⇒
 **sinkholed upstream** — the fix is SPF/DKIM alignment or moving to an ESP
@@ -259,22 +259,29 @@ The web tier (Express + Supabase PostgREST) is **not** the bottleneck — it com
 
 > The concurrency sweet-spot of 500–1000 simultaneous web users is real for the API tier, but the **email tier caps daily throughput** at ~166 full borrow workflows. Concurrency and daily-capacity are orthogonal: web concurrency scales horizontally (more Render/Vercel instances), the Gmail cap does not. Migrating `emailService.ts` to Resend/SES + BullMQ/Redis workers is the planned escape hatch (see §4/§6).
 
-### Live SMTP email test log (v1.4.5 audit run)
+### Live SMTP email test log (v1.4.6 run)
 
-Run as part of `node test/system-health-check.cjs` (see the [System Audit & Health Check](../README.md#-system-audit--health-check-v145) section of `README.md`). Nodemailer → `smtp.gmail.com:587` (STARTTLS, App Password) → admin inbox `kushagragargdelhi@gmail.com`:
+Run as part of `node test/system-health-check.cjs` (see the [System Audit & Health Check](../README.md#-system-audit--health-check-v145) section of `README.md`) and `node test/test-email.cjs`. Nodemailer → `smtp.gmail.com:587` (STARTTLS, App Password), sender **`kushagragargdelhi@gmail.com`** → default OTP test recipient **`kushgdhi@gmail.com`**:
 
 ```
-== (c) Live Nodemailer SMTP transport ==
-  SMTP response status code: 250 2.0.0 OK  1786632754 98e67ed59e1d1-3931f2a7b8bsm3362246a91.7 - gsmtp
-  accepted=["kushagragargdelhi@gmail.com"] rejected=[]
-PASS | live SMTP transport to kushagragargdelhi@gmail.com | SMTP 250 messageId=<07647618-1a25-f294-3b4f-8981008ea43b@gmail.com>
+== (a) Live OTP via real SMTP transport ==
+  OTP email sent successfully!
+  From:      kushagragargdelhi@gmail.com
+  To:        [ 'kushgdhi@gmail.com' ]
+  envelope:  { from: 'kushagragargdelhi@gmail.com', to: [ 'kushgdhi@gmail.com' ] }
+  accepted:  [ 'kushgdhi@gmail.com' ]
+  rejected:  []
+  response:  250 2.0.0 OK  1786638983 f5sm15541665plv.7 - gsmtp
+  messageId: <1786638977721.ff01abc2c7fddbf3@cicr-inventory.local>
 ```
 
 The `250 2.0.0 OK … - gsmtp` tail is the raw SMTP dialogue the app's
 `logDelivery()` helper echoes on every transactional send. Per the sinkhole
 analysis above, `250 OK` + `rejected=[]` confirms **SMTP acceptance** — for an
 institutional `.ac.in` recipient, an empty inbox with the same response would
-mean upstream sinkholing (fix: SPF/DKIM or an ESP).
+mean upstream sinkholing (fix: SPF/DKIM or an ESP). The v1.4.6 routing change
+puts test OTP traffic on the verified personal Gmail pair, so `250 OK` here
+means the OTP lands in the `kushgdhi@gmail.com` inbox.
 
 ---
 

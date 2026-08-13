@@ -47,9 +47,10 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v1.3.2** | ✅ Released | Base email service setup & route fixes. Nodemailer transport integration, SMTP configuration, and transactional email base. |
 | **v1.4.3** | ⚠️ Pre-release | Admin OTP approval workflow & BOTE analysis. Admin selection (currently Admin **KUSH**), test student accounts (`kush` / `kushgdhi@gmail.com` + four `@jiit.ac.in` students), **1–30 day rental cap**, 6-digit cryptographic OTP verification via `POST /api/borrow/request-otp` and `POST /api/borrow/verify-otp`, automated **Day N-1 return reminders**, and BOTE deliverability + third-party rate-limit analysis. |
 | **v1.4.4** | ✅ Released | Email deliverability patch. Custom `Message-ID` generation, X-Header + priority headers (OTP = high), **plain-text fallback on every HTML template**, full SMTP `response`/`accepted`/`rejected` logging, and a `test/test-email.cjs` diagnostic probe for the **Institutional Email Sinkhole** issue (see below). |
-| **v1.4.5** | ⚠️ Pre-release (current) | Full frontend–backend integration & release docs. Frontend `API_BASE` now points **directly at the backend on port 5000** (`http://localhost:5000/api`) so `/api/borrow/request-otp`, `/api/borrow/verify-otp`, and `/api/items` hit the local API in one click. Confirmation email dispatch on OTP verification verified end-to-end, and the complete connected borrow flow is documented below. |
+| **v1.4.5** | ⚠️ Pre-release | Full frontend–backend integration & release docs. Frontend `API_BASE` now points **directly at the backend on port 5000** (`http://localhost:5000/api`) so `/api/borrow/request-otp`, `/api/borrow/verify-otp`, and `/api/items` hit the local API in one click. Confirmation email dispatch on OTP verification verified end-to-end, and the complete connected borrow flow is documented below. |
+| **v1.4.6** | ⚠️ Pre-release (current) | **Test OTP mail routing on verified personal Gmail.** Sender pinned to **`CICR Inventory Admin <kushagragargdelhi@gmail.com>`**; default OTP test recipient is **`kush` (`kushgdhi@gmail.com`)**. `emailService.ts` now returns the full SMTP delivery envelope (`envelope`, `response`, `accepted`, `rejected`, `messageId`) on OTP sends, `test/test-email.cjs` probes `kushagragargdelhi@gmail.com → kushgdhi@gmail.com`, and new `migrations/002_seed_test_users.sql` keeps `kush` active as a `MEMBER` student. |
 
-> The current release is **v1.4.5 — Pre-release (not production-ready)**. It is a functional demo build: real emails/OTPs work, and the frontend now talks to the backend directly on port 5000, but it sits on the **Gmail free SMTP + Supabase free tier** with hard daily/burst ceilings (see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits)). The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
+> The current release is **v1.4.6 — Pre-release (not production-ready)**. It is a functional demo build: real emails/OTPs work, and the frontend now talks to the backend directly on port 5000, but it sits on the **Gmail free SMTP + Supabase free tier** with hard daily/burst ceilings (see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits)). The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
 
 ### 🏷️ Version Registry (Git Tags)
 
@@ -63,7 +64,8 @@ Complete tag set for the project history (all tags created/synced on branch `kus
 | **v1.3.2** | `v1.3.2` | `0fa3390` | ✅ Released |
 | **v1.4.3** | `v1.4.3` | `3e85811` (annotated tag `7d9eb5b`) | ⚠️ Pre-release |
 | **v1.4.4** | `v1.4.4` | `38b3d68` | ✅ Released |
-| **v1.4.5** | `v1.4.5` | `07aaf0a` | ⚠️ Pre-release (current) |
+| **v1.4.5** | `v1.4.5` | `07aaf0a` | ⚠️ Pre-release |
+| **v1.4.6** | `v1.4.6` | `HEAD` — this release commit | ⚠️ Pre-release (current) |
 
 `v1.0.0`, `v1.4.3`, `v1.4.4`, `v1.4.5` were retained from the existing history; `v1.1.0`, `v1.2.1`, `v1.3.2` were added to close the registry gaps:
 
@@ -222,6 +224,8 @@ npm run dev          # Vite dev server → http://localhost:5173
 
 ### Test accounts (seeded)
 
+Seeded idempotently via `backend/migrations/002_seed_test_users.sql` (upserts keep `kush` active as `MEMBER`; existing passwords are preserved):
+
 | Role | Email | Notes |
 |------|-------|-------|
 | **Admin** | `kushagragargdelhi@gmail.com` | KUSH — the only admin in the OTP approval directory |
@@ -232,6 +236,8 @@ npm run dev          # Vite dev server → http://localhost:5173
 | Student | `992401030154@mail.jiit.ac.in` | Institutional test account |
 
 > The four `@jiit.ac.in` students share the seeded password **`JiitCICR@2026!`**. All are `MEMBER` role; borrow/reminder emails land in the real inboxes.
+
+> **Test OTP mail routing (v1.4.6):** sender is pinned to **`CICR Inventory Admin <kushagragargdelhi@gmail.com>`** (the verified SMTP account) and the default OTP test recipient is **`kushgdhi@gmail.com`**. Mapping: **Sender `kushagragargdelhi@gmail.com` → Receiver `kushgdhi@gmail.com`**. `test/test-email.cjs` sends this pair live and prints the complete SMTP envelope + `messageId` (see [Verify Email Delivery](#-verify-email-delivery)).
 
 ---
 
@@ -434,7 +440,19 @@ Institutional gateways (`@mail.jiit.ac.in`, `@jiit.ac.in`, and most `.ac.in` / `
 ```bash
 cd backend
 npm run build
-node test/test-email.cjs     # probes kushagragargdelhi@gmail.com + 992501030406@mail.jiit.ac.in
+node test/test-email.cjs     # sends test OTP from kushagragargdelhi@gmail.com → kushgdhi@gmail.com
+```
+
+The probe prints the **complete SMTP envelope** — `envelope.from`, `envelope.to`, server `response` (`250 2.0.0 OK`), `accepted`, `rejected`, and the generated `messageId` — so routing is verifiable end-to-end. Expected result (v1.4.6):
+
+```
+✅ OTP email sent successfully!
+   From:       kushagragargdelhi@gmail.com
+   To:         [ 'kushgdhi@gmail.com' ]
+   accepted:   [ 'kushgdhi@gmail.com' ]
+   rejected:   []
+   messageId:  <1786638977721.ff01abc2c7fddbf3@cicr-inventory.local>
+   response:   250 2.0.0 OK 1786638983 f5sm15541665plv.7 - gsmtp
 ```
 
 > If SMTP accepts (`250 OK`, `rejected=[]`) but the inbox is empty, the mail is **sinkholed upstream** — the fix is SPF/DKIM alignment on the sending domain or moving to Resend/SES, not more SMTP retries.
@@ -736,6 +754,24 @@ PASS | live SMTP transport to kushagragargdelhi@gmail.com | SMTP 250 messageId=<
 
 > Gmail accepted the probe (`250 2.0.0 OK`, `rejected=[]`) — the same response line the `emailService.ts` `logDelivery()` helper prints on every transactional send. As documented in the sinkhole section, `250 OK` proves SMTP acceptance, not inbox landing; verify the subject line `[CICR Inventory] System Health Check (v1.4.5) OTP: …` in the admin Gmail inbox.
 
+### Test OTP mail routing log (v1.4.6)
+
+As of **v1.4.6** the sender is **`CICR Inventory Admin <kushagragargdelhi@gmail.com>`** and the default OTP test recipient is **`kushgdhi@gmail.com`**. Live `test/test-email.cjs` run:
+
+```
+== (a) Live OTP via real SMTP transport ==
+  OTP email sent successfully!
+  From:      kushagragargdelhi@gmail.com
+  To:        [ 'kushgdhi@gmail.com' ]
+  envelope:  { from: 'kushagragargdelhi@gmail.com', to: [ 'kushgdhi@gmail.com' ] }
+  accepted:  [ 'kushgdhi@gmail.com' ]
+  rejected:  []
+  response:  250 2.0.0 OK  1786638983 f5sm15541665plv.7 - gsmtp
+  messageId: <1786638977721.ff01abc2c7fddbf3@cicr-inventory.local>
+```
+
+Routing verified: `kushagragargdelhi@gmail.com → kushgdhi@gmail.com` accepted with **no third-party sinkhole**; OTP lands in the `kushgdhi@gmail.com` inbox (subject `[CICR Inventory] OTP: …`).
+
 ---
 
 ## 🧪 Testing
@@ -781,7 +817,7 @@ The built frontend reads `API_BASE` from `src/main.ts:11` — v1.4.5 defaults to
 
 ## ⚠️ Known Issues & Roadmap
 
-**Known issues (v1.4.5 — Pre-release):**
+**Known issues (v1.4.6 — Pre-release):**
 
 - `register` accepts `role: 'ADMIN'` from the client (role spoofing).
 - `createItem` accepts negative `quantity`.

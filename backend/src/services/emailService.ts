@@ -4,6 +4,12 @@ import crypto from 'crypto';
 
 dotenv.config();
 
+// Verified sender + default test recipient (v1.4.6).
+// Sender is pinned to the verified personal Gmail account; the default test
+// recipient ('kush' / kushgdhi@gmail.com) is used by test/test-email.cjs.
+const SENDER_NAME = 'CICR Inventory Admin';
+export const DEFAULT_TEST_RECIPIENT_EMAIL = 'kushgdhi@gmail.com';
+
 // Configure transport using environment variables or a fallback test account
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.ethereal.email',
@@ -54,7 +60,7 @@ const generateMessageId = (): string =>
 // Shared delivery headers. Priority 'high' is used for the 10-minute OTP so
 // mobile clients surface it immediately; everything else is 'normal'.
 const buildHeaders = (kind: string, priority: 'high' | 'normal' = 'normal') => ({
-  'X-CICR-Mailer': `CICR-Inventory/v1.4.4`,
+  'X-CICR-Mailer': `CICR-Inventory/v1.4.6`,
   'X-Mailer-Type': kind,
   'X-Priority': priority === 'high' ? '1 (Highest)' : '3 (Normal)',
   'Importance': priority === 'high' ? 'High' : 'Normal',
@@ -100,7 +106,7 @@ export const sendBorrowConfirmation = async (
     const holdersTable = buildHoldersTable(context.holders);
     const categoryLine = context.category ? ` (${context.category})` : '';
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"CICR Lab Admin" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
       to: recipientEmail,
       subject: `[CICR Inventory] Borrow Confirmation: ${context.itemName}`,
       messageId: generateMessageId(),
@@ -167,7 +173,7 @@ export const sendOtpEmail = async (
 ) => {
   try {
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"CICR Lab Admin" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
       to: adminEmail,
       subject: `[CICR Inventory] Borrow Approval OTP: ${otp}`,
       messageId: generateMessageId(),
@@ -208,7 +214,18 @@ export const sendOtpEmail = async (
 
     const info = await transporter.sendMail(mailOptions);
     logDelivery('OTP email', info);
-    return { success: true, messageId: info.messageId };
+    return {
+      success: true,
+      messageId: info.messageId,
+      info: {
+        envelope: info.envelope,
+        accepted: info.accepted,
+        rejected: info.rejected,
+        pending: info.pending,
+        response: info.response,
+        messageId: info.messageId
+      }
+    };
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send OTP email to ${adminEmail}: ${formatSmtpError(error)}`);
     return { success: false, error: formatSmtpError(error) };
@@ -224,7 +241,7 @@ export const sendUpcomingReminder = async (
   try {
     const formattedDueDate = formatDueDate(dueDate);
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"CICR Lab Admin" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
       to: recipientEmail,
       subject: `[CICR Inventory] Return Due Tomorrow: ${itemName}`,
       messageId: generateMessageId(),
@@ -276,7 +293,7 @@ export const sendReturnReminder = async (
       ? `Your return is ${daysOverdue} day(s) overdue.`
       : 'Your item is due today.';
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"CICR Lab Admin" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
       to: recipientEmail,
       subject: daysOverdue > 0
         ? `[CICR Inventory] OVERDUE Return: ${itemName}`
@@ -331,7 +348,7 @@ export const sendReturnConfirmation = async (
   try {
     const formattedReturnedAt = returnedAt.toISOString();
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"CICR Lab Admin" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
       to: recipientEmail,
       subject: `[CICR Inventory] Return Confirmation: ${itemName}`,
       messageId: generateMessageId(),
