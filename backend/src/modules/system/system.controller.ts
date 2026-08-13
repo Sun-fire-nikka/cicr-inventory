@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { supabase } from '../../app';
+import { dbRead } from '../../config/database';
 import {
   buildBoteSnapshot,
   simulateScale,
@@ -20,7 +20,7 @@ const endOfToday = (): Date => {
 };
 
 const countToday = async (from: string, column: string): Promise<number> => {
-  const { count } = await supabase
+  const { count } = await dbRead
     .from(from)
     .select('*', { count: 'exact', head: true })
     .gte(column, startOfToday().toISOString());
@@ -33,12 +33,11 @@ export const getBoteMetrics = async (req: Request, res: Response) => {
     const [borrowsToday, returnsToday, activeBorrows, dueToday, totalUsers, items] = await Promise.all([
       countToday('borrow_records', 'borrowed_at'),
       countToday('borrow_records', 'returned_at'),
-      supabase.from('borrow_records').select('*', { count: 'exact', head: true }).eq('status', 'BORROWED'),
-      supabase.from('borrow_records').select('*', { count: 'exact', head: true }).eq('status', 'BORROWED').lt('due_date', endOfToday().toISOString()),
-      supabase.from('users').select('*', { count: 'exact', head: true }),
-      supabase.from('inventory').select('quantity, available_quantity')
+      dbRead.from('borrow_records').select('*', { count: 'exact', head: true }).eq('status', 'BORROWED'),
+      dbRead.from('borrow_records').select('*', { count: 'exact', head: true }).eq('status', 'BORROWED').lt('due_date', endOfToday().toISOString()),
+      dbRead.from('users').select('*', { count: 'exact', head: true }),
+      dbRead.from('inventory').select('quantity, available_quantity')
     ]);
-
     const inputs: BoteInputs = {
       emailsUsedToday: (borrowsToday || 0) + (returnsToday || 0),
       activeBorrows: activeBorrows.count || 0,

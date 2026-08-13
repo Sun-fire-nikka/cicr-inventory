@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { supabase } from '../app';
+import { dbRead } from '../config/database';
 import { sendReturnReminder, sendUpcomingReminder } from './emailService';
 
 const DAILY_SCHEDULE = process.env.REMINDER_CRON || '0 9 * * *';
@@ -42,12 +42,12 @@ export const runDueReminderCheck = async (): Promise<{ checked: number; sent: nu
 
   try {
     const [dueRes, upcomingRes] = await Promise.all([
-      supabase
+      dbRead
         .from('borrow_records')
         .select('id, inventory_id, borrower_name, quantity, due_date, user_id')
         .eq('status', 'BORROWED')
         .lt('due_date', endOfToday().toISOString()),
-      supabase
+      dbRead
         .from('borrow_records')
         .select('id, inventory_id, borrower_name, quantity, due_date, user_id')
         .eq('status', 'BORROWED')
@@ -70,10 +70,10 @@ export const runDueReminderCheck = async (): Promise<{ checked: number; sent: nu
 
     const [usersRes, itemsRes] = await Promise.all([
       userIds.length
-        ? supabase.from('users').select('id, name, email').in('id', userIds)
+        ? dbRead.from('users').select('id, name, email').in('id', userIds)
         : Promise.resolve({ data: [] as { id: string; name: string; email: string }[] }),
       itemIds.length
-        ? supabase.from('inventory').select('id, name').in('id', itemIds)
+        ? dbRead.from('inventory').select('id, name').in('id', itemIds)
         : Promise.resolve({ data: [] as { id: string; name: string }[] })
     ]);
 
@@ -123,3 +123,4 @@ export const startReminderScheduler = (): void => {
 
   console.log(`[REMINDER SERVICE] Return reminder scheduler started (cron: "${DAILY_SCHEDULE}").`);
 };
+

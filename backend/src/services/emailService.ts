@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import { enqueueEmail } from '../config/emailQueue';
 
 dotenv.config();
 
@@ -164,6 +165,10 @@ export const sendBorrowConfirmation = async (
       return { success: true, mocked: true };
     }
 
+    if (await enqueueEmail('borrow-confirmation', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
     const info = await transporter.sendMail(mailOptions);
     logDelivery('Borrow email', info);
     return { success: true, messageId: info.messageId };
@@ -222,6 +227,10 @@ export const sendOtpEmail = async (
     if (!process.env.SMTP_USER) {
       console.log(`[MOCK EMAIL SERVICE] OTP dispatched to admin ${adminEmail} for '${itemName}' (OTP: ${otp}, Expires: 10m)`);
       return { success: true, mocked: true, otp };
+    }
+
+    if (await enqueueEmail('borrow-otp', mailOptions)) {
+      return { success: true, queued: true, otp };
     }
 
     const info = await transporter.sendMail(mailOptions);
@@ -286,6 +295,10 @@ export const sendUpcomingReminder = async (
       return { success: true, mocked: true };
     }
 
+    if (await enqueueEmail('upcoming-reminder', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
     const info = await transporter.sendMail(mailOptions);
     logDelivery('Upcoming-due reminder', info);
     return { success: true, messageId: info.messageId };
@@ -345,6 +358,10 @@ export const sendReturnReminder = async (
       return { success: true, mocked: true };
     }
 
+    if (await enqueueEmail('return-reminder', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
     const info = await transporter.sendMail(mailOptions);
     logDelivery('Return reminder', info);
     return { success: true, messageId: info.messageId };
@@ -386,6 +403,10 @@ export const sendReturnConfirmation = async (
     if (!process.env.SMTP_USER) {
       console.log(`[MOCK EMAIL SERVICE] Return email dispatched to ${recipientEmail} for item '${itemName}' (Returned At: ${formattedReturnedAt})`);
       return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('return-confirmation', mailOptions)) {
+      return { success: true, queued: true };
     }
 
     const info = await transporter.sendMail(mailOptions);

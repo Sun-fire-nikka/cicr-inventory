@@ -1,9 +1,13 @@
 import { Request, Response } from 'express';
 import { supabase } from '../../app';
+import { dbRead } from '../../config/database';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { sendBorrowConfirmation, sendReturnConfirmation, sendOtpEmail } from '../../services/emailService';
 import { ADMIN_DIRECTORY, getAdminById } from './adminDirectory';
 import { generateOtp, storeOtp, verifyOtp as verifyOtpCode, consumeOtp } from './otpService';
+import { cacheGetJSON, cacheSetJSON } from '../../config/redis';
+
+const ADMIN_DIRECTORY_CACHE_TTL = 60; // seconds
 
 export const MIN_RENTAL_DAYS = 1;
 export const MAX_RENTAL_DAYS = 30;
@@ -34,7 +38,7 @@ const finalizeBorrow = async (
 ) => {
   const { userId, userName, itemId, quantity, purpose, durationDays } = payload;
 
-  const { data: item, error: itemErr } = await supabase
+  const { data: item, error: itemErr } = await dbRead
     .from('inventory')
     .select('*')
     .eq('id', itemId)
@@ -89,13 +93,22 @@ const finalizeBorrow = async (
   return { borrowRecord, item, newAvailableQty, dueDate };
 };
 
-// GET /api/borrow/admins (Admin directory)
+// GET /api/borrow/admins (Admin directory) — cached 60s
 export const getAdmins = async (req: Request, res: Response) => {
-  return res.status(200).json({
+  const cacheKey = 'cicr:cache:admins';
+
+  const cached = await cacheGetJSON(cacheKey);
+  if (cached) {
+    return res.status(200).json(cached);
+  }
+
+  const payload = {
     status: 'success',
     count: ADMIN_DIRECTORY.length,
     data: ADMIN_DIRECTORY
-  });
+  };
+  await cacheSetJSON(cacheKey, payload, ADMIN_DIRECTORY_CACHE_TTL);
+  return res.status(200).json(payload);
 };
 
 // POST /api/borrow (Borrow Item)
@@ -128,7 +141,7 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
     const { borrowRecord, item, newAvailableQty, dueDate } = result;
 
     if (userEmail) {
-      const { data: activeHolders } = await supabase
+      const { data: activeHolders } = await dbRead
         .from('borrow_records')
         .select('borrower_name, roll_number, quantity, borrowed_at')
         .eq('inventory_id', inventory_id)
@@ -184,7 +197,7 @@ export const requestOtp = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ status: 'error', message: 'Selected admin not found in the admin directory.' });
     }
 
-    const { data: item, error: itemErr } = await supabase
+    const { data: item, error: itemErr } = await dbRead
       .from('inventory')
       .select('*')
       .eq('id', item_id)
@@ -275,7 +288,7 @@ export const verifyOtp = async (req: AuthRequest, res: Response) => {
     const { borrowRecord, item, newAvailableQty, dueDate } = result;
 
     if (userEmail) {
-      const { data: activeHolders } = await supabase
+      const { data: activeHolders } = await dbRead
         .from('borrow_records')
         .select('borrower_name, roll_number, quantity, borrowed_at')
         .eq('inventory_id', payload.itemId)
@@ -317,8 +330,8 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'borrow_id is required.' });
     }
 
-    // 1. Fetch borrow record
-    const { data: record, error: recordErr } = await supabase
+    // 1. Fetch borrow record (read pool)
+    const { data: record, error: recordErr } = await dbRead
       .from('borrow_records')
       .select('*, inventory(name, available_quantity)')
       .eq('id', borrow_id)
@@ -348,7 +361,7 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
     if (updateRecordErr) throw updateRecordErr;
 
     // 3. Restore available_quantity in inventory
-    const { data: item } = await supabase.from('inventory').select('available_quantity').eq('id', record.inventory_id).single();
+    const { data: item } = await dbRead.from('inventory').select('available_quantity').eq('id', record.inventory_id).single();
     const restoredQty = (item?.available_quantity || 0) + record.quantity;
 
     await supabase
@@ -384,7 +397,7 @@ export const getBorrowHistory = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
     const userRole = req.user?.role;
 
-    let query = supabase
+    let query = dbRead
       .from('borrow_records')
       .select('*')
       .order('borrowed_at', { ascending: false });
@@ -403,10 +416,10 @@ export const getBorrowHistory = async (req: AuthRequest, res: Response) => {
 
     const [usersRes, itemsRes] = await Promise.all([
       userIds.length
-        ? supabase.from('users').select('id, name, email, roll_number').in('id', userIds)
+        ? dbRead.from('users').select('id, name, email, roll_number').in('id', userIds)
         : Promise.resolve({ data: [] }),
       itemIds.length
-        ? supabase.from('inventory').select('id, name, category, image').in('id', itemIds)
+        ? dbRead.from('inventory').select('id, name, category, image').in('id', itemIds)
         : Promise.resolve({ data: [] })
     ]);
 

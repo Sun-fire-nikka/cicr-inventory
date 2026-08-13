@@ -1,7 +1,11 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
+import session from 'express-session';
+import { RedisStore } from 'connect-redis';
 import dotenv from 'dotenv';
-import { createClient } from '@supabase/supabase-js';
+
+import { dbWrite, dbRead } from './config/database';
+import { redisClient, isRedisEnabled } from './config/redis';
 
 import authRoutes from './modules/auth/auth.routes';
 import inventoryRoutes from './modules/inventory/inventory.routes';
@@ -10,15 +14,32 @@ import dashboardRoutes from './modules/dashboard/dashboard.routes';
 
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Write pool — backward-compatible alias used by controllers/tests.
+export const supabase = dbWrite;
 
 const app: Application = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Redis-backed cookie sessions (v1.5.0). JWT Bearer auth remains the primary
+// path; sessions give an additional cookie-based carrier stored in Redis.
+const sessionOptions: session.SessionOptions = {
+  secret: process.env.SESSION_SECRET || 'cicr_session_secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  }
+};
+if (isRedisEnabled && redisClient) {
+  sessionOptions.store = new RedisStore({ client: redisClient, prefix: 'cicr:sess:' });
+} else {
+  console.warn('⚠️ REDIS_URL not set — using in-memory session store (development only). Set REDIS_URL for Redis-backed sessions.');
+}
+app.use(session(sessionOptions));
 
 // API Endpoints
 app.use('/api/auth', authRoutes);
@@ -30,4 +51,5 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'success', message: 'CICR Inventory API is live! 🚀' });
 });
 
+export { dbRead };
 export default app;
