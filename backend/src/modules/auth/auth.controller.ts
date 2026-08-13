@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { supabase } from '../../app';
 import { AuthRequest } from '../../middleware/auth.middleware';
+import { isValidEmail } from '../../validators/email.validator';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -10,6 +11,10 @@ export const register = async (req: Request, res: Response) => {
 
     if (!name || !email || !password) {
       return res.status(400).json({ status: 'error', message: 'Name, email, and password required.' });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ status: 'error', message: 'Invalid email format.' });
     }
 
     const { data: existingUser } = await supabase

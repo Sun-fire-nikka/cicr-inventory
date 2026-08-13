@@ -4,11 +4,14 @@ import crypto from 'crypto';
 
 dotenv.config();
 
-// Verified sender + default test recipient (v1.4.6).
+// Verified sender + default test recipient (v1.4.7).
 // Sender is pinned to the verified personal Gmail account; the default test
 // recipient ('kush' / kushgdhi@gmail.com) is used by test/test-email.cjs.
-const SENDER_NAME = 'CICR Inventory Admin';
+// The diagnostic probe (test-email.cjs) additionally targets the institutional
+// numeric student inbox 992501030406@mail.jiit.ac.in (Institutional Email Support).
+const SENDER_NAME = 'CICR Inventory Support';
 export const DEFAULT_TEST_RECIPIENT_EMAIL = 'kushgdhi@gmail.com';
+export const DEFAULT_SENDER_EMAIL = 'kushagragargdelhi@gmail.com';
 
 // Configure transport using environment variables or a fallback test account
 const transporter = nodemailer.createTransport({
@@ -52,15 +55,22 @@ const formatSmtpError = (error: any): string => {
   return parts.length ? parts.join(' ') : 'Unknown SMTP error';
 };
 
-// Custom Message-ID: <unixms.random@domain> — stable, unique, and avoids
-// the default nodemailer format that some institutional gateways fingerprint.
-const generateMessageId = (): string =>
-  `<${Date.now()}.${crypto.randomBytes(8).toString('hex')}@cicr-inventory.local>`;
+// Dynamic Message-ID generation per RFC 2822 §3.6.4:
+//   msg-id  = "<" id-left "@" id-right ">"
+//   id-left = dot-atom-text (unix-ms "." 128-bit hex)
+//   id-right = domain (derived from the configured SMTP host so it aligns with
+//              the authenticated sending domain for SPF/DKIM friendliness)
+const generateMessageId = (): string => {
+  const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const idRight = smtpHost.replace(/^smtp\./i, '').trim().toLowerCase() || 'gmail.com';
+  const idLeft = `${Date.now()}.${crypto.randomBytes(16).toString('hex')}`;
+  return `<${idLeft}@${idRight}>`;
+};
 
 // Shared delivery headers. Priority 'high' is used for the 10-minute OTP so
 // mobile clients surface it immediately; everything else is 'normal'.
 const buildHeaders = (kind: string, priority: 'high' | 'normal' = 'normal') => ({
-  'X-CICR-Mailer': `CICR-Inventory/v1.4.6`,
+  'X-CICR-Mailer': `CICR-Inventory/v1.4.7`,
   'X-Mailer-Type': kind,
   'X-Priority': priority === 'high' ? '1 (Highest)' : '3 (Normal)',
   'Importance': priority === 'high' ? 'High' : 'Normal',
@@ -106,7 +116,8 @@ export const sendBorrowConfirmation = async (
     const holdersTable = buildHoldersTable(context.holders);
     const categoryLine = context.category ? ` (${context.category})` : '';
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
       to: recipientEmail,
       subject: `[CICR Inventory] Borrow Confirmation: ${context.itemName}`,
       messageId: generateMessageId(),
@@ -173,7 +184,8 @@ export const sendOtpEmail = async (
 ) => {
   try {
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
       to: adminEmail,
       subject: `[CICR Inventory] Borrow Approval OTP: ${otp}`,
       messageId: generateMessageId(),
@@ -223,7 +235,9 @@ export const sendOtpEmail = async (
         rejected: info.rejected,
         pending: info.pending,
         response: info.response,
-        messageId: info.messageId
+        messageId: info.messageId,
+        headers: mailOptions.headers,
+        replyTo: mailOptions.replyTo
       }
     };
   } catch (error: any) {
@@ -241,7 +255,8 @@ export const sendUpcomingReminder = async (
   try {
     const formattedDueDate = formatDueDate(dueDate);
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
       to: recipientEmail,
       subject: `[CICR Inventory] Return Due Tomorrow: ${itemName}`,
       messageId: generateMessageId(),
@@ -293,7 +308,8 @@ export const sendReturnReminder = async (
       ? `Your return is ${daysOverdue} day(s) overdue.`
       : 'Your item is due today.';
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
       to: recipientEmail,
       subject: daysOverdue > 0
         ? `[CICR Inventory] OVERDUE Return: ${itemName}`
@@ -348,7 +364,8 @@ export const sendReturnConfirmation = async (
   try {
     const formattedReturnedAt = returnedAt.toISOString();
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || 'no-reply@cicr.edu'}>`,
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
       to: recipientEmail,
       subject: `[CICR Inventory] Return Confirmation: ${itemName}`,
       messageId: generateMessageId(),

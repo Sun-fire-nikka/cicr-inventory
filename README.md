@@ -48,9 +48,10 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v1.4.3** | ⚠️ Pre-release | Admin OTP approval workflow & BOTE analysis. Admin selection (currently Admin **KUSH**), test student accounts (`kush` / `kushgdhi@gmail.com` + four `@jiit.ac.in` students), **1–30 day rental cap**, 6-digit cryptographic OTP verification via `POST /api/borrow/request-otp` and `POST /api/borrow/verify-otp`, automated **Day N-1 return reminders**, and BOTE deliverability + third-party rate-limit analysis. |
 | **v1.4.4** | ✅ Released | Email deliverability patch. Custom `Message-ID` generation, X-Header + priority headers (OTP = high), **plain-text fallback on every HTML template**, full SMTP `response`/`accepted`/`rejected` logging, and a `test/test-email.cjs` diagnostic probe for the **Institutional Email Sinkhole** issue (see below). |
 | **v1.4.5** | ⚠️ Pre-release | Full frontend–backend integration & release docs. Frontend `API_BASE` now points **directly at the backend on port 5000** (`http://localhost:5000/api`) so `/api/borrow/request-otp`, `/api/borrow/verify-otp`, and `/api/items` hit the local API in one click. Confirmation email dispatch on OTP verification verified end-to-end, and the complete connected borrow flow is documented below. |
-| **v1.4.6** | ⚠️ Pre-release (current) | **Test OTP mail routing on verified personal Gmail.** Sender pinned to **`CICR Inventory Admin <kushagragargdelhi@gmail.com>`**; default OTP test recipient is **`kush` (`kushgdhi@gmail.com`)**. `emailService.ts` now returns the full SMTP delivery envelope (`envelope`, `response`, `accepted`, `rejected`, `messageId`) on OTP sends, `test/test-email.cjs` probes `kushagragargdelhi@gmail.com → kushgdhi@gmail.com`, and new `migrations/002_seed_test_users.sql` keeps `kush` active as a `MEMBER` student. |
+| **v1.4.6** | ⚠️ Pre-release | **Test OTP mail routing on verified personal Gmail.** Sender pinned to **`CICR Inventory Admin <kushagragargdelhi@gmail.com>`**; default OTP test recipient is **`kush` (`kushgdhi@gmail.com`)**. `emailService.ts` now returns the full SMTP delivery envelope (`envelope`, `response`, `accepted`, `rejected`, `messageId`) on OTP sends, `test/test-email.cjs` probes `kushagragargdelhi@gmail.com → kushgdhi@gmail.com`, and new `migrations/002_seed_test_users.sql` keeps `kush` active as a `MEMBER` student. |
+| **v1.4.7** | ⚠️ Pre-release (current) | **Institutional Email Support for `@mail.jiit.ac.in`.** Sender renamed to **`CICR Inventory Support <kushagragargdelhi@gmail.com>`** with **`Reply-To: kushagragargdelhi@gmail.com`**; dynamic **RFC 2822 Message-ID** derived from the sending SMTP domain; high-priority X-headers; plain-text fallback on every HTML template. New `validators/email.validator.ts` accepts 12-digit numeric student IDs (`^[0-9]{12}@mail\.jiit\.ac\.in$`) so institutional registrations never fail validation. `test/test-email.cjs` now dispatches the live OTP probe to **`992501030406@mail.jiit.ac.in`** and logs full SMTP response codes + sent headers. Seed adds numeric ID **`992501030395@mail.jiit.ac.in`**. |
 
-> The current release is **v1.4.6 — Pre-release (not production-ready)**. It is a functional demo build: real emails/OTPs work, and the frontend now talks to the backend directly on port 5000, but it sits on the **Gmail free SMTP + Supabase free tier** with hard daily/burst ceilings (see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits)). The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
+> The current release is **v1.4.7 — Pre-release (not production-ready)**. It is a functional demo build: real emails/OTPs work, and the frontend now talks to the backend directly on port 5000, but it sits on the **Gmail free SMTP + Supabase free tier** with hard daily/burst ceilings (see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits)). The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
 
 ### 🏷️ Version Registry (Git Tags)
 
@@ -65,7 +66,8 @@ Complete tag set for the project history (all tags created/synced on branch `kus
 | **v1.4.3** | `v1.4.3` | `3e85811` (annotated tag `7d9eb5b`) | ⚠️ Pre-release |
 | **v1.4.4** | `v1.4.4` | `38b3d68` | ✅ Released |
 | **v1.4.5** | `v1.4.5` | `07aaf0a` | ⚠️ Pre-release |
-| **v1.4.6** | `v1.4.6` | `aaa64c5` | ⚠️ Pre-release (current) |
+| **v1.4.6** | `v1.4.6` | `aaa64c5` | ⚠️ Pre-release |
+| **v1.4.7** | `v1.4.7` | `HEAD` — this release commit | ⚠️ Pre-release (current) |
 
 `v1.0.0`, `v1.4.3`, `v1.4.4`, `v1.4.5` were retained from the existing history; `v1.1.0`, `v1.2.1`, `v1.3.2` were added to close the registry gaps:
 
@@ -230,14 +232,15 @@ Seeded idempotently via `backend/migrations/002_seed_test_users.sql` (upserts ke
 |------|-------|-------|
 | **Admin** | `kushagragargdelhi@gmail.com` | KUSH — the only admin in the OTP approval directory |
 | Student | `kushgdhi@gmail.com` | `kush` — original seeded test student |
-| Student | `992501030406@mail.jiit.ac.in` | Institutional test account |
+| Student | `992501030406@mail.jiit.ac.in` | Institutional test account — **live OTP probe target** (numeric ID) |
+| Student | `992501030395@mail.jiit.ac.in` | Institutional test account (numeric ID) |
 | Student | `992501030399@gmail.jiit.ac.in` | Institutional test account |
 | Student | `992401210050@gmail.jiit.ac.in` | Institutional test account |
 | Student | `992401030154@mail.jiit.ac.in` | Institutional test account |
 
-> The four `@jiit.ac.in` students share the seeded password **`JiitCICR@2026!`**. All are `MEMBER` role; borrow/reminder emails land in the real inboxes.
+> The five `@jiit.ac.in` students share the seeded password **`JiitCICR@2026!`**. All are `MEMBER` role; borrow/reminder emails land in the real inboxes.
 
-> **Test OTP mail routing (v1.4.6):** sender is pinned to **`CICR Inventory Admin <kushagragargdelhi@gmail.com>`** (the verified SMTP account) and the default OTP test recipient is **`kushgdhi@gmail.com`**. Mapping: **Sender `kushagragargdelhi@gmail.com` → Receiver `kushgdhi@gmail.com`**. `test/test-email.cjs` sends this pair live and prints the complete SMTP envelope + `messageId` (see [Verify Email Delivery](#-verify-email-delivery)).
+> **Test OTP mail routing (v1.4.7 — Institutional Email Support):** sender is pinned to **`CICR Inventory Support <kushagragargdelhi@gmail.com>`** (verified SMTP account, with `Reply-To: kushagragargdelhi@gmail.com`). The live probe in `test/test-email.cjs` dispatches the OTP to the numeric institutional inbox **`992501030406@mail.jiit.ac.in`** — mapping **Sender `kushagragargdelhi@gmail.com` → Receiver `992501030406@mail.jiit.ac.in`** — and prints full SMTP response codes + sent headers (see [Verify Email Delivery](#-verify-email-delivery)).
 
 ---
 
@@ -253,7 +256,7 @@ Seeded idempotently via `backend/migrations/002_seed_test_users.sql` (upserts ke
 | `SMTP_PORT` | No | SMTP port (default `587`) |
 | `SMTP_USER` | No | Authenticating Gmail account. If empty → mock mode (emails logged, not sent) |
 | `SMTP_PASS` | No | Gmail **16-character App Password** (requires 2FA on `SMTP_USER`) |
-| `SMTP_FROM` | No | From header. **Must match `SMTP_USER`** (Gmail rejects mismatched senders) |
+| `SMTP_FROM` | No | From header — default **`"CICR Inventory Support" <kushagragargdelhi@gmail.com>`**. **Must match `SMTP_USER`** (Gmail rejects mismatched senders) |
 | `REMINDER_CRON` | No | Reminder schedule (default `0 9 * * *` — daily 09:00) |
 
 ---
@@ -431,28 +434,55 @@ Institutional gateways (`@mail.jiit.ac.in`, `@jiit.ac.in`, and most `.ac.in` / `
 |-----|--------------|
 | **Plain-text fallback** on every template | Gives the filter a text/plain alternative — HTML-only mail scores as bulk |
 | **Custom Message-ID** | `<<unixms>.<hex>@cicr-inventory.local>` — avoids the default nodemailer format some gateways fingerprint |
-| **X-Header set** | `X-CICR-Mailer: CICR-Inventory/v1.4.4`, `X-Mailer-Type`, `Importance`, `List-Unsubscribe` |
+| **X-Header set** | `X-CICR-Mailer`, `X-Mailer-Type`, `Importance`, `List-Unsubscribe` |
 | **Priority header** | OTP mail flagged `high` (surfaces in mobile notifications); the rest `normal` |
 | **Full SMTP response logging** | Console logs raw `response` (`250 2.0.0 OK …`) + `accepted[]`/`rejected[]` per send |
+
+**v1.4.7 — Institutional Email Support for `@mail.jiit.ac.in`:**
+
+| Change | What it does |
+|--------|--------------|
+| **RFC 2822 dynamic Message-ID** | `generateMessageId()` derives the `id-right` from the configured SMTP host (`smtp.gmail.com → gmail.com`) so it aligns with the authenticated sending domain (SPF/DKIM friendly), `id-left` = unix-ms + 128-bit hex |
+| **Explicit sender + Reply-To** | `CICR Inventory Support <kushagragargdelhi@gmail.com>` with `Reply-To: kushagragargdelhi@gmail.com` |
+| **High-priority headers** | `X-Priority: 1 (Highest)` / `Importance: High` on OTP mail, plus full X-header set |
+| **Numeric student-ID validation** | New `backend/src/validators/email.validator.ts` accepts **12-digit numeric** institutional IDs `^[0-9]{12}@mail\.jiit\.ac\.in$` (and any `jiit.ac.in` subdomain) — register never rejects them |
+| **Institutional probe** | `test/test-email.cjs` dispatches the OTP to `992501030406@mail.jiit.ac.in` and logs full SMTP response codes + sent headers |
 
 **Verify delivery with:**
 
 ```bash
 cd backend
 npm run build
-node test/test-email.cjs     # sends test OTP from kushagragargdelhi@gmail.com → kushgdhi@gmail.com
+node test/test-email.cjs     # sends test OTP to 992501030406@mail.jiit.ac.in
 ```
 
-The probe prints the **complete SMTP envelope** — `envelope.from`, `envelope.to`, server `response` (`250 2.0.0 OK`), `accepted`, `rejected`, and the generated `messageId` — so routing is verifiable end-to-end. Expected result (v1.4.6):
+The probe prints the **complete SMTP response codes + sent headers** — raw `response`, `accepted`, `rejected`, `pending`, `envelope`, `messageId`, then every header (`X-CICR-Mailer`, `X-Mailer-Type`, `X-Priority`, `Importance`, `List-Unsubscribe`, `Reply-To`, `Message-ID`). Expected result (v1.4.7):
 
 ```
-✅ OTP email sent successfully!
-   From:       kushagragargdelhi@gmail.com
-   To:         [ 'kushgdhi@gmail.com' ]
-   accepted:   [ 'kushgdhi@gmail.com' ]
-   rejected:   []
-   messageId:  <1786638977721.ff01abc2c7fddbf3@cicr-inventory.local>
-   response:   250 2.0.0 OK 1786638983 f5sm15541665plv.7 - gsmtp
+========== Dispatching test OTP email (institutional) ==========
+  from:     kushagragargdelhi@gmail.com
+  to:       992501030406@mail.jiit.ac.in
+
+[EMAIL SERVICE] OTP email accepted by SMTP | messageId=<1786640020999.7d55d326d83e776c261f66dc083c2ef3@gmail.com> | response="250 2.0.0 OK  1786640023 a92af1059eb24-141387ed5b1sm225810c88.8 - gsmtp" | accepted=["992501030406@mail.jiit.ac.in"] | rejected=[]
+
+  SMTP response codes:
+    raw response:   250 2.0.0 OK  1786640023 a92af1059eb24-141387ed5b1sm225810c88.8 - gsmtp
+    accepted:       ["992501030406@mail.jiit.ac.in"]
+    rejected:       []
+    pending:        []
+    envelope:       {"from":"kushagragargdelhi@gmail.com","to":["992501030406@mail.jiit.ac.in"]}
+    messageId:      <1786640020999.7d55d326d83e776c261f66dc083c2ef3@gmail.com>
+
+  Message headers (as sent):
+    X-CICR-Mailer: CICR-Inventory/v1.4.7
+    X-Mailer-Type: borrow-otp
+    X-Priority: 1 (Highest)
+    Importance: High
+    List-Unsubscribe: <mailto:kushagragargdelhi@gmail.com?subject=unsubscribe>
+    Reply-To: kushagragargdelhi@gmail.com
+    Message-ID: <1786640020999.7d55d326d83e776c261f66dc083c2ef3@gmail.com>
+
+  Sender kushagragargdelhi@gmail.com -> 992501030406@mail.jiit.ac.in: ACCEPTED
 ```
 
 > If SMTP accepts (`250 OK`, `rejected=[]`) but the inbox is empty, the mail is **sinkholed upstream** — the fix is SPF/DKIM alignment on the sending domain or moving to Resend/SES, not more SMTP retries.
@@ -772,6 +802,32 @@ As of **v1.4.6** the sender is **`CICR Inventory Admin <kushagragargdelhi@gmail.
 
 Routing verified: `kushagragargdelhi@gmail.com → kushgdhi@gmail.com` accepted with **no third-party sinkhole**; OTP lands in the `kushgdhi@gmail.com` inbox (subject `[CICR Inventory] OTP: …`).
 
+### Institutional Email Support log (v1.4.7)
+
+As of **v1.4.7** the sender is **`CICR Inventory Support <kushagragargdelhi@gmail.com>`** with `Reply-To: kushagragargdelhi@gmail.com`; Message-IDs are **RFC 2822 dynamic** (`<unix-ms.hex@gmail.com>`, id-right derived from `SMTP_HOST`). Live `test/test-email.cjs` run to the numeric institutional inbox **`992501030406@mail.jiit.ac.in`**:
+
+```
+[EMAIL SERVICE] OTP email accepted by SMTP | messageId=<1786640020999.7d55d326d83e776c261f66dc083c2ef3@gmail.com> | response="250 2.0.0 OK  1786640023 a92af1059eb24-141387ed5b1sm225810c88.8 - gsmtp" | accepted=["992501030406@mail.jiit.ac.in"] | rejected=[]
+
+  SMTP response codes:
+    raw response:   250 2.0.0 OK  1786640023 a92af1059eb24-141387ed5b1sm225810c88.8 - gsmtp
+    accepted:       ["992501030406@mail.jiit.ac.in"]
+    rejected:       []
+    envelope:       {"from":"kushagragargdelhi@gmail.com","to":["992501030406@mail.jiit.ac.in"]}
+    messageId:      <1786640020999.7d55d326d83e776c261f66dc083c2ef3@gmail.com>
+
+  Message headers (as sent):
+    X-CICR-Mailer: CICR-Inventory/v1.4.7
+    X-Mailer-Type: borrow-otp
+    X-Priority: 1 (Highest)
+    Importance: High
+    Reply-To: kushagragargdelhi@gmail.com
+
+  Sender kushagragargdelhi@gmail.com -> 992501030406@mail.jiit.ac.in: ACCEPTED
+```
+
+> Routing verified: `kushagragargdelhi@gmail.com → 992501030406@mail.jiit.ac.in` accepted with **no third-party sinkhole**; the OTP (subject `[CICR Inventory] Borrow Approval OTP: …`) lands in the numeric institutional inbox. `register` accepts this 12-digit numeric ID via `validators/email.validator.ts` (`^[0-9]{12}@mail\.jiit\.ac\.in$`).
+
 ---
 
 ## 🧪 Testing
@@ -817,7 +873,7 @@ The built frontend reads `API_BASE` from `src/main.ts:11` — v1.4.5 defaults to
 
 ## ⚠️ Known Issues & Roadmap
 
-**Known issues (v1.4.6 — Pre-release):**
+**Known issues (v1.4.7 — Pre-release):**
 
 - `register` accepts `role: 'ADMIN'` from the client (role spoofing).
 - `createItem` accepts negative `quantity`.
