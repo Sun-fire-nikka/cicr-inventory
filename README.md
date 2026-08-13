@@ -67,7 +67,7 @@ Complete tag set for the project history (all tags created/synced on branch `kus
 | **v1.4.4** | `v1.4.4` | `38b3d68` | ✅ Released |
 | **v1.4.5** | `v1.4.5` | `07aaf0a` | ⚠️ Pre-release |
 | **v1.4.6** | `v1.4.6` | `aaa64c5` | ⚠️ Pre-release |
-| **v1.4.7** | `v1.4.7` | `HEAD` — this release commit | ⚠️ Pre-release (current) |
+| **v1.4.7** | `v1.4.7` | `9cf2e80` | ⚠️ Pre-release (current) |
 
 `v1.0.0`, `v1.4.3`, `v1.4.4`, `v1.4.5` were retained from the existing history; `v1.1.0`, `v1.2.1`, `v1.3.2` were added to close the registry gaps:
 
