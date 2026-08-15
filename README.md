@@ -42,8 +42,10 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v1.0.0** | ✅ Released | Frontend-only prototype. Vite + Three.js + TypeScript with a hardcoded sample inventory catalog. No persistence, no backend. |
 | **v1.1.0** | ✅ Released | Backend foundation. Node.js/Express + Supabase REST API; JWT auth (`register`/`login`/`profile`); admin-gated inventory CRUD; borrow/return flows with `borrowed_at`/`returned_at`; dashboard stats + audit log. Frontend wired to the live API. |
 | **v1.2.1** | ✅ Released | Email automation. Nodemailer SMTP (Gmail App Password); borrow/return confirmation receipts; context-rich borrow email (remaining stock, current-holder summary, 5-day due-date notice); `node-cron` reminder scheduler (due-today / overdue); `due_date` migration; full test suite (41 tests). |
+| **v1.3.0** | ✅ Released | Request/approval workflow. Non-admin borrows now go through a `PENDING` → `APPROVED`/`REJECTED` admin review queue instead of instant checkout. New automated due-date reminder scheduler with mock-mode fallback and duplicate-send protection (`reminder_sent_at` migration). New BOTE capacity analytics API (`/api/system/bote-metrics`, `/api/system/simulate-scale`). Frontend theme switcher (dark/light/pink) + collapsible mobile sidebar nav. |
+| **v2.5.1** | 🚧 In progress | Frontend visual overhaul. Live out-of-stock dashboard stat, color-coded transaction/inventory logs, interactive background gridlines. New animated themes — Cherry Blossom (60fps falling-petal canvas) and Avengers (Captain America shield / Iron Man Arc Reactor motifs) — replacing the earlier Synthwave theme. Vault Index relocated to the sidebar; simplified hero section. |
 
-> The current release is **v0.0.2**. The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
+> The root `package.json` still tracks the frontend package as `0.0.0`; the versioning table above reflects the *project* release milestones as tracked in commit/PR history, not the npm package version.
 
 ---
 
@@ -62,6 +64,7 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
                                              │         SUPABASE            │
                                              │  PostgreSQL (users,         │
                                              │  inventory, borrow_records, │
+                                             │  request_records,           │
                                              │  audit_logs) + RLS          │
                                              └────────────┬─────────────┘
                                                           │ SMTP (nodemailer)
@@ -72,14 +75,14 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
                                              └────────────────────────────┘
 ```
 
-**Request lifecycle (borrow example):**
+**Request lifecycle (borrow request example, v1.3.0+):**
 
-1. Frontend sends `POST /api/borrow` with `Authorization: Bearer <JWT>`.
+1. Frontend sends `POST /api/requests` with `Authorization: Bearer <JWT>` — a non-admin member creates a `PENDING` request rather than borrowing directly.
 2. `auth.middleware.ts` verifies the JWT and populates `req.user { id, name, email, role }`.
-3. `borrow.controller.ts` checks stock, inserts a `borrow_records` row with `due_date = borrowed_at + duration_days`, and decrements `available_quantity`.
-4. The controller queries other active holders of the same item for the email context.
-5. `emailService.sendBorrowConfirmation(req.user.email, ...)` dispatches a real email asynchronously (fire-and-forget, never blocks the HTTP response).
-6. The `reminderService` (node-cron) independently scans for due/overdue borrows and emails borrowers.
+3. An admin reviews the pending-requests queue and calls `PATCH /api/requests/:id` to `APPROVE` or `REJECT`.
+4. On approval, the controller creates the `borrow_records` row with `due_date = borrowed_at + duration_days`, decrements `available_quantity`, and dispatches `emailService.sendBorrowConfirmation(...)` asynchronously (fire-and-forget, never blocks the HTTP response).
+5. The `reminderScheduler` (node-cron) independently scans for due/overdue borrows and emails borrowers.
+6. `boteService.ts` continuously derives live capacity metrics (today's borrows/returns, active borrows, items due today) exposed via `/api/system/bote-metrics`.
 
 ---
 
@@ -87,13 +90,13 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | Vite 8, TypeScript, Three.js, lucide icons, vanilla DOM/CSS (dark neon-glass UI) |
+| **Frontend** | Vite 8, TypeScript, Three.js, lucide icons, vanilla DOM/CSS (dark neon-glass UI, theme switcher: dark/light/pink/Cherry Blossom/Avengers) |
 | **Backend** | Node.js ≥ 18, Express 4, TypeScript 5 (strict), ts-node, nodemon |
 | **Database** | Supabase (PostgreSQL) via `@supabase/supabase-js` PostgREST client |
 | **Auth** | `bcryptjs` password hashing + `jsonwebtoken` (JWT, 7-day expiry) |
 | **Email** | Nodemailer (SMTP, Gmail App Password) |
 | **Scheduling** | node-cron (daily 09:00 + boot-time due/overdue check) |
-| **Tests** | Node built-in test runner (`node --test`) — 41 tests |
+| **Tests** | Node built-in test runner (`node --test`) — 41+ tests, including reminder and BOTE service coverage |
 | **Deployment** | Backend: Render (`cicr-inventory-backend.onrender.com`) · Frontend: Vercel (`cicrinventory.vercel.app`) |
 
 ---
@@ -110,15 +113,19 @@ CICR_Inventory/
 │   │   │   ├── auth/             # register, login, profile (+ routes)
 │   │   │   ├── inventory/        # items CRUD (+ routes)
 │   │   │   ├── borrow/           # borrow, return, history (+ routes)
+│   │   │   ├── requests/         # borrow requests: create, approve, reject (+ routes)
+│   │   │   ├── system/           # BOTE capacity analytics (+ routes)
 │   │   │   └── dashboard/        # stats + audit log (+ routes)
 │   │   ├── middleware/
 │   │   │   └── auth.middleware.ts# JWT verify + requireAdmin
 │   │   └── services/
 │   │       ├── emailService.ts   # Nodemailer transport + email templates
-│   │       └── reminderService.ts# node-cron due/overdue reminder job
+│   │       ├── reminderScheduler.ts # node-cron due/overdue reminder job
+│   │       └── boteService.ts    # Live capacity/load metrics calculation engine
 │   ├── migrations/
-│   │   └── 001_add_due_date_to_borrow_records.sql
-│   ├── test/                     # auth.middleware + API integration tests (.cjs)
+│   │   ├── 001_add_due_date_to_borrow_records.sql
+│   │   └── 002_add_reminder_sent_at_to_borrow_records.sql
+│   ├── test/                     # auth.middleware, API integration, reminder, BOTE tests (.cjs)
 │   ├── .env                      # local secrets (gitignored)
 │   ├── .env.example              # template (committed)
 │   ├── package.json
@@ -210,6 +217,7 @@ npm run dev          # Vite dev server → http://localhost:5173
 | `SMTP_PASS` | No | Gmail **16-character App Password** (requires 2FA on `SMTP_USER`) |
 | `SMTP_FROM` | No | From header. **Must match `SMTP_USER`** (Gmail rejects mismatched senders) |
 | `REMINDER_CRON` | No | Reminder schedule (default `0 9 * * *` — daily 09:00) |
+| `REMINDERS_ENABLED` | No | Set to `false` to disable the reminder scheduler entirely (default enabled) |
 
 ---
 
@@ -224,6 +232,8 @@ Auth scheme: `Authorization: Bearer <JWT>`
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | `GET` | `/api/health` | Public | Health check → `{ status, message }` |
+| `GET` | `/api/system/bote-metrics` | Bearer | Live capacity snapshot — today's borrows/returns, active borrows, items due today, total users, inventory quantities |
+| `GET` | `/api/system/simulate-scale` | Bearer | Projects the above metrics under a simulated higher load, for capacity planning |
 
 ### Auth
 
@@ -244,13 +254,24 @@ Auth scheme: `Authorization: Bearer <JWT>`
 | `PATCH` | `/api/items/:id` | Admin | Update item (auto-recalcs `available_quantity` when `quantity` changes) |
 | `DELETE` | `/api/items/:id` | Admin | Delete item |
 
+### Borrow Requests (v1.3.0+)
+
+Non-admin members no longer borrow directly — they submit a request that an admin reviews.
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `POST` | `/api/requests` | Bearer | Create a borrow request. Body: `{ inventory_id, quantity, purpose, duration_days? }` → creates a `PENDING` request → `201` |
+| `GET` | `/api/requests` | Bearer | List requests. Members see only their own; Admins see all pending + reviewed |
+| `PATCH` | `/api/requests/:id` | Admin | Approve or reject. Body: `{ status: "APPROVED" \| "REJECTED", reviewer_notes? }`. On approval, creates the underlying `borrow_records` entry and sends the borrow confirmation email |
+
 ### Borrow / Return
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `POST` | `/api/borrow` | Bearer | Borrow item. Body: `{ inventory_id, quantity, purpose, duration_days? }`. `duration_days` defaults to **5**. Computes `due_date = borrowed_at + duration_days`, decrements `available_quantity`, sends **borrow confirmation email to `req.user.email`** → `201` |
 | `POST` | `/api/borrow/return` | Bearer | Return item. Body: `{ borrow_id }`. Sets `status=RETURNED`, `returned_at`, restores `available_quantity`, sends **return confirmation email** → `200` |
 | `GET` | `/api/borrow/history` | Bearer | Borrow history. Members see only their own; Admins see all (joins resolved manually via `users` + `inventory`) |
+
+> **Note:** direct `POST /api/borrow` (bypassing the request/approval queue) is retained for admin-initiated checkouts in some flows — confirm current behavior against `borrow.controller.ts` before relying on it for member-facing UI.
 
 ### Dashboard
 
@@ -259,10 +280,10 @@ Auth scheme: `Authorization: Bearer <JWT>`
 | `GET` | `/api/stats` | Public | `{ total_items, total_users, active_borrows, total_quantity, available_quantity, borrowed_quantity }` |
 | `GET` | `/api/audit` | Bearer | Latest 50 audit log entries (joins `users` + `inventory`) |
 
-### Example: Borrow request
+### Example: Create a borrow request
 
 ```bash
-curl -X POST http://localhost:5000/api/borrow \
+curl -X POST http://localhost:5000/api/requests \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "inventory_id": "<item-uuid>", "quantity": 2, "purpose": "Robo Soccer Project", "duration_days": 5 }'
@@ -271,17 +292,16 @@ curl -X POST http://localhost:5000/api/borrow \
 ```json
 {
   "status": "success",
-  "message": "Item borrowed successfully!",
+  "message": "Borrow request submitted for review.",
   "data": {
     "id": "...",
-    "user_id": "...",
-    "borrower_name": "Kushagra Garg",
+    "requester_id": "...",
+    "requester_name": "Kushagra Garg",
     "inventory_id": "...",
     "quantity": 2,
     "purpose": "Robo Soccer Project",
-    "borrowed_at": "2026-08-10T20:19:24Z",
-    "due_date": "2026-08-15T20:19:24Z",
-    "status": "BORROWED"
+    "status": "PENDING",
+    "requested_at": "2026-08-15T10:02:11Z"
   }
 }
 ```
@@ -296,16 +316,17 @@ All email logic lives in `backend/src/services/emailService.ts`. When `SMTP_USER
                  ┌─────────────────────────────────────────────────────────────┐
                  │                     emailService.ts                         │
                  │  sendBorrowConfirmation()  sendReturnConfirmation()         │
-                 │  sendReturnReminder()      formatSmtpError()                │
+                 │  sendReturnReminder()      sendDueReminder()                │
+                 │  formatSmtpError()                                          │
                  └───────────────┬─────────────────────────────────────────────┘
                                  │ nodemailer (STARTTLS :587)
                                  ▼
                        Gmail App Password (SMTP_USER/SMTP_PASS)
 ```
 
-### 1. Borrow confirmation (immediate)
+### 1. Borrow confirmation (on approval)
 
-Triggered on `POST /api/borrow`. Sent **asynchronously** (`.catch()` fire-and-forget) to `req.user.email` — the logged-in borrower. Includes:
+Triggered when an admin approves a `PENDING` request via `PATCH /api/requests/:id`. Sent **asynchronously** (`.catch()` fire-and-forget) to the requester's email. Includes:
 
 - **Item details** — name + category, quantity borrowed
 - **Remaining available stock** — `available_quantity` after decrement
@@ -318,16 +339,17 @@ Triggered on `POST /api/borrow/return`. Sent to `req.user.email` with the item n
 
 ### 3. Due-today / overdue reminders (automated)
 
-`backend/src/services/reminderService.ts` starts in `server.ts` and runs:
+`backend/src/services/reminderScheduler.ts` starts in `server.ts` and runs:
 
 - **Immediately on server boot**, and
-- **Daily at 09:00** (configurable via `REMINDER_CRON`).
+- **Daily at 09:00** (configurable via `REMINDER_CRON`), unless `REMINDERS_ENABLED=false`.
 
-`runDueReminderCheck()`:
+The scheduler:
 
 1. Selects all `borrow_records` with `status = 'BORROWED'` and `due_date < end-of-today`.
 2. Resolves each borrower's **registered email** from `users.user_id`.
 3. Sends `sendReturnReminder(...)` — subject `[CICR Inventory] OVERDUE Return: <item>` when `daysOverdue > 0`, otherwise `[CICR Inventory] Return Due Today: <item>`.
+4. Stamps `reminder_sent_at` on the record to avoid duplicate sends within the same day.
 
 > **Gmail notes:** App Passwords require 2-Step Verification on the account. `SMTP_FROM` must use the same account as `SMTP_USER`. Errors are caught, logged with `message / code / response / responseCode`, and never crash the API.
 
@@ -335,7 +357,7 @@ Triggered on `POST /api/borrow/return`. Sent to `req.user.email` with the item n
 
 ## 🧮 Back-of-the-Envelope (BOTE) Estimation & Scalability
 
-Quick napkin math for the email pipeline. Full derivation lives in [`docs/BOTE_ESTIMATION.md`](./docs/BOTE_ESTIMATION.md).
+Quick napkin math for the email pipeline, now backed by a **live analytics API** (`boteService.ts`, `GET /api/system/bote-metrics`) that turns current usage into the same figures below. Full derivation lives in [`docs/BOTE_ESTIMATION.md`](./docs/BOTE_ESTIMATION.md).
 
 ### Gmail daily throughput — the hard ceiling
 
@@ -354,7 +376,7 @@ max_transactions/day = 500 ÷ 2 = ~250 borrow transactions/day
 
 ### Latency — synchronous SMTP vs. async queue
 
-Current `emailService.ts` sends synchronously via Nodemailer; the reminder job (`reminderService.ts`) awaits each recipient **sequentially** (~1 s per email).
+Current `emailService.ts` sends synchronously via Nodemailer; the reminder job (`reminderScheduler.ts`) awaits each recipient **sequentially** (~1 s per email).
 
 | Scenario | Emails | Sequential `await` (current) | BullMQ workers (concurrency 25) |
 |----------|-------:|:---:|:---:|
@@ -392,7 +414,7 @@ A BullMQ job is ~2 KB (metadata + payload). A full reminder batch:
 
 ## 🗄️ Database Schema
 
-Tables: `users`, `inventory`, `borrow_records`, `audit_logs`.
+Tables: `users`, `inventory`, `borrow_records`, `request_records`, `audit_logs`.
 
 ### Schema diagram
 
@@ -408,10 +430,19 @@ users ────────────────────────�
                                    │                     ├─ borrowed_at TIMESTAMPTZ  quantity INT
 audit_logs                         │                     ├─ returned_at TIMESTAMPTZ  available_quantity INT
   id UUID PK                       ├──── user_id (FK)    ├─ status TEXT (BORROWED|RETURNED) location TEXT
-  action TEXT                      │                     └─ due_date TIMESTAMPTZ     tags, image, status...
-  item_id UUID (FK) ► inventory ───┘
-  description TEXT
-  timestamp TIMESTAMPTZ
+  action TEXT                      │                     ├─ due_date TIMESTAMPTZ     tags, image, status...
+  item_id UUID (FK) ► inventory ───┘                     └─ reminder_sent_at TIMESTAMPTZ
+
+request_records
+  id UUID PK
+  requester_id UUID (no FK)
+  inventory_id UUID FK ──► inventory
+  quantity INT
+  purpose TEXT
+  status TEXT (PENDING|APPROVED|REJECTED)
+  reviewer_notes TEXT
+  requested_at TIMESTAMPTZ
+  reviewed_at TIMESTAMPTZ
 ```
 
 ### DDL — run in the Supabase SQL Editor
@@ -458,9 +489,26 @@ CREATE TABLE IF NOT EXISTS public.borrow_records (
   status        TEXT NOT NULL DEFAULT 'BORROWED' CHECK (status IN ('BORROWED', 'RETURNED'))
 );
 
--- ============ due_date (v0.0.2 migration) ============
+-- ============ due_date (v1.2.1 migration) ============
 ALTER TABLE public.borrow_records
   ADD COLUMN IF NOT EXISTS due_date TIMESTAMPTZ;
+
+-- ============ reminder_sent_at (v1.3.0 migration) ============
+ALTER TABLE public.borrow_records
+  ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
+
+-- ============ request_records (v1.3.0) ============
+CREATE TABLE IF NOT EXISTS public.request_records (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requester_id   UUID,                    -- logical link to users; NO FK constraint
+  inventory_id   UUID REFERENCES public.inventory (id),
+  quantity       INT  NOT NULL DEFAULT 1,
+  purpose        TEXT,
+  status         TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+  reviewer_notes TEXT,
+  requested_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  reviewed_at    TIMESTAMPTZ
+);
 
 -- ============ audit_logs ============
 CREATE TABLE IF NOT EXISTS public.audit_logs (
@@ -472,17 +520,20 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
   timestamp   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_borrow_inventory  ON public.borrow_records (inventory_id);
-CREATE INDEX IF NOT EXISTS idx_borrow_user       ON public.borrow_records (user_id);
-CREATE INDEX IF NOT EXISTS idx_borrow_status     ON public.borrow_records (status);
-CREATE INDEX IF NOT EXISTS idx_borrow_due_date   ON public.borrow_records (due_date);
+CREATE INDEX IF NOT EXISTS idx_borrow_inventory   ON public.borrow_records (inventory_id);
+CREATE INDEX IF NOT EXISTS idx_borrow_user        ON public.borrow_records (user_id);
+CREATE INDEX IF NOT EXISTS idx_borrow_status      ON public.borrow_records (status);
+CREATE INDEX IF NOT EXISTS idx_borrow_due_date    ON public.borrow_records (due_date);
+CREATE INDEX IF NOT EXISTS idx_request_status     ON public.request_records (status);
+CREATE INDEX IF NOT EXISTS idx_request_inventory  ON public.request_records (inventory_id);
 ```
 
 ### Notes
 
-- `borrow_records.user_id` intentionally has **no FK** — PostgREST embedding on a missing FK breaks, so the backend resolves names/emails manually in `getBorrowHistory` and `reminderService`.
+- `borrow_records.user_id` and `request_records.requester_id` intentionally have **no FK** — PostgREST embedding on a missing FK breaks, so the backend resolves names/emails manually in `getBorrowHistory` and the reminder/request services.
 - **RLS:** anonymous-key deletes on `public.users` are blocked by RLS. Use the Supabase SQL Editor for user cleanup (e.g. `DELETE FROM public.users WHERE email LIKE '%@cicr.test';`).
 - Backfill: if `available_quantity` was ever out of sync, recompute via `UPDATE public.inventory i SET available_quantity = i.quantity - COALESCE((SELECT SUM(b.quantity) FROM public.borrow_records b WHERE b.inventory_id = i.id AND b.status = 'BORROWED'), 0);`
+- Run migrations `001_add_due_date_to_borrow_records.sql` and `002_add_reminder_sent_at_to_borrow_records.sql` in order against existing databases.
 
 ---
 
@@ -490,11 +541,13 @@ CREATE INDEX IF NOT EXISTS idx_borrow_due_date   ON public.borrow_records (due_d
 
 ```bash
 cd backend
-npm test          # node --test "test/*.test.cjs" — 41 tests
+npm test          # node --test "test/*.test.cjs"
 ```
 
-- `test/auth.middleware.test.cjs` — 6 unit tests for JWT auth middleware.
-- `test/api.integration.test.cjs` — 35 integration tests against the live Supabase project (health, auth, inventory, borrow/return, audit).
+- `test/auth.middleware.test.cjs` — unit tests for JWT auth middleware.
+- `test/api.integration.test.cjs` — integration tests against the live Supabase project (health, auth, inventory, borrow/return, audit).
+- `test/reminder.test.cjs` — coverage for the due-date reminder scheduler.
+- `test/bote.test.cjs` — coverage for the BOTE capacity analytics service and endpoints.
 
 > Integration tests register `*@cicr.test` users. RLS prevents anonymous deletion, so leftovers accumulate — clean them via the SQL Editor.
 
@@ -511,7 +564,7 @@ npm run build
 npm start         # node dist/server.js
 ```
 
-Render free tier will run `startReminderScheduler()` on boot (boot-time due/overdue check + daily 09:00 job). Set the env vars from `.env.example` in the Render dashboard.
+Render free tier will run the reminder scheduler on boot (boot-time due/overdue check + daily 09:00 job). Set the env vars from `.env.example` in the Render dashboard.
 
 ### Frontend → Vercel
 
@@ -526,21 +579,23 @@ The built frontend reads `API_BASE` from `src/main.ts:11` — point it at the Re
 
 ## ⚠️ Known Issues & Roadmap
 
-**Known issues (v0.0.2):**
+**Known issues:**
 
 - `register` accepts `role: 'ADMIN'` from the client (role spoofing).
 - `createItem` accepts negative `quantity`.
 - `GET /api/stats` is public; `GET /api/audit` is visible to any authenticated member.
 - Real email delivery requires a valid Gmail App Password; placeholders produce `535 BadCredentials`.
+- A recent frontend PR (#12) was merged and then reverted (#13) before landing again in patched form (#14) — double-check current UI behavior against `main` if you're building on top of it.
 
 **Roadmap:**
 
 - [x] Role-based access (admin vs. member) — partial (admin middleware exists)
-- [x] Overdue-loan notifications — v0.0.2 (node-cron reminders)
+- [x] Overdue-loan notifications — automated reminder scheduler
+- [x] PENDING borrow-request approval workflow
+- [x] Live capacity/scale analytics (BOTE API)
 - [ ] QR-code component tagging for instant lookup
 - [ ] Export vault data (CSV / PDF reports)
-- [ ] PENDING borrow-request approval workflow
-- [ ] Frontend-backed borrow UI (submit/return from the dashboard)
+- [ ] Move synchronous reminder emails to a queue (BullMQ/Redis) ahead of Gmail's daily cap
 
 ---
 
