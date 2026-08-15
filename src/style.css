@@ -60,14 +60,23 @@ html, body {
 }
 
 body {
-    background-color: var(--bg-primary); /* Variable background color */
+    background-color: #06060e;
+    background-image: 
+        linear-gradient(rgba(6, 6, 14, 0.72), rgba(6, 6, 14, 0.85)),
+        radial-gradient(circle at 50% 20%, rgba(0, 240, 255, 0.08) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(189, 0, 255, 0.08) 0%, transparent 60%),
+        url('/backgrounds/cyberpunk.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     color: var(--text-main);
     overflow-x: hidden;
     min-height: 100vh;
     position: relative;
 }
 
-/* Highly visible, premium interactive cyber gridlines overlay */
+/* Highly visible, premium interactive 2D cyber gridlines overlay in front */
 body::before {
     content: '';
     position: fixed;
@@ -77,7 +86,7 @@ body::before {
         linear-gradient(90deg, var(--grid-color) 1.2px, transparent 1.2px);
     background-size: 55px 55px;
     pointer-events: none;
-    z-index: -1;
+    z-index: 10;
     /* Spotlight mask that moves with the cursor */
     mask-image: radial-gradient(circle 350px at var(--mouse-x, 50%) var(--mouse-y, 50%), black 20%, transparent 100%);
     -webkit-mask-image: radial-gradient(circle 350px at var(--mouse-x, 50%) var(--mouse-y, 50%), black 20%, transparent 100%);
@@ -90,7 +99,7 @@ body::before {
     left: 0;
     width: 100vw;
     height: 100vh;
-    z-index: -1;
+    z-index: -2;
     pointer-events: none;
 }
 
@@ -1795,6 +1804,23 @@ body::before {
     font-weight: 700;
 }
 
+.borrower-due-badge {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    padding: 3px 7px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.borrower-due-badge.overdue {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #f87171;
+    font-weight: 600;
+}
+
 .modal-footer {
     display: flex;
     justify-content: flex-end;
@@ -1967,22 +1993,10 @@ body::before {
     border: 1px dashed rgba(255, 255, 255, 0.08);
 }
 
-.log-item.log-action-request {
-    border-left-color: var(--neon-pink);
-}
-
-.log-item.log-action-approve {
-    border-left-color: var(--neon-green);
-}
-
-.log-item.log-action-reject {
-    border-left-color: #ff6b8b;
-}
-
 .log-item {
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.04);
-    border-left: 3px solid rgba(255, 255, 255, 0.25);
+    border-left: 3.5px solid rgba(255, 255, 255, 0.25);
     border-radius: 12px;
     padding: 14px 16px;
     display: flex;
@@ -1999,32 +2013,110 @@ body::before {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
 }
 
-.log-item.log-action-borrow {
-    border-left-color: var(--neon-purple);
-}
-
-.log-item.log-action-return {
-    border-left-color: var(--neon-cyan);
-}
-
-.log-item.log-action-system {
-    border-left-color: var(--neon-green);
-}
-
-.log-item.log-action-update {
-    border-left-color: var(--neon-pink);
-}
-
 .log-meta {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 11px;
     color: var(--text-dim);
 }
 
-.log-action-add { border-left: 3px solid var(--neon-cyan); }
-.log-action-borrow { border-left: 3px solid var(--neon-purple); }
-.log-action-return { border-left: 3px solid var(--neon-green); }
+.log-type-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.log-type-tag i,
+.log-type-tag svg {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2.2;
+}
+
+/* 1. BORROW / Checked Out = Blue */
+.log-item.log-action-borrow,
+.log-item.log-action-checkout {
+    border-left-color: #3b82f6 !important;
+}
+.log-item.log-action-borrow .log-type-tag,
+.log-item.log-action-checkout .log-type-tag {
+    color: #60a5fa !important;
+}
+
+/* 2. RETURNED = Green */
+.log-item.log-action-return,
+.log-item.log-action-returned {
+    border-left-color: #10b981 !important;
+}
+.log-item.log-action-return .log-type-tag,
+.log-item.log-action-returned .log-type-tag {
+    color: #34d399 !important;
+}
+
+/* 3. OVERDUE = Red */
+.log-item.log-action-overdue {
+    border-left-color: #ef4444 !important;
+}
+.log-item.log-action-overdue .log-type-tag {
+    color: #f87171 !important;
+}
+
+/* 4. LOW STOCK = Yellow */
+.log-item.log-action-low_stock,
+.log-item.log-action-low-stock,
+.log-item.log-action-lowstock {
+    border-left-color: #f59e0b !important;
+}
+.log-item.log-action-low_stock .log-type-tag,
+.log-item.log-action-low-stock .log-type-tag,
+.log-item.log-action-lowstock .log-type-tag {
+    color: #fbbf24 !important;
+}
+
+/* 5. ADD / New Component = Purple */
+.log-item.log-action-add,
+.log-item.log-action-new {
+    border-left-color: #a855f7 !important;
+}
+.log-item.log-action-add .log-type-tag,
+.log-item.log-action-new .log-type-tag {
+    color: #c084fc !important;
+}
+
+/* 6. SYSTEM = Neutral Grey/White */
+.log-item.log-action-system {
+    border-left-color: #94a3b8 !important;
+}
+.log-item.log-action-system .log-type-tag {
+    color: #cbd5e1 !important;
+}
+
+/* Additional workflow actions: REQUEST = Cyan/Blue, APPROVE = Green, REJECT = Red */
+.log-item.log-action-request {
+    border-left-color: #38bdf8 !important;
+}
+.log-item.log-action-request .log-type-tag {
+    color: #38bdf8 !important;
+}
+
+.log-item.log-action-approve {
+    border-left-color: #10b981 !important;
+}
+.log-item.log-action-approve .log-type-tag {
+    color: #34d399 !important;
+}
+
+.log-item.log-action-reject {
+    border-left-color: #ef4444 !important;
+}
+.log-item.log-action-reject .log-type-tag {
+    color: #f87171 !important;
+}
 
 .log-text-content {
     color: var(--text-main);
@@ -2549,6 +2641,16 @@ input:-webkit-autofill:active {
     color: var(--text-muted);
     font-weight: 500;
     opacity: 0.8;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stat-bubble-new .bubble-label i,
+.stat-bubble-new .bubble-label svg {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2.2;
 }
 
 .stat-bubble-new .bubble-value {
@@ -3439,6 +3541,18 @@ input:-webkit-autofill:active {
     --glow-purple: 0 0 15px rgba(0, 229, 255, 0.35);
 }
 
+[data-theme="matrix"] body {
+    background-color: #020d07;
+    background-image: 
+        linear-gradient(rgba(2, 13, 7, 0.75), rgba(2, 13, 7, 0.88)),
+        radial-gradient(circle at 50% 15%, rgba(0, 255, 102, 0.08) 0%, transparent 60%),
+        url('/backgrounds/matrix.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
 [data-theme="midnight"] {
     --bg-primary: #060e20;
     --bg-glass: rgba(12, 24, 52, 0.65);
@@ -3455,6 +3569,18 @@ input:-webkit-autofill:active {
     --text-muted: #93c5fd;
     --glow-cyan: 0 0 15px rgba(59, 130, 246, 0.35);
     --glow-purple: 0 0 15px rgba(56, 189, 248, 0.35);
+}
+
+[data-theme="midnight"] body {
+    background-color: #060e20;
+    background-image: 
+        linear-gradient(rgba(6, 14, 32, 0.68), rgba(6, 14, 32, 0.84)),
+        radial-gradient(circle at 50% 25%, rgba(56, 189, 248, 0.08) 0%, transparent 60%),
+        url('/backgrounds/midnight.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
 }
 
 [data-theme="light"] {
@@ -3477,8 +3603,16 @@ input:-webkit-autofill:active {
     --glow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
 }
 
-[data-theme="light"] body {
+[data-theme="light"] body,
+body.theme-light {
     background-color: #f1f5f9;
+    background-image: 
+        linear-gradient(rgba(241, 245, 249, 0.84), rgba(226, 232, 240, 0.90)),
+        url('/backgrounds/light.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
 }
 
 [data-theme="light"] body::before {
@@ -5144,7 +5278,7 @@ body.theme-pink .theme-btn.active {
     width: 100vw;
     height: 100vh;
     pointer-events: none;
-    z-index: 2;
+    z-index: -1;
     opacity: 0;
     transition: opacity 0.8s ease;
 }
@@ -5159,12 +5293,12 @@ body.theme-sakura #sakura-canvas,
    ========================================== */
 [data-theme="sakura"],
 body.theme-sakura {
-    --bg-primary: #fff0f5;
-    --bg-glass: rgba(255, 255, 255, 0.88);
-    --bg-glass-hover: rgba(255, 255, 255, 0.96);
-    --bg-glass-active: rgba(253, 242, 248, 1);
-    --border-glass: rgba(244, 114, 182, 0.22);
-    --border-glass-hover: rgba(236, 72, 153, 0.45);
+    --bg-primary: #fce2ed;
+    --bg-glass: rgba(255, 243, 249, 0.88);
+    --bg-glass-hover: rgba(255, 248, 252, 0.96);
+    --bg-glass-active: rgba(254, 226, 239, 1);
+    --border-glass: rgba(244, 114, 182, 0.35);
+    --border-glass-hover: rgba(236, 72, 153, 0.55);
     
     --neon-cyan: #ec4899;
     --neon-purple: #d946ef;
@@ -5177,30 +5311,39 @@ body.theme-sakura {
     --text-dim: #9f1239;
     --white: #ffffff;
 
-    --card-bg-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(253, 242, 248, 0.95) 100%);
-    --card-item-bg: rgba(255, 255, 255, 0.9);
-    --glow-card: 0 12px 30px rgba(244, 114, 182, 0.12);
+    --card-bg-gradient: linear-gradient(135deg, rgba(255, 246, 251, 0.95) 0%, rgba(254, 228, 240, 0.95) 100%);
+    --card-item-bg: rgba(255, 243, 249, 0.92);
+    --glow-card: 0 12px 30px rgba(236, 72, 153, 0.16);
 
-    --search-bg: rgba(255, 255, 255, 0.92);
-    --search-border: rgba(244, 114, 182, 0.25);
-    --badge-bg: rgba(236, 72, 153, 0.15);
-    --active-bg: rgba(236, 72, 153, 0.12);
-    --active-border: rgba(236, 72, 153, 0.3);
+    --search-bg: rgba(255, 242, 249, 0.95);
+    --search-border: rgba(244, 114, 182, 0.35);
+    --badge-bg: rgba(236, 72, 153, 0.18);
+    --active-bg: rgba(236, 72, 153, 0.16);
+    --active-border: rgba(236, 72, 153, 0.4);
     --active-color: #db2777;
 }
 
 [data-theme="sakura"] body,
 body.theme-sakura {
-    background-color: #fff0f5;
+    background-color: #fce2ed;
+    background-image: 
+        linear-gradient(rgba(252, 226, 237, 0.40), rgba(252, 226, 237, 0.65)),
+        radial-gradient(circle at 50% 30%, rgba(255, 240, 248, 0.35) 0%, rgba(244, 114, 182, 0.15) 100%),
+        url('/backgrounds/sakura.jpg');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     color: #4c0519;
 }
 
 [data-theme="sakura"] body::before,
 body.theme-sakura::before {
     background-image: 
-        radial-gradient(circle at 50% 0%, rgba(244, 114, 182, 0.15) 0%, transparent 60%),
-        linear-gradient(90deg, rgba(236, 72, 153, 0.16) 1.2px, transparent 1.2px);
-    background-size: 100% 100%, 40px 40px;
+        radial-gradient(circle at 50% 0%, rgba(244, 114, 182, 0.25) 0%, transparent 60%),
+        linear-gradient(rgba(236, 72, 153, 0.15) 1.2px, transparent 1.2px),
+        linear-gradient(90deg, rgba(236, 72, 153, 0.15) 1.2px, transparent 1.2px);
+    background-size: 100% 100%, 40px 40px, 40px 40px;
     opacity: 1;
 }
 
@@ -5219,9 +5362,9 @@ body.theme-sakura .modal-content,
 body.theme-sakura .stat-bubble-new,
 body.theme-sakura .inventory-card,
 body.theme-sakura .header-theme-box {
-    background: rgba(255, 255, 255, 0.92);
-    border-color: rgba(244, 114, 182, 0.22);
-    box-shadow: 0 10px 28px rgba(244, 114, 182, 0.1);
+    background: linear-gradient(145deg, rgba(255, 246, 251, 0.90) 0%, rgba(254, 230, 242, 0.94) 100%);
+    border: 1px solid rgba(244, 114, 182, 0.32);
+    box-shadow: 0 10px 28px rgba(236, 72, 153, 0.14), 0 2px 8px rgba(244, 114, 182, 0.08);
     color: #4c0519;
 }
 
@@ -5258,7 +5401,7 @@ body.theme-sakura .tag-pill.active {
     background: linear-gradient(135deg, #ec4899, #f43f5e) !important;
     color: #ffffff !important;
     border-color: #ec4899 !important;
-    box-shadow: 0 6px 18px rgba(236, 72, 153, 0.3) !important;
+    box-shadow: 0 6px 18px rgba(236, 72, 153, 0.35) !important;
 }
 
 body.theme-sakura .sidebar-nav-link.active i,
@@ -5268,13 +5411,13 @@ body.theme-sakura .sidebar-item.active svg {
 }
 
 body.theme-sakura .tag-pill {
-    background: rgba(255, 255, 255, 0.85);
-    border: 1px solid rgba(244, 114, 182, 0.25);
+    background: rgba(254, 226, 239, 0.92);
+    border: 1px solid rgba(244, 114, 182, 0.35);
     color: #881337;
 }
 
 body.theme-sakura .tag-pill:hover {
-    background: rgba(244, 114, 182, 0.15);
+    background: rgba(244, 114, 182, 0.28);
     color: #4c0519;
 }
 
@@ -5283,14 +5426,19 @@ body.theme-sakura .form-group select,
 body.theme-sakura .form-group textarea,
 body.theme-sakura #search-input,
 body.theme-sakura #header-search-input {
-    background: rgba(255, 255, 255, 0.95) !important;
-    border-color: rgba(244, 114, 182, 0.3) !important;
+    background: rgba(255, 240, 248, 0.95) !important;
+    border-color: rgba(244, 114, 182, 0.4) !important;
     color: #4c0519 !important;
 }
 
 body.theme-sakura select option {
-    background: #ffffff !important;
+    background: #fce2ed !important;
     color: #4c0519 !important;
+}
+
+body.theme-sakura .log-item {
+    background: rgba(255, 242, 249, 0.85) !important;
+    border-color: rgba(244, 114, 182, 0.3) !important;
 }
 
 /* ==========================================
@@ -5339,11 +5487,11 @@ body.theme-avengers::before {
     position: fixed;
     inset: 0;
     pointer-events: none;
-    z-index: 1;
+    z-index: 10;
     background-image: 
-        radial-gradient(circle at 20% 20%, rgba(239, 68, 68, 0.22) 0%, transparent 55%),
-        radial-gradient(circle at 80% 80%, rgba(37, 99, 235, 0.22) 0%, transparent 55%),
-        radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.14) 0%, transparent 60%),
+        radial-gradient(circle at 20% 20%, rgba(239, 68, 68, 0.15) 0%, transparent 55%),
+        radial-gradient(circle at 80% 80%, rgba(37, 99, 235, 0.15) 0%, transparent 55%),
+        radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.08) 0%, transparent 60%),
         linear-gradient(rgba(239, 68, 68, 0.07) 1.2px, transparent 1.2px),
         linear-gradient(90deg, rgba(59, 130, 246, 0.07) 1.2px, transparent 1.2px);
     background-size: 100% 100%, 100% 100%, 100% 100%, 36px 36px, 36px 36px;
@@ -5399,7 +5547,7 @@ body.theme-avengers select option {
     width: 100vw;
     height: 100vh;
     pointer-events: none;
-    z-index: 2;
+    z-index: -1;
     opacity: 0;
     transition: opacity 0.8s ease;
 }
