@@ -402,25 +402,25 @@
                                   </div>
                               </div>
 
-                              <!-- Quick Stats Panel inside Explorer Layout -->
-                              <div class="explorer-stats-row">
-                                  <div class="stat-bubble-new">
-                                      <span class="bubble-label">Total Vaulted</span>
-                                      <span class="bubble-value" id="stat-total">0</span>
-                                  </div>
-                                  <div class="stat-bubble-new">
-                                      <span class="bubble-label">Active Loans</span>
-                                      <span class="bubble-value text-purple" id="stat-borrowed">0</span>
-                                  </div>
-                                  <div class="stat-bubble-new">
-                                      <span class="bubble-label">Low Reserves</span>
-                                      <span class="bubble-value text-yellow" id="stat-low">0</span>
-                                  </div>
-                                  <div class="stat-bubble-new">
-                                      <span class="bubble-label">Active Groups</span>
-                                      <span class="bubble-value text-pink" id="stat-categories">0</span>
-                                  </div>
-                              </div>
+                               <!-- Quick Stats Panel inside Explorer Layout -->
+                               <div class="explorer-stats-row">
+                                   <div class="stat-bubble-new">
+                                       <span class="bubble-label"><i data-lucide="boxes"></i> Total Vaulted</span>
+                                       <span class="bubble-value" id="stat-total">0</span>
+                                   </div>
+                                   <div class="stat-bubble-new">
+                                       <span class="bubble-label"><i data-lucide="shopping-cart"></i> Active Loans</span>
+                                       <span class="bubble-value text-purple" id="stat-borrowed">0</span>
+                                   </div>
+                                   <div class="stat-bubble-new">
+                                       <span class="bubble-label"><i data-lucide="alert-circle"></i> Low Reserves</span>
+                                       <span class="bubble-value text-yellow" id="stat-low">0</span>
+                                   </div>
+                                   <div class="stat-bubble-new">
+                                       <span class="bubble-label"><i data-lucide="clock-alert"></i> Overdue Returns</span>
+                                       <span class="bubble-value text-pink" id="stat-overdue">0</span>
+                                   </div>
+                               </div>
 
                               <!-- Dynamic Items Grid -->
                               <div class="explorer-grid-container">
@@ -526,6 +526,10 @@
                 <div class="form-group">
                     <label for="borrow-purpose">Purpose / Project</label>
                     <input type="text" id="borrow-purpose" required placeholder="e.g. Robo Soccer development">
+                </div>
+                <div class="form-group">
+                    <label for="borrow-due-date">Due Return Date</label>
+                    <input type="date" id="borrow-due-date">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-back-to-detail">Cancel</button>

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
-import type { InventoryItem, ActivityLog, RequestRecord, UserDatabase } from './types';
+import type { InventoryItem, ActivityLog, RequestRecord, UserDatabase, BorrowRecord } from './types';
 
 // Global declarations for CDN libraries
 declare const lucide: {
@@ -28,9 +28,6 @@ class Background3D {
     private camera!: THREE.PerspectiveCamera;
     private renderer!: THREE.WebGLRenderer;
     
-    private grid1!: THREE.GridHelper;
-    private grid2!: THREE.GridHelper;
-    private wallGrid!: THREE.GridHelper;
     private particles!: THREE.Points;
     private particlePhases: Float32Array = new Float32Array(0);
     private currentTheme = 'cyberpunk';
@@ -39,16 +36,12 @@ class Background3D {
     private mouseY = 0;
     private targetCameraX = 0;
     private targetCameraY = 4;
-    
-    private gridSize = 250;
-    private gridDivisions = 50;
-    private moveSpeed = 0.05;
 
     constructor() {
         this.canvas = document.getElementById('canvas-3d') as HTMLCanvasElement;
         if (!this.canvas) return;
         this.init();
-        this.createGrid();
+        this.createLighting();
         this.createParticles();
         this.setupEvents();
         this.animate();
@@ -72,21 +65,7 @@ class Background3D {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     }
 
-    private createGrid() {
-        const gridColor1 = new THREE.Color(0x00f0ff);
-        const gridColor2 = new THREE.Color(0xbd00ff);
-        const helperColor = new THREE.Color(0x131326);
-
-        this.grid1 = new THREE.GridHelper(this.gridSize, this.gridDivisions, gridColor1, helperColor);
-        this.grid1.position.y = -6;
-        this.grid1.position.z = 0;
-        this.scene.add(this.grid1);
-
-        this.grid2 = new THREE.GridHelper(this.gridSize, this.gridDivisions, gridColor2, helperColor);
-        this.grid2.position.y = -6;
-        this.grid2.position.z = -this.gridSize;
-        this.scene.add(this.grid2);
-
+    private createLighting() {
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         this.scene.add(ambientLight);
 
@@ -97,12 +76,6 @@ class Background3D {
         const pointLight2 = new THREE.PointLight(0x00f0ff, 1.5, 100);
         pointLight2.position.set(20, 5, 10);
         this.scene.add(pointLight2);
-
-        const wallColor = new THREE.Color(0x00f0ff);
-        this.wallGrid = new THREE.GridHelper(this.gridSize, this.gridDivisions, wallColor, helperColor);
-        this.wallGrid.rotation.x = Math.PI / 2;
-        this.wallGrid.position.set(0, 35, -60);
-        this.scene.add(this.wallGrid);
     }
 
     public updateThemeColors(theme: string) {
@@ -111,17 +84,11 @@ class Background3D {
         if (theme === 'matrix') fogHex = 0x020d07;
         else if (theme === 'midnight') fogHex = 0x060e20;
         else if (theme === 'light') fogHex = 0xf1f5f9;
-        else if (theme === 'sakura') fogHex = 0xfff0f5;
+        else if (theme === 'sakura') fogHex = 0xfce2ed;
         else if (theme === 'avengers') fogHex = 0x090a15;
 
         if (this.scene) {
             this.scene.fog = new THREE.FogExp2(fogHex, theme === 'sakura' ? 0.01 : 0.015);
-        }
-
-        if (this.grid1 && this.grid2) {
-            const showHorizontalGrids = theme !== 'sakura';
-            this.grid1.visible = showHorizontalGrids;
-            this.grid2.visible = showHorizontalGrids;
         }
 
         this.setParticleColorsForTheme(theme);
@@ -141,9 +108,9 @@ class Background3D {
             color2 = new THREE.Color(0xa855f7); // Wakanda Vibranium Purple
             color3 = new THREE.Color(0xef4444); // Iron Crimson Energy
         } else if (theme === 'sakura') {
-            color1 = new THREE.Color(0xec4899); // Sakura Pink
-            color2 = new THREE.Color(0xf43f5e); // Rose Petal Red
-            color3 = new THREE.Color(0xfbcfe8); // Soft Blossom White
+            color1 = new THREE.Color(0xec4899); // Sakura Blossom Pink
+            color2 = new THREE.Color(0xf43f5e); // Rose Petal Crimson
+            color3 = new THREE.Color(0xf472b6); // Soft Blossom Rose
         } else if (theme === 'matrix') {
             color1 = new THREE.Color(0x00ff66);
             color2 = new THREE.Color(0x00cc44);
@@ -218,16 +185,6 @@ class Background3D {
 
     private animate() {
         requestAnimationFrame(() => this.animate());
-
-        this.grid1.position.z += this.moveSpeed;
-        this.grid2.position.z += this.moveSpeed;
-
-        if (this.grid1.position.z >= this.gridSize) {
-            this.grid1.position.z = this.grid2.position.z - this.gridSize;
-        }
-        if (this.grid2.position.z >= this.gridSize) {
-            this.grid2.position.z = this.grid1.position.z - this.gridSize;
-        }
 
         if (this.particles) {
             const positions = this.particles.geometry.attributes.position.array as Float32Array;
@@ -325,7 +282,7 @@ class DashboardManager {
     private statTotal: HTMLElement;
     private statBorrowed: HTMLElement;
     private statLow: HTMLElement;
-    private statCategories: HTMLElement;
+    private statOverdue: HTMLElement;
     private mobileSidebarToggle: HTMLButtonElement | null;
     private mobileSidebarBackdrop: HTMLElement | null;
 
@@ -344,7 +301,7 @@ class DashboardManager {
         this.statTotal = document.getElementById('stat-total')!;
         this.statBorrowed = document.getElementById('stat-borrowed')!;
         this.statLow = document.getElementById('stat-low')!;
-        this.statCategories = document.getElementById('stat-categories')!;
+        this.statOverdue = document.getElementById('stat-overdue')!;
 
         this.init();
         this.loadInventory();
@@ -532,6 +489,16 @@ class DashboardManager {
         }
 
         // 3. Dashboard card switching listeners
+        const cardVault = document.getElementById('dash-card-vault');
+        if (cardVault) {
+            cardVault.addEventListener('click', () => switchSection('inventory-view'));
+        }
+        const cardLogs = document.getElementById('dash-card-logs');
+        if (cardLogs) {
+            cardLogs.addEventListener('click', () => {
+                ModalManager.openLogsDrawer();
+            });
+        }
         const cardProjects = document.getElementById('dash-card-projects');
         if (cardProjects) {
             cardProjects.addEventListener('click', () => switchSection('projects-view'));
@@ -683,25 +650,41 @@ class DashboardManager {
         let totalQty = 0;
         let checkedOutQty = 0;
         let lowStockCount = 0;
-        const uniqueCats = new Set<string>();
+        let overdueCount = 0;
+        const todayStr = new Date().toISOString().split('T')[0];
 
         inventory.forEach(item => {
             totalQty += item.quantity;
-            uniqueCats.add(item.category);
 
-            const borrowedSum = item.borrowedBy.reduce((sum, rec) => sum + rec.qty, 0);
+            const borrowedSum = (item.borrowedBy || []).reduce((sum, rec) => sum + rec.qty, 0);
             checkedOutQty += borrowedSum;
 
             const currentAvailable = item.quantity - borrowedSum;
             if (currentAvailable <= 2 && currentAvailable > 0) {
                 lowStockCount++;
             }
+
+            (item.borrowedBy || []).forEach(rec => {
+                if (rec.returned) return;
+
+                let due = rec.dueDate;
+                if (!due && rec.date) {
+                    const bTime = new Date(rec.date).getTime();
+                    if (!isNaN(bTime)) {
+                        due = new Date(bTime + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    }
+                }
+
+                if (due && due < todayStr) {
+                    overdueCount++;
+                }
+            });
         });
 
         this.statTotal.innerText = String(totalQty);
         this.statBorrowed.innerText = String(checkedOutQty);
         this.statLow.innerText = String(lowStockCount);
-        this.statCategories.innerText = String(uniqueCats.size);
+        this.statOverdue.innerText = String(overdueCount);
     }
 
     private renderInventory() {
@@ -1022,12 +1005,14 @@ class ModalManager {
                 return;
             }
 
+            const defaultDueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
             item.borrowedBy.push({
                 name: request.name,
                 roll: request.roll,
                 qty: request.qty,
                 purpose: request.purpose,
-                date: new Date().toISOString().split('T')[0]
+                date: new Date().toISOString().split('T')[0],
+                dueDate: request.dueDate || defaultDueDate
             });
 
             DatabaseManager.addLog('approve', `<span>${request.name}</span>'s request for <span>${request.itemName}</span> was approved by admin.`);
@@ -1114,7 +1099,19 @@ class ModalManager {
 
         if (item.borrowedBy.length > 0) {
             borrowersPanel.style.display = 'block';
+            const todayStr = new Date().toISOString().split('T')[0];
+
             item.borrowedBy.forEach((rec, idx) => {
+                let due = rec.dueDate;
+                if (!due && rec.date) {
+                    const bTime = new Date(rec.date).getTime();
+                    if (!isNaN(bTime)) {
+                        due = new Date(bTime + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    }
+                }
+                const isOverdue = Boolean(due && due < todayStr);
+                const dueBadge = due ? `<span class="borrower-due-badge ${isOverdue ? 'overdue' : ''}">${isOverdue ? 'OVERDUE: ' : 'Due: '}${due}</span>` : '';
+
                 const recEl = document.createElement('div');
                 recEl.className = 'borrower-record';
                 recEl.innerHTML = `
@@ -1122,7 +1119,8 @@ class ModalManager {
                         <span class="borrower-name">${rec.name}</span>
                         <span class="borrower-roll">${rec.roll} &bull; ${rec.purpose}</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        ${dueBadge}
                         <span class="borrower-qty-badge">${rec.qty} units</span>
                         <button class="btn btn-secondary btn-inline-return" style="padding: 6px 10px; font-size: 11px;" data-index="${idx}">
                             <i data-lucide="corner-up-left" style="width:12px;height:12px;"></i> Return
@@ -1157,6 +1155,14 @@ class ModalManager {
         qtyInput.max = String(available);
         qtyInput.value = '1';
 
+        const dueDateInput = document.getElementById('borrow-due-date') as HTMLInputElement | null;
+        if (dueDateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            const defaultDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            dueDateInput.min = today;
+            dueDateInput.value = defaultDue;
+        }
+
         this.close('detail-modal');
         this.open('borrow-form-modal');
     }
@@ -1167,24 +1173,88 @@ class ModalManager {
         const logsList = document.getElementById('logs-list')!;
         logsList.innerHTML = '';
 
-        if (logs.length === 0) {
+        // 1. Scan for active unreturned loans that have passed their due date (OVERDUE - Red)
+        const todayStr = new Date().toISOString().split('T')[0];
+        const activeOverdueList: { item: InventoryItem; rec: BorrowRecord; due: string }[] = [];
+
+        inventory.forEach((item) => {
+            (item.borrowedBy || []).forEach((rec) => {
+                if (rec.returned) return;
+
+                let due = rec.dueDate;
+                if (!due && rec.date) {
+                    const bTime = new Date(rec.date).getTime();
+                    if (!isNaN(bTime)) {
+                        due = new Date(bTime + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    }
+                }
+
+                if (due && due < todayStr) {
+                    activeOverdueList.push({ item, rec, due });
+                }
+            });
+        });
+
+        const hasOverdue = activeOverdueList.length > 0;
+        const hasLogs = logs.length > 0;
+
+        if (!hasOverdue && !hasLogs) {
             logsList.innerHTML = '<div class="request-empty-state">No logs logged.</div>';
         } else {
+            // Render active Overdue alerts first (Red status, only when an active borrowed item has passed its due date)
+            activeOverdueList.forEach(({ item, rec, due }) => {
+                const logEl = document.createElement('div');
+                logEl.className = 'log-item log-action-overdue';
+                logEl.innerHTML = `
+                    <div class="log-meta">
+                        <span class="log-type-tag"><i data-lucide="clock-alert"></i> OVERDUE</span>
+                        <span>Due: ${due}</span>
+                    </div>
+                    <div class="log-text-content"><span>${rec.name}</span> (${rec.roll}) has not returned <span>${rec.qty}x ${item.name}</span>. Loan was due on <span>${due}</span>.</div>
+                `;
+                logsList.appendChild(logEl);
+            });
+
+            // Render all historical transaction logs with their corresponding status colors
             logs.forEach(log => {
                 const logEl = document.createElement('div');
                 logEl.className = `log-item log-action-${log.type}`;
                 
                 let icon = 'info';
-                if (log.type === 'borrow') icon = 'shopping-cart';
-                if (log.type === 'return') icon = 'corner-up-left';
-                if (log.type === 'add') icon = 'plus';
-                if (log.type === 'request') icon = 'send';
-                if (log.type === 'approve') icon = 'check';
-                if (log.type === 'reject') icon = 'x';
+                let label = log.type.toUpperCase();
+
+                if (log.type === 'borrow') {
+                    icon = 'shopping-cart';
+                    label = 'BORROW';
+                } else if (log.type === 'return') {
+                    icon = 'corner-up-left';
+                    label = 'RETURNED';
+                } else if (log.type === 'overdue') {
+                    icon = 'clock-alert';
+                    label = 'OVERDUE';
+                } else if (log.type === 'low_stock') {
+                    icon = 'alert-circle';
+                    label = 'LOW STOCK';
+                } else if (log.type === 'add') {
+                    icon = 'plus';
+                    label = 'NEW COMPONENT';
+                } else if (log.type === 'system') {
+                    icon = 'info';
+                    label = 'SYSTEM';
+                } else if (log.type === 'request') {
+                    icon = 'send';
+                    label = 'REQUEST';
+                } else if (log.type === 'approve') {
+                    icon = 'check';
+                    label = 'APPROVED';
+                } else if (log.type === 'reject') {
+                    icon = 'x';
+                    label = 'REJECTED';
+                }
 
                 logEl.innerHTML = `
                     <div class="log-meta">
-                        <span style="display:flex; align-items:center; gap:4px;"><i data-lucide="${icon}" style="width:12px;height:12px;"></i> ${log.type.toUpperCase()}</span>
+                        <span class="log-type-tag"><i data-lucide="${icon}"></i> ${label}</span>
                         <span>${log.timestamp}</span>
                     </div>
                     <div class="log-text-content">${log.text}</div>
@@ -1245,6 +1315,10 @@ class ModalManager {
 
         const requestMode = !this.isAdmin();
 
+        const dueDateInput = document.getElementById('borrow-due-date') as HTMLInputElement | null;
+        const defaultDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const dueDate = (dueDateInput && dueDateInput.value) ? dueDateInput.value : defaultDue;
+
         if (requestMode) {
             const request: RequestRecord = {
                 id: `req-${Date.now()}`,
@@ -1254,6 +1328,7 @@ class ModalManager {
                 roll: rollNum,
                 qty,
                 purpose,
+                dueDate,
                 status: 'PENDING',
                 requestedAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
             };
@@ -1268,10 +1343,11 @@ class ModalManager {
                 roll: rollNum,
                 qty: qty,
                 purpose: purpose,
-                date: date
+                date: date,
+                dueDate: dueDate
             });
 
-            DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
+            DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> (Due: ${dueDate}) for '${purpose}'.`);
         }
 
         (document.getElementById('borrow-form') as HTMLFormElement).reset();
@@ -1675,9 +1751,9 @@ class SakuraAnimation {
     private height = window.innerHeight;
 
     private colors = [
-        { start: '#fbcfe8', end: '#ec4899' },
+        { start: '#ffd1e8', end: '#ec4899' },
         { start: '#fce7f3', end: '#f43f5e' },
-        { start: '#ffffff', end: '#fda4af' },
+        { start: '#fbcfe8', end: '#fda4af' },
         { start: '#f472b6', end: '#db2777' },
     ];
 
@@ -1845,7 +1921,7 @@ class AvengersAnimation {
         }
     }
 
-    private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number, color: string) {
+    private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number, color: string, strokeColor?: string, strokeWidth: number = 2) {
         let rot = (Math.PI / 2) * 3;
         let step = Math.PI / spikes;
 
@@ -1866,6 +1942,12 @@ class AvengersAnimation {
         ctx.closePath();
         ctx.fillStyle = color;
         ctx.fill();
+
+        if (strokeColor) {
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = strokeWidth;
+            ctx.stroke();
+        }
     }
 
     private drawBackground() {
@@ -1877,71 +1959,67 @@ class AvengersAnimation {
         const cx = w / 2;
         const cy = h / 2;
         const baseRadius = Math.min(w, h) * 0.27;
-        const pulse = Math.sin(this.pulseTime) * 0.03;
-        const opacity = 0.28 + pulse; // Enhanced, clear, glowing opacity
+        const pulse = Math.sin(this.pulseTime) * 0.02;
+        // Light, subtle, translucent background opacity so content and texts shine through clearly
+        const opacity = 0.16 + pulse;
 
         this.ctx.save();
         this.ctx.globalAlpha = opacity;
 
-        // 1. Intense Red Vibranium Energy Background Aura Glow
-        const bgGlow = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.3, cx, cy, baseRadius * 1.4);
-        bgGlow.addColorStop(0, 'rgba(255, 0, 60, 0.45)');
-        bgGlow.addColorStop(0.5, 'rgba(239, 68, 68, 0.25)');
-        bgGlow.addColorStop(0.85, 'rgba(220, 38, 38, 0.08)');
+        // 1. Soft Vibranium / Stark Arc Energy Aura Glow (light & subtle)
+        const bgGlow = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.2, cx, cy, baseRadius * 1.35);
+        bgGlow.addColorStop(0, 'rgba(239, 68, 68, 0.22)');
+        bgGlow.addColorStop(0.5, 'rgba(59, 130, 246, 0.12)');
+        bgGlow.addColorStop(0.85, 'rgba(0, 240, 255, 0.05)');
         bgGlow.addColorStop(1, 'transparent');
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 1.4, 0, Math.PI * 2);
+        this.ctx.arc(cx, cy, baseRadius * 1.35, 0, Math.PI * 2);
         this.ctx.fillStyle = bgGlow;
         this.ctx.fill();
 
-        // 2. Arc Cyan & Stark Gold Outer Tech Halo Rings
+        // 2. Light Arc Cyan & Stark Gold Outer Tech Halo Rings
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 1.25, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(2, baseRadius * 0.035);
-        this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+        this.ctx.arc(cx, cy, baseRadius * 1.22, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(1.5, baseRadius * 0.015);
+        this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.35)';
         this.ctx.stroke();
 
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 1.15, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(3, baseRadius * 0.045);
-        this.ctx.strokeStyle = '#00f0ff';
+        this.ctx.arc(cx, cy, baseRadius * 1.12, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2, baseRadius * 0.02);
+        this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
         this.ctx.shadowColor = '#00f0ff';
-        this.ctx.shadowBlur = 18;
+        this.ctx.shadowBlur = 10;
         this.ctx.stroke();
+        this.ctx.shadowBlur = 0;
 
-        // 12 Stark Nodes
+        // 12 Stark HUD Nodes
         const nodes = 12;
         for (let i = 0; i < nodes; i++) {
-            const angle = (i * Math.PI * 2) / nodes + this.pulseTime * 0.15;
-            const nx = cx + Math.cos(angle) * (baseRadius * 1.15);
-            const ny = cy + Math.sin(angle) * (baseRadius * 1.15);
+            const angle = (i * Math.PI * 2) / nodes + this.pulseTime * 0.12;
+            const nx = cx + Math.cos(angle) * (baseRadius * 1.12);
+            const ny = cy + Math.sin(angle) * (baseRadius * 1.12);
             this.ctx.beginPath();
-            this.ctx.arc(nx, ny, Math.max(3, baseRadius * 0.03), 0, Math.PI * 2);
-            this.ctx.fillStyle = '#ffffff';
-            this.ctx.shadowColor = '#00f0ff';
-            this.ctx.shadowBlur = 10;
+            this.ctx.arc(nx, ny, Math.max(2, baseRadius * 0.018), 0, Math.PI * 2);
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
             this.ctx.fill();
         }
 
-        // 3. CAPTAIN AMERICA SHIELD WITH BOLD BLACK CIRCLE BOUNDARIES & GLOW
-        // Outer Red Glowing Vibranium Ring
-        this.ctx.shadowColor = '#ff0033';
-        this.ctx.shadowBlur = 30;
-
+        // 3. CAPTAIN AMERICA SHIELD WITH DISTINCT BLACK BOUNDARIES
+        // Outer Red Vibranium Ring
         const redGrad1 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.74, cx, cy, baseRadius);
-        redGrad1.addColorStop(0, '#ef4444');
-        redGrad1.addColorStop(0.6, '#dc2626');
-        redGrad1.addColorStop(1, '#991b1b');
+        redGrad1.addColorStop(0, '#f87171');
+        redGrad1.addColorStop(0.6, '#ef4444');
+        redGrad1.addColorStop(1, '#b91c1c');
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
         this.ctx.fillStyle = redGrad1;
         this.ctx.fill();
 
-        // Outer Black Circle Boundary
-        this.ctx.shadowBlur = 0;
+        // Bold Outer Black Boundary of the Shield
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(3.5, baseRadius * 0.025);
+        this.ctx.lineWidth = Math.max(4, baseRadius * 0.032);
         this.ctx.strokeStyle = '#000000';
         this.ctx.stroke();
 
@@ -1949,99 +2027,93 @@ class AvengersAnimation {
         const silverGrad = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.48, cx, cy, baseRadius * 0.74);
         silverGrad.addColorStop(0, '#ffffff');
         silverGrad.addColorStop(0.5, '#e2e8f0');
-        silverGrad.addColorStop(1, '#cbd5e1');
+        silverGrad.addColorStop(1, '#94a3b8');
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
         this.ctx.fillStyle = silverGrad;
         this.ctx.fill();
 
-        // Middle Silver Black Circle Boundary
+        // Middle Silver Black Boundary
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.018);
+        this.ctx.lineWidth = Math.max(3, baseRadius * 0.022);
         this.ctx.strokeStyle = '#000000';
         this.ctx.stroke();
 
-        // Inner Red Ring with Glow
-        this.ctx.shadowColor = '#ff0033';
-        this.ctx.shadowBlur = 20;
-
+        // Inner Red Ring
         const redGrad2 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.28, cx, cy, baseRadius * 0.48);
-        redGrad2.addColorStop(0, '#ff1e43');
-        redGrad2.addColorStop(0.7, '#dc2626');
-        redGrad2.addColorStop(1, '#991b1b');
+        redGrad2.addColorStop(0, '#f87171');
+        redGrad2.addColorStop(0.7, '#ef4444');
+        redGrad2.addColorStop(1, '#b91c1c');
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 0.48, 0, Math.PI * 2);
         this.ctx.fillStyle = redGrad2;
         this.ctx.fill();
 
-        // Inner Red Black Circle Boundary
-        this.ctx.shadowBlur = 0;
+        // Inner Red Black Boundary
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 0.48, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.018);
+        this.ctx.lineWidth = Math.max(3, baseRadius * 0.022);
         this.ctx.strokeStyle = '#000000';
         this.ctx.stroke();
 
-        // Center Cobalt Blue Disk
-        this.ctx.shadowColor = '#3b82f6';
-        this.ctx.shadowBlur = 18;
-
+        // Center Cobalt/Stark Blue Disk
         const blueGrad = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, baseRadius * 0.28);
-        blueGrad.addColorStop(0, '#3b82f6');
-        blueGrad.addColorStop(0.7, '#1d4ed8');
-        blueGrad.addColorStop(1, '#1e3a8a');
+        blueGrad.addColorStop(0, '#60a5fa');
+        blueGrad.addColorStop(0.7, '#2563eb');
+        blueGrad.addColorStop(1, '#1e40af');
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
         this.ctx.fillStyle = blueGrad;
         this.ctx.fill();
 
-        // Center Blue Black Circle Boundary
-        this.ctx.shadowBlur = 0;
+        // Center Blue Black Boundary
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.018);
+        this.ctx.lineWidth = Math.max(3, baseRadius * 0.022);
         this.ctx.strokeStyle = '#000000';
         this.ctx.stroke();
 
-        // Center Luminous White 5-Point Star
-        this.ctx.shadowColor = '#ffffff';
-        this.ctx.shadowBlur = 15;
-        this.drawStar(this.ctx, cx, cy, 5, baseRadius * 0.25, baseRadius * 0.11, '#ffffff');
+        // Center Luminous White 5-Point Star with Black Boundary
+        this.drawStar(
+            this.ctx,
+            cx,
+            cy,
+            5,
+            baseRadius * 0.25,
+            baseRadius * 0.11,
+            '#ffffff',
+            '#000000',
+            Math.max(2, baseRadius * 0.016)
+        );
 
-        // Star Outline Highlight
-        this.ctx.shadowBlur = 0;
-        this.ctx.lineWidth = 1;
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-        this.ctx.stroke();
+        // 4. Light Stark HUD Target Crosshair Marks
+        this.ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)';
+        this.ctx.lineWidth = 1.4;
 
-        // 4. Stark HUD Target Crosshair Marks
-        this.ctx.strokeStyle = 'rgba(255, 0, 80, 0.5)';
-        this.ctx.lineWidth = 1.8;
-
-        const notchLen = baseRadius * 0.22;
+        const notchLen = baseRadius * 0.18;
         // Top
         this.ctx.beginPath();
-        this.ctx.moveTo(cx, cy - baseRadius * 1.35);
-        this.ctx.lineTo(cx, cy - baseRadius * 1.35 + notchLen);
+        this.ctx.moveTo(cx, cy - baseRadius * 1.25);
+        this.ctx.lineTo(cx, cy - baseRadius * 1.25 + notchLen);
         this.ctx.stroke();
 
         // Bottom
         this.ctx.beginPath();
-        this.ctx.moveTo(cx, cy + baseRadius * 1.35);
-        this.ctx.lineTo(cx, cy + baseRadius * 1.35 - notchLen);
+        this.ctx.moveTo(cx, cy + baseRadius * 1.25);
+        this.ctx.lineTo(cx, cy + baseRadius * 1.25 - notchLen);
         this.ctx.stroke();
 
         // Left
         this.ctx.beginPath();
-        this.ctx.moveTo(cx - baseRadius * 1.35, cy);
-        this.ctx.lineTo(cx - baseRadius * 1.35 + notchLen, cy);
+        this.ctx.moveTo(cx - baseRadius * 1.25, cy);
+        this.ctx.lineTo(cx - baseRadius * 1.25 + notchLen, cy);
         this.ctx.stroke();
 
         // Right
         this.ctx.beginPath();
-        this.ctx.moveTo(cx + baseRadius * 1.35, cy);
-        this.ctx.lineTo(cx + baseRadius * 1.35 - notchLen, cy);
+        this.ctx.moveTo(cx + baseRadius * 1.25, cy);
+        this.ctx.lineTo(cx + baseRadius * 1.25 - notchLen, cy);
         this.ctx.stroke();
 
         this.ctx.restore();
