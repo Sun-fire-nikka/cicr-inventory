@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
-import type { InventoryItem, ActivityLog, RequestRecord, UserDatabase, BorrowRecord } from './types';
+import type { InventoryItem, ActivityLog, RequestRecord, BorrowRecord } from './types';
 
 // Global declarations for CDN libraries
 declare const lucide: {
@@ -1359,7 +1359,7 @@ class ModalManager {
 }
 
 // ==========================================
-// 6. User Authentication Manager
+// 6. User Authentication Manager (OTP-based, v1.6.2)
 // ==========================================
 class AuthManager {
     private static loginForm: HTMLFormElement;
@@ -1368,9 +1368,13 @@ class AuthManager {
     private static appContainer: HTMLElement;
     private static globalNavbar: HTMLElement;
 
-    private static loginUserInp: HTMLInputElement;
-    private static loginPassInp: HTMLInputElement;
+    private static loginEmailInp: HTMLInputElement;
+    private static loginOtpInp: HTMLInputElement;
     private static loginErr: HTMLElement;
+    private static otpErr: HTMLElement;
+    private static loginStepEmail: HTMLElement;
+    private static loginStepOtp: HTMLElement;
+    private static otpEmailHint: HTMLElement;
 
     private static signupUserInp: HTMLInputElement;
     private static signupEmailInp: HTMLInputElement;
@@ -1381,20 +1385,23 @@ class AuthManager {
     private static navUsername: HTMLElement;
     private static navLogoutBtn: HTMLElement;
 
-    static init() {
-        if (!localStorage.getItem('cicr_users')) {
-            localStorage.setItem('cicr_users', JSON.stringify({}));
-        }
+    private static STUDENT_EMAIL_REGEX = /^[0-9]{12}@mail\.jiit\.ac\.in$/;
+    private static ADMIN_EMAILS = ['kushagragargdelhi@gmail.com'];
 
+    static init() {
         this.loginForm = document.getElementById('login-form') as HTMLFormElement;
         this.signupForm = document.getElementById('signup-form') as HTMLFormElement;
         this.authOverlay = document.getElementById('auth-overlay')!;
         this.appContainer = document.getElementById('app-container')!;
         this.globalNavbar = document.getElementById('global-navbar')!;
 
-        this.loginUserInp = document.getElementById('login-username') as HTMLInputElement;
-        this.loginPassInp = document.getElementById('login-password') as HTMLInputElement;
+        this.loginEmailInp = document.getElementById('login-email') as HTMLInputElement;
+        this.loginOtpInp = document.getElementById('login-otp') as HTMLInputElement;
         this.loginErr = document.getElementById('login-error')!;
+        this.otpErr = document.getElementById('otp-error')!;
+        this.loginStepEmail = document.getElementById('login-step-email')!;
+        this.loginStepOtp = document.getElementById('login-step-otp')!;
+        this.otpEmailHint = document.getElementById('otp-email-hint')!;
 
         this.signupUserInp = document.getElementById('signup-username') as HTMLInputElement;
         this.signupEmailInp = document.getElementById('signup-email') as HTMLInputElement;
@@ -1425,11 +1432,21 @@ class AuthManager {
             this.signupErr.style.display = 'none';
             this.signupSuccess.style.display = 'none';
             this.loginForm.reset();
+            this.resetLoginSteps();
+        });
+
+        document.getElementById('go-back-to-email')!.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.resetLoginSteps();
         });
 
         this.loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            this.handleLogin();
+            if (this.loginStepEmail.style.display !== 'none') {
+                this.handleSendOtp();
+            } else {
+                this.handleVerifyOtp();
+            }
         });
 
         this.signupForm.addEventListener('submit', (e) => {
@@ -1441,31 +1458,107 @@ class AuthManager {
             e.preventDefault();
             this.handleLogout();
         });
+    }
 
-        // Password visibility toggles
-        const loginToggle = document.getElementById('login-password-toggle')!;
-        const loginPass = document.getElementById('login-password') as HTMLInputElement;
-        loginToggle.addEventListener('click', () => {
-            const currentType = loginPass.getAttribute('type');
-            const newType = currentType === 'password' ? 'text' : 'password';
-            loginPass.setAttribute('type', newType);
-            
-            const icon = loginToggle.querySelector('i')!;
-            icon.setAttribute('data-lucide', newType === 'password' ? 'eye' : 'eye-off');
-            lucide.createIcons();
-        });
+    private static resetLoginSteps() {
+        this.loginStepEmail.style.display = 'block';
+        this.loginStepOtp.style.display = 'none';
+        this.loginErr.style.display = 'none';
+        this.otpErr.style.display = 'none';
+        this.loginOtpInp.value = '';
+    }
 
-        const signupToggle = document.getElementById('signup-password-toggle')!;
-        const signupPass = document.getElementById('signup-password') as HTMLInputElement;
-        signupToggle.addEventListener('click', () => {
-            const currentType = signupPass.getAttribute('type');
-            const newType = currentType === 'password' ? 'text' : 'password';
-            signupPass.setAttribute('type', newType);
-            
-            const icon = signupToggle.querySelector('i')!;
-            icon.setAttribute('data-lucide', newType === 'password' ? 'eye' : 'eye-off');
-            lucide.createIcons();
-        });
+    private static validateEmailFormat(email: string): { valid: boolean; error?: string } {
+        const trimmed = email.trim().toLowerCase();
+        if (!trimmed) return { valid: false, error: 'Email is required.' };
+        if (this.STUDENT_EMAIL_REGEX.test(trimmed)) return { valid: true };
+        if (this.ADMIN_EMAILS.includes(trimmed)) return { valid: true };
+        return {
+            valid: false,
+            error: 'Invalid email format. Students must use [enrollment]@mail.jiit.ac.in.'
+        };
+    }
+
+    private static async handleSendOtp() {
+        const email = this.loginEmailInp.value.trim().toLowerCase();
+        this.loginErr.style.display = 'none';
+
+        const validation = this.validateEmailFormat(email);
+        if (!validation.valid) {
+            this.showLoginError(validation.error!);
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/send-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                this.showLoginError(data.message || 'Failed to send OTP.');
+                return;
+            }
+
+            this.loginStepEmail.style.display = 'none';
+            this.loginStepOtp.style.display = 'block';
+            this.otpEmailHint.innerText = `OTP sent to ${email}`;
+            this.loginOtpInp.focus();
+        } catch (err) {
+            this.showLoginError('Network error. Please try again.');
+        }
+    }
+
+    private static async handleVerifyOtp() {
+        const email = this.loginEmailInp.value.trim().toLowerCase();
+        const otp = this.loginOtpInp.value.trim();
+        this.otpErr.style.display = 'none';
+
+        if (!otp || otp.length !== 6) {
+            this.showOtpError('Please enter a valid 6-digit OTP.');
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, otp })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                this.showOtpError(data.message || 'Invalid or expired OTP.');
+                return;
+            }
+
+            localStorage.setItem('cicr_auth', data.user.name);
+            localStorage.setItem('cicr_token', data.token);
+            localStorage.setItem('cicr_role', data.user.role);
+            this.loginSuccess(data.user.name, data.user.role);
+        } catch (err) {
+            this.showOtpError('Network error. Please try again.');
+        }
+    }
+
+    private static showLoginError(msg: string) {
+        this.loginErr.innerText = msg;
+        this.loginErr.style.display = 'block';
+        this.loginErr.style.animation = 'none';
+        this.loginErr.offsetHeight;
+        this.loginErr.style.animation = 'shake-error 0.4s ease';
+    }
+
+    private static showOtpError(msg: string) {
+        this.otpErr.innerText = msg;
+        this.otpErr.style.display = 'block';
+        this.otpErr.style.animation = 'none';
+        this.otpErr.offsetHeight;
+        this.otpErr.style.animation = 'shake-error 0.4s ease';
     }
 
     private static checkAuth() {
@@ -1474,7 +1567,8 @@ class AuthManager {
         if (welcomeScreen) welcomeScreen.style.display = 'none';
         
         if (currentUser) {
-            this.loginSuccess(currentUser);
+            const role = localStorage.getItem('cicr_role') || 'MEMBER';
+            this.loginSuccess(currentUser, role);
         } else {
             this.globalNavbar.style.display = 'none';
             this.authOverlay.classList.remove('hidden');
@@ -1483,32 +1577,13 @@ class AuthManager {
         }
     }
 
-    private static handleLogin() {
-        const username = this.loginUserInp.value.trim();
-        const password = this.loginPassInp.value;
-
-        this.loginErr.style.display = 'none';
-
-        const users = JSON.parse(localStorage.getItem('cicr_users')!) as UserDatabase;
-        if (users[username] && users[username] === password) {
-            this.loginSuccess(username);
-            return;
-        }
-
-        this.loginErr.innerText = "Access Denied: Invalid credentials.";
-        this.loginErr.style.display = 'block';
-        this.loginErr.style.animation = 'none';
-        this.loginErr.offsetHeight; 
-        this.loginErr.style.animation = 'shake-error 0.4s ease';
-    }
-
-    private static loginSuccess(username: string) {
+    private static loginSuccess(username: string, role: string = 'MEMBER') {
         localStorage.setItem('cicr_auth', username);
+        localStorage.setItem('cicr_role', role);
         if (this.navUsername) {
             this.navUsername.innerText = username;
         }
 
-        // Set username and initial in the left sidebar profile card
         const profileUserDisplay = document.getElementById('profile-username-display');
         const profileAvatarInitial = document.getElementById('profile-avatar-initial');
         if (profileUserDisplay) profileUserDisplay.innerText = username;
@@ -1517,11 +1592,9 @@ class AuthManager {
         const welcomeScreen = document.getElementById('welcome-screen');
         if (welcomeScreen) welcomeScreen.style.display = 'none';
 
-        // Directly transition: hide auth form, show app container
         this.authOverlay.style.display = 'none';
         this.appContainer.style.display = 'grid';
 
-        // Select Dashboard link in the left sidebar by default
         const activeNavClass = () => {
             const sidebarLinks = document.querySelectorAll('.sidebar-nav-link');
             sidebarLinks.forEach(link => {
@@ -1559,7 +1632,7 @@ class AuthManager {
 
     private static handleSignup() {
         const username = this.signupUserInp.value.trim();
-        const email = this.signupEmailInp.value.trim();
+        const email = this.signupEmailInp.value.trim().toLowerCase();
         const password = this.signupPassInp.value;
 
         this.signupErr.style.display = 'none';
@@ -1570,23 +1643,44 @@ class AuthManager {
             return;
         }
 
-        const users = JSON.parse(localStorage.getItem('cicr_users')!) as UserDatabase;
-        if (users[username]) {
-            this.showSignupError("Username already registered.");
+        const validation = this.validateEmailFormat(email);
+        if (!validation.valid) {
+            this.showSignupError(validation.error!);
             return;
         }
 
-        users[username] = password;
-        localStorage.setItem('cicr_users', JSON.stringify(users));
+        if (password.length < 6) {
+            this.showSignupError("Password must be at least 6 characters.");
+            return;
+        }
 
-        DatabaseManager.addLog('system', `New operator registered: <span>${username}</span> (${email}).`);
+        this.registerUser(username, email, password);
+    }
 
-        this.signupSuccess.innerText = "Registration complete! Switching to Login...";
-        this.signupSuccess.style.display = 'block';
+    private static async registerUser(username: string, email: string, password: string) {
+        try {
+            const res = await fetch(`${API_BASE}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: username, email, password })
+            });
 
-        setTimeout(() => {
-            document.getElementById('go-to-login')!.click();
-        }, 1500);
+            const data = await res.json();
+
+            if (!res.ok) {
+                this.showSignupError(data.message || 'Registration failed.');
+                return;
+            }
+
+            this.signupSuccess.innerText = "Registration complete! Switching to Login...";
+            this.signupSuccess.style.display = 'block';
+
+            setTimeout(() => {
+                document.getElementById('go-to-login')!.click();
+            }, 1500);
+        } catch (err) {
+            this.showSignupError('Network error. Please try again.');
+        }
     }
 
     private static showSignupError(msg: string) {
@@ -1599,6 +1693,8 @@ class AuthManager {
 
     private static handleLogout() {
         localStorage.removeItem('cicr_auth');
+        localStorage.removeItem('cicr_token');
+        localStorage.removeItem('cicr_role');
         
         this.appContainer.style.display = 'none';
         this.globalNavbar.style.display = 'none';
@@ -1616,6 +1712,7 @@ class AuthManager {
 
         this.loginForm.reset();
         this.loginErr.style.display = 'none';
+        this.resetLoginSteps();
     }
 }
 

@@ -10,3 +10,6 @@ export const ADMIN_DIRECTORY: AdminDirectoryEntry[] = [
 
 export const getAdminById = (adminId: string): AdminDirectoryEntry | undefined =>
   ADMIN_DIRECTORY.find((admin) => admin.id === adminId || admin.name.toLowerCase() === adminId.toLowerCase());
+
+export const getAdminByEmail = (email: string): AdminDirectoryEntry | undefined =>
+  ADMIN_DIRECTORY.find((admin) => admin.email.toLowerCase() === email.toLowerCase());

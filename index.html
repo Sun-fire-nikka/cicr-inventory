@@ -27,29 +27,40 @@
                 <p id="auth-subtitle"> ~ Creative & Innovative Cell in Robotics</p>
             </div>
             
-            <!-- Login Form -->
+            <!-- Login Form (Email + OTP) -->
             <form id="login-form">
-                <div class="form-group">
-                    <label for="login-username">Username</label>
-                    <div class="input-icon-wrapper">
-                        <i data-lucide="user" class="input-icon"></i>
-                        <input type="text" id="login-username" required placeholder="Enter username">
+                <!-- Step 1: Email -->
+                <div id="login-step-email">
+                    <div class="form-group">
+                        <label for="login-email">Email Address</label>
+                        <div class="input-icon-wrapper">
+                            <i data-lucide="mail" class="input-icon"></i>
+                            <input type="email" id="login-email" required placeholder="enrollment@mail.jiit.ac.in">
+                        </div>
+                    </div>
+                    <div class="auth-error-msg" id="login-error" style="display: none;"></div>
+                    <button type="submit" class="btn btn-primary btn-block" id="login-send-otp-btn">
+                        <i data-lucide="send"></i> Send OTP
+                    </button>
+                </div>
+                <!-- Step 2: OTP Verification -->
+                <div id="login-step-otp" style="display: none;">
+                    <div class="form-group">
+                        <label for="login-otp">Enter OTP</label>
+                        <div class="input-icon-wrapper">
+                            <i data-lucide="key" class="input-icon"></i>
+                            <input type="text" id="login-otp" required placeholder="6-digit code" maxlength="6" pattern="[0-9]{6}">
+                        </div>
+                        <small class="otp-hint" id="otp-email-hint"></small>
+                    </div>
+                    <div class="auth-error-msg" id="otp-error" style="display: none;"></div>
+                    <button type="submit" class="btn btn-primary btn-block" id="login-verify-otp-btn">
+                        <i data-lucide="check-circle"></i> Verify & Login
+                    </button>
+                    <div class="auth-switch-prompt">
+                        <a href="#" id="go-back-to-email">← Back to email</a>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="login-password">Password</label>
-                    <div class="input-icon-wrapper">
-                        <i data-lucide="lock" class="input-icon"></i>
-                        <input type="password" id="login-password" required placeholder="Enter password">
-                        <button type="button" class="password-toggle-btn" id="login-password-toggle" title="Toggle password visibility">
-                            <i data-lucide="eye"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="auth-error-msg" id="login-error" style="display: none;"></div>
-                <button type="submit" class="btn btn-primary btn-block">
-                    <i data-lucide="log-in"></i> Authenticate
-                </button>
                 <div class="auth-switch-prompt">
                     Don't have an account? <a href="#" id="go-to-signup">Sign Up</a>
                 </div>

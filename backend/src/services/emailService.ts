@@ -418,3 +418,62 @@ export const sendReturnConfirmation = async (
     return { success: false, error: formatSmtpError(error) };
   }
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// LOGIN OTP EMAIL (v1.6.2)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const sendLoginOtpEmail = async (
+  recipientEmail: string,
+  recipientName: string,
+  otp: string
+) => {
+  try {
+    const mailOptions = {
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      to: recipientEmail,
+      subject: `[CICR Inventory] Login OTP: ${otp}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('login-otp', 'high'),
+      priority: 'high' as const,
+      text: [
+        `Hello ${recipientName},`,
+        '',
+        `Your CICR Inventory login OTP is: ${otp}`,
+        '',
+        'This OTP is valid for 5 minutes.',
+        'If you did not request this, please ignore this email.',
+        '',
+        'Regards,',
+        'CICR Management Team'
+      ].join('\n'),
+      html: `
+        <h3>CICR Inventory - Login OTP</h3>
+        <p>Hello <strong>${recipientName}</strong>,</p>
+        <p>Your login OTP is:</p>
+        <p style="font-size:28px;font-weight:bold;letter-spacing:4px;background:#f0f4ff;padding:10px;border-radius:6px;">${otp}</p>
+        <p>This OTP is <strong>valid for 5 minutes</strong>.</p>
+        <p>If you did not request this, please ignore this email.</p>
+        <br/>
+        <p><em>CICR Management Team</em></p>
+      `,
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Login OTP dispatched to ${recipientEmail} (OTP: ${otp}, Expires: 5m)`);
+      return { success: true, mocked: true, otp };
+    }
+
+    if (await enqueueEmail('login-otp', mailOptions)) {
+      return { success: true, queued: true, otp };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Login OTP email', info);
+    return { success: true, messageId: info.messageId, otp };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send login OTP to ${recipientEmail}: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
