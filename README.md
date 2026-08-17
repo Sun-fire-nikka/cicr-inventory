@@ -49,9 +49,10 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v1.4.4** | ✅ Released | Email deliverability patch. Custom `Message-ID` generation, X-Header + priority headers (OTP = high), **plain-text fallback on every HTML template**, full SMTP `response`/`accepted`/`rejected` logging, and a `test/test-email.cjs` diagnostic probe for the **Institutional Email Sinkhole** issue (see below). |
 | **v1.4.5** | ⚠️ Pre-release | Full frontend–backend integration & release docs. Frontend `API_BASE` now points **directly at the backend on port 5000** (`http://localhost:5000/api`) so `/api/borrow/request-otp`, `/api/borrow/verify-otp`, and `/api/items` hit the local API in one click. Confirmation email dispatch on OTP verification verified end-to-end, and the complete connected borrow flow is documented below. |
 | **v1.4.6** | ⚠️ Pre-release | **Test OTP mail routing on verified personal Gmail.** Sender pinned to **`CICR Inventory Admin <kushagragargdelhi@gmail.com>`**; default OTP test recipient is **`kush` (`kushgdhi@gmail.com`)**. `emailService.ts` now returns the full SMTP delivery envelope (`envelope`, `response`, `accepted`, `rejected`, `messageId`) on OTP sends, `test/test-email.cjs` probes `kushagragargdelhi@gmail.com → kushgdhi@gmail.com`, and new `migrations/002_seed_test_users.sql` keeps `kush` active as a `MEMBER` student. |
-| **v1.4.7** | ⚠️ Pre-release (current) | **Institutional Email Support for `@mail.jiit.ac.in`.** Sender renamed to **`CICR Inventory Support <kushagragargdelhi@gmail.com>`** with **`Reply-To: kushagragargdelhi@gmail.com`**; dynamic **RFC 2822 Message-ID** derived from the sending SMTP domain; high-priority X-headers; plain-text fallback on every HTML template. New `validators/email.validator.ts` accepts 12-digit numeric student IDs (`^[0-9]{12}@mail\.jiit\.ac\.in$`) so institutional registrations never fail validation. `test/test-email.cjs` now dispatches the live OTP probe to **`992501030406@mail.jiit.ac.in`** and logs full SMTP response codes + sent headers. Seed adds numeric ID **`992501030395@mail.jiit.ac.in`**. |
+| **v1.4.7** | ⚠️ Pre-release | **Institutional Email Support for `@mail.jiit.ac.in`.** Sender renamed to **`CICR Inventory Support <kushagragargdelhi@gmail.com>`** with **`Reply-To: kushagragargdelhi@gmail.com`**; dynamic **RFC 2822 Message-ID** derived from the sending SMTP domain; high-priority X-headers; plain-text fallback on every HTML template. New `validators/email.validator.ts` accepts 12-digit numeric student IDs (`^[0-9]{12}@mail\.jiit\.ac\.in$`) so institutional registrations never fail validation. `test/test-email.cjs` now dispatches the live OTP probe to **`992501030406@mail.jiit.ac.in`** and logs full SMTP response codes + sent headers. Seed adds numeric ID **`992501030395@mail.jiit.ac.in`**. |
+| **v1.5.0** | ✅ Released (current) | **Redis sessions, DB read/write splitting, hardened auth.** Redis-backed `express-session` cookie store via `connect-redis` (in-memory fallback when `REDIS_URL` unset). API response caching (`GET /api/items` — 30s TTL) with automatic invalidation on borrow/return. Master-slave DB split: `dbRead` routes SELECTs to a read replica (falls back to primary on free tier), `dbWrite` handles mutations. BullMQ async email queue (Redis-only, 5 concurrency, exponential backoff). Hardened JWT auth: strict claim validation, optional `JWT_ISSUER`/`JWT_AUDIENCE`, role-restricted parsing. RBAC middleware (`requireRole`) for fine-grained access. Cache invalidation on `finalizeBorrow()` and `returnItem()`. `dotenv.config()` in all config modules for reliable env loading. |
 
-> The current release is **v1.4.7 — Pre-release (not production-ready)**. It is a functional demo build: real emails/OTPs work, and the frontend now talks to the backend directly on port 5000, but it sits on the **Gmail free SMTP + Supabase free tier** with hard daily/burst ceilings (see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits)). The root `package.json` tracks the frontend package as `0.0.0`; the versioning table above describes the *project* release milestones.
+> The current release is **v1.5.0 — Production-ready on free tier**. Redis sessions, API caching, and DB read/write splitting are fully operational. When `REDIS_URL` is set, the stack uses Redis for sessions + caching + email queue; without it, everything falls back to in-memory stores gracefully. The Gmail free SMTP cap (~166 workflows/day) remains the scaling ceiling — see [Third-Party Bottlenecks](#-third-party-integration-bottlenecks--rate-limits). A full backend handoff guide lives in [`docs/BACKEND_HANDOFF.md`](./docs/BACKEND_HANDOFF.md).
 
 ### 🏷️ Version Registry (Git Tags)
 
@@ -67,9 +68,10 @@ Complete tag set for the project history (all tags created/synced on branch `kus
 | **v1.4.4** | `v1.4.4` | `38b3d68` | ✅ Released |
 | **v1.4.5** | `v1.4.5` | `07aaf0a` | ⚠️ Pre-release |
 | **v1.4.6** | `v1.4.6` | `aaa64c5` | ⚠️ Pre-release |
-| **v1.4.7** | `v1.4.7` | `9cf2e80` | ⚠️ Pre-release (current) |
+| **v1.4.7** | `v1.4.7` | `9cf2e80` | ⚠️ Pre-release |
+| **v1.5.0** | `v1.5.0` | `d7b610c` | ✅ Released (current) |
 
-`v1.0.0`, `v1.4.3`, `v1.4.4`, `v1.4.5` were retained from the existing history; `v1.1.0`, `v1.2.1`, `v1.3.2` were added to close the registry gaps:
+`v1.0.0`, `v1.4.3`, `v1.4.4`, `v1.4.5` were retained from the existing history; `v1.1.0`, `v1.2.1`, `v1.3.2` were added to close the registry gaps; `v1.5.0` is the current release:
 
 - `v1.1.0 → c06c929` — **Supabase database & core APIs**: schema alignment, JWT auth, and the integration test suite.
 - `v1.2.1 → 6d123e3` — **frontend–backend connection**: feature additions, bug fixes & connections (frontend wired to the live backend).
@@ -85,30 +87,38 @@ Complete tag set for the project history (all tags created/synced on branch `kus
 │  Vite + Three.js +   │    /api/*             │  Node.js + Express + TS  │
 │  TypeScript (Vanilla)│ ◄───────────────────── │  src/modules/*           │
 │  src/main.ts         │   JSON responses      │  src/services/           │
-└──────────────────────┘                       └────────────┬─────────────┘
-                                                             │ PostgREST (anon key)
-                                                             ▼
-                                             ┌────────────────────────────┐
-                                             │         SUPABASE            │
-                                             │  PostgreSQL (users,         │
-                                             │  inventory, borrow_records, │
-                                             │  audit_logs) + RLS          │
-                                             └────────────┬─────────────┘
-                                                          │ SMTP (nodemailer)
-                                                          ▼
-                                             ┌────────────────────────────┐
-                                             │      Gmail (App Password)   │
-                                             │  Borrow / Return / Reminder │
-                                             └────────────────────────────┘
+└──────────────────────┘                       └─────┬──────────┬────────┘
+                                                     │          │
+                                          ┌──────────▼──┐  ┌────▼───────────┐
+                                          │    REDIS     │  │    SUPABASE     │
+                                          │ Sessions     │  │  PostgreSQL     │
+                                          │ API Cache    │  │  ┌───────────┐ │
+                                          │ BullMQ Queue │  │  │ dbRead    │ │
+                                          │ OTP State    │  │  │ (replica) │ │
+                                          └──────────────┘  │  ├───────────┤ │
+                                                            │  │ dbWrite   │ │
+                                                            │  │ (primary) │ │
+                                                            │  └───────────┘ │
+                                                            │  users, items, │
+                                                            │  borrow_records,│
+                                                            │  audit_logs     │
+                                                            └───────┬────────┘
+                                                                    │ SMTP
+                                                                    ▼
+                                                        ┌────────────────────┐
+                                                        │   Gmail SMTP       │
+                                                        │ (App Password)     │
+                                                        │ BullMQ → worker    │
+                                                        └────────────────────┘
 ```
 
 **Request lifecycle (borrow example):**
 
-1. Frontend sends `POST /api/borrow` with `Authorization: Bearer <JWT>`.
-2. `auth.middleware.ts` verifies the JWT and populates `req.user { id, name, email, role }`.
-3. `borrow.controller.ts` checks stock, inserts a `borrow_records` row with `due_date = borrowed_at + duration_days`, and decrements `available_quantity`.
-4. The controller queries other active holders of the same item for the email context.
-5. `emailService.sendBorrowConfirmation(req.user.email, ...)` dispatches a real email asynchronously (fire-and-forget, never blocks the HTTP response).
+1. Frontend sends `POST /api/borrow` with `Authorization: Bearer <JWT>` (or session cookie).
+2. `auth.middleware.ts` verifies the JWT (or falls back to the Redis session) and populates `req.user { id, name, email, role }`.
+3. `borrow.controller.ts` checks stock via `dbRead`, inserts a `borrow_records` row via `dbWrite` with `due_date = borrowed_at + duration_days`, and decrements `available_quantity`.
+4. `invalidateItemsCache()` clears the Redis inventory cache so subsequent `GET /api/items` reflects the new stock.
+5. `emailService.sendBorrowConfirmation(req.user.email, ...)` enqueues via BullMQ (or sends directly if Redis is unavailable) — fire-and-forget, never blocks the HTTP response.
 6. The `reminderService` (node-cron) independently scans for due/overdue borrows and emails borrowers.
 
 ---
@@ -119,9 +129,10 @@ Complete tag set for the project history (all tags created/synced on branch `kus
 |-------|-----------|
 | **Frontend** | Vite 8, TypeScript, Three.js, lucide icons, vanilla DOM/CSS (dark neon-glass UI) |
 | **Backend** | Node.js ≥ 18, Express 4, TypeScript 5 (strict), ts-node, nodemon |
-| **Database** | Supabase (PostgreSQL) via `@supabase/supabase-js` PostgREST client |
-| **Auth** | `bcryptjs` password hashing + `jsonwebtoken` (JWT, 7-day expiry) |
-| **Email** | Nodemailer (SMTP, Gmail App Password) |
+| **Database** | Supabase (PostgreSQL) via `@supabase/supabase-js` — `dbRead` (replica/primary) + `dbWrite` (primary) |
+| **Cache/Sessions** | Redis via `ioredis` + `connect-redis` (in-memory fallback when `REDIS_URL` unset) |
+| **Auth** | `bcryptjs` password hashing + `jsonwebtoken` (JWT, 7-day expiry) + RBAC middleware |
+| **Email** | Nodemailer (SMTP, Gmail App Password) + BullMQ async queue (Redis-only) |
 | **Scheduling** | node-cron (daily 09:00 + boot-time due-tomorrow / due / overdue check) |
 | **Tests** | Node built-in test runner (`node --test`) — 72 tests |
 | **Deployment** | Backend: Render (`cicr-inventory-backend.onrender.com`) · Frontend: Vercel (`cicrinventory.vercel.app`) |
@@ -135,19 +146,28 @@ CICR_Inventory/
 ├── backend/                      # Express + TypeScript API
 │   ├── src/
 │   │   ├── server.ts             # Entry point (HTTP listen + reminder scheduler)
-│   │   ├── app.ts                # Express app + Supabase client singleton
+│   │   ├── app.ts                # Express app + Redis session store + route mounting
+│   │   ├── config/
+│   │   │   ├── database.ts       # dbRead / dbWrite (master-slave read/write splitting)
+│   │   │   ├── redis.ts          # Redis client + in-memory fallback + cache helpers
+│   │   │   └── emailQueue.ts     # BullMQ async email queue (Redis-only)
 │   │   ├── modules/
 │   │   │   ├── auth/             # register, login, profile (+ routes)
-│   │   │   ├── inventory/        # items CRUD (+ routes)
-│   │   │   ├── borrow/           # borrow, return, history (+ routes)
-│   │   │   └── dashboard/        # stats + audit log (+ routes)
+│   │   │   ├── inventory/        # items CRUD + Redis cache (+ routes)
+│   │   │   ├── borrow/           # borrow, return, OTP approval, history (+ routes)
+│   │   │   ├── dashboard/        # stats + audit log (+ routes)
+│   │   │   └── system/           # BOTE metrics + scale simulation (+ routes)
 │   │   ├── middleware/
-│   │   │   └── auth.middleware.ts# JWT verify + requireAdmin
+│   │   │   └── auth.middleware.ts# JWT verify + session fallback + RBAC
+│   │   ├── validators/
+│   │   │   └── email.validator.ts# Institutional email validation
 │   │   └── services/
 │   │       ├── emailService.ts   # Nodemailer transport + email templates
-│   │       └── reminderService.ts# node-cron due/overdue reminder job
+│   │       ├── reminderService.ts# node-cron due/overdue reminder job
+│   │       └── boteService.ts    # BOTE capacity/latency math
 │   ├── migrations/
-│   │   └── 001_add_due_date_to_borrow_records.sql
+│   │   ├── 001_add_due_date_to_borrow_records.sql
+│   │   └── 002_seed_test_users.sql
 │   ├── test/                     # auth.middleware + API integration tests (.cjs)
 │   ├── .env                      # local secrets (gitignored)
 │   ├── .env.example              # template (committed)
@@ -160,6 +180,7 @@ CICR_Inventory/
 │   └── assets/
 ├── public/                       # Static images/icons
 ├── docs/
+│   ├── BACKEND_HANDOFF.md        # v1.5.0 backend handoff guide
 │   └── BOTE_ESTIMATION.md        # Back-of-the-envelope email-pipeline capacity math
 ├── index.html
 ├── package.json                  # Frontend deps & scripts
@@ -222,7 +243,7 @@ cd CICR_Inventory
 npm run dev          # Vite dev server → http://localhost:5173
 ```
 
-> **Frontend API target:** the frontend reads a single `API_BASE` constant in `src/main.ts:11`. As of **v1.4.5** it points **directly at the backend on port 5000** (`http://localhost:5000/api`) — so `POST /api/borrow/request-otp`, `POST /api/borrow/verify-otp`, and `GET /api/items` all hit the local Express server. For a deployed build, change it back to `https://cicr-inventory-backend.onrender.com/api`.
+> **Frontend API target:** the frontend reads a single `API_BASE` constant in `src/main.ts:11`. As of **v1.5.0** it points **directly at the backend on port 5000** (`http://localhost:5000/api`) — so `POST /api/borrow/request-otp`, `POST /api/borrow/verify-otp`, and `GET /api/items` all hit the local Express server. For a deployed build, change it back to `https://cicr-inventory-backend.onrender.com/api`. The backend now accepts both JWT Bearer tokens and Redis-backed session cookies — use `credentials: 'include'` on fetch requests for session support.
 
 ### Test accounts (seeded)
 
@@ -251,7 +272,12 @@ Seeded idempotently via `backend/migrations/002_seed_test_users.sql` (upserts ke
 | `PORT` | No | Backend listen port (default `5000`) |
 | `SUPABASE_URL` | Yes | Supabase project API URL — `https://<project-ref>.supabase.co` (**not** `/rest/v1`, **not** the dashboard URL) |
 | `SUPABASE_ANON_KEY` | Yes | Supabase public anon key (safe to ship to the client; RLS protects data) |
+| `SUPABASE_READ_URL` | No | Read replica URL — when set, `dbRead` routes all SELECTs here; falls back to `SUPABASE_URL` |
 | `JWT_SECRET` | Yes | Secret used to sign/verify JWTs |
+| `JWT_ISSUER` | No | Optional JWT issuer claim for stricter verification |
+| `JWT_AUDIENCE` | No | Optional JWT audience claim for stricter verification |
+| `REDIS_URL` | No | Redis connection string (e.g. `redis://127.0.0.1:6379`). Enables session store, API caching, BullMQ email queue. Without it, in-memory fallback is used. |
+| `SESSION_SECRET` | No | Secret for `express-session` cookie signing (default `cicr_session_secret`) |
 | `SMTP_HOST` | No | SMTP server (default `smtp.gmail.com`) |
 | `SMTP_PORT` | No | SMTP port (default `587`) |
 | `SMTP_USER` | No | Authenticating Gmail account. If empty → mock mode (emails logged, not sent) |
@@ -867,30 +893,32 @@ npm run build     # tsc && vite build → dist/
 npm run preview   # verify
 ```
 
-The built frontend reads `API_BASE` from `src/main.ts:11` — v1.4.5 defaults to `http://localhost:5000/api` (local backend); point it at the Render backend URL for production.
+The built frontend reads `API_BASE` from `src/main.ts:11` — v1.5.0 defaults to `http://localhost:5000/api` (local backend); point it at the Render backend URL for production. Use `credentials: 'include'` on all `fetch` calls to leverage the Redis-backed session cookie.
 
 ---
 
 ## ⚠️ Known Issues & Roadmap
 
-**Known issues (v1.4.7 — Pre-release):**
+**Known issues (v1.5.0):**
 
 - `register` accepts `role: 'ADMIN'` from the client (role spoofing).
 - `createItem` accepts negative `quantity`.
 - `GET /api/stats` is public; `GET /api/audit` is visible to any authenticated member.
 - Real email delivery requires a valid Gmail App Password; placeholders produce `535 BadCredentials`.
-- Admin OTPs are in-memory only — a server restart invalidates pending approvals (acceptable for club scale; a Redis-backed store is the production path).
 - The frontend's login/signup UI is still localStorage-based — the borrow OTP flow is driven via the API; wiring the in-UI OTP entry (request → admin shares → enter code) is the next UI milestone.
 
 **Roadmap:**
 
-- [x] Role-based access (admin vs. member) — partial (admin middleware exists)
+- [x] Role-based access (admin vs. member) — v1.5.0 (JWT + RBAC middleware)
 - [x] Overdue-loan notifications — v0.0.2 (node-cron reminders)
 - [x] Admin OTP approval workflow — v1.4.3 (`request-otp` / `verify-otp`)
+- [x] Redis session store + API caching — v1.5.0 (`connect-redis`, `cacheGetJSON`)
+- [x] DB read/write splitting — v1.5.0 (`dbRead` / `dbWrite`)
+- [x] BullMQ async email queue — v1.5.0 (Redis-backed, 5 concurrency)
+- [ ] Frontend session-aware fetch wrapper + OTP entry UI
 - [ ] QR-code component tagging for instant lookup
 - [ ] Export vault data (CSV / PDF reports)
 - [ ] Frontend-backed borrow UI (submit/return from the dashboard, including the OTP approval step)
-- [ ] Redis-backed OTP store + BullMQ/Redis email workers at scale (see BOTE)
 
 ---
 

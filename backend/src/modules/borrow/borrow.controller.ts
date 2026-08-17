@@ -6,6 +6,7 @@ import { sendBorrowConfirmation, sendReturnConfirmation, sendOtpEmail } from '..
 import { ADMIN_DIRECTORY, getAdminById } from './adminDirectory';
 import { generateOtp, storeOtp, verifyOtp as verifyOtpCode, consumeOtp } from './otpService';
 import { cacheGetJSON, cacheSetJSON } from '../../config/redis';
+import { invalidateItemsCache } from '../inventory/inventory.controller';
 
 const ADMIN_DIRECTORY_CACHE_TTL = 60; // seconds
 
@@ -87,6 +88,8 @@ const finalizeBorrow = async (
     .eq('id', itemId);
 
   if (updateErr) return { error: { status: 500, message: updateErr.message } };
+
+  await invalidateItemsCache(itemId);
 
   await logAudit('Borrowed', userId, itemId, `Borrowed ${quantity} units of "${item.name}" for purpose: ${purpose}`);
 
@@ -368,6 +371,8 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
       .from('inventory')
       .update({ available_quantity: restoredQty, updated_at: new Date().toISOString() })
       .eq('id', record.inventory_id);
+
+    await invalidateItemsCache(record.inventory_id);
 
     // 4. Audit Log
     const itemName = record.inventory?.name || record.inventory_id;

@@ -12,7 +12,7 @@ const itemsListCacheKey = (category: unknown, search: unknown): string =>
 
 const itemsIdCacheKey = (id: string): string => `cicr:cache:items:id:${id}`;
 
-const invalidateItemsCache = async (id?: string): Promise<void> => {
+export const invalidateItemsCache = async (id?: string): Promise<void> => {
   await cacheInvalidatePattern('cicr:cache:items:list:*');
   if (id) await cacheInvalidate(itemsIdCacheKey(id));
 };

@@ -6,7 +6,12 @@
 //    interface, so local dev and the test suite run without a Redis server.
 //    Every Redis call is wrapped so a transient connection failure degrades
 //    to the in-memory store instead of crashing a request.
+import dotenv from 'dotenv';
 import Redis from 'ioredis';
+
+// Load env before reading process.env (module may be imported without a caller
+// having run dotenv.config() first).
+dotenv.config();
 
 export const REDIS_URL = process.env.REDIS_URL || '';
 export const isRedisEnabled = REDIS_URL.length > 0;

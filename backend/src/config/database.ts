@@ -5,7 +5,12 @@
 // SUPABASE_READ_URL at a read replica when one is provisioned; today it
 // falls back to the primary project URL so behaviour is identical on the
 // free tier while the code path stays replica-ready.
+import dotenv from 'dotenv';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+// Load env before reading process.env — this module is imported (and evaluates
+// its clients) before any caller's own dotenv.config() runs.
+dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const anonKey = process.env.SUPABASE_ANON_KEY || '';
