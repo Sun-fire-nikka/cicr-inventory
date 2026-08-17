@@ -9,7 +9,6 @@ declare const lucide: {
 
 // API URL
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-const ADMIN_USERNAME = 'SRVKILLER09';
 
 type UserRole = 'ADMIN' | 'MEMBER';
 
@@ -863,7 +862,7 @@ class ModalManager {
             return storedRole;
         }
 
-        return localStorage.getItem('cicr_auth') === ADMIN_USERNAME ? 'ADMIN' : 'MEMBER';
+        return 'MEMBER';
     }
 
     private static isAdmin() {
@@ -1490,11 +1489,6 @@ class AuthManager {
 
         this.loginErr.style.display = 'none';
 
-        if (username === 'SRVKILLER09' && password === 'IAMTHEBEST') {
-            this.loginSuccess(username);
-            return;
-        }
-
         const users = JSON.parse(localStorage.getItem('cicr_users')!) as UserDatabase;
         if (users[username] && users[username] === password) {
             this.loginSuccess(username);
@@ -1573,11 +1567,6 @@ class AuthManager {
 
         if (username.length < 3) {
             this.showSignupError("Username must be at least 3 characters.");
-            return;
-        }
-
-        if (username === 'SRVKILLER09') {
-            this.showSignupError("Username already exists.");
             return;
         }
 
