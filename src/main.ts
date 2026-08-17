@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
-import type { InventoryItem, ActivityLog, UserDatabase } from './types';
+import type { InventoryItem, ActivityLog, RequestRecord, UserDatabase, BorrowRecord } from './types';
 
 // Global declarations for CDN libraries
 declare const lucide: {
@@ -8,127 +8,16 @@ declare const lucide: {
 };
 
 // API URL
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const ADMIN_USERNAME = 'SRVKILLER09';
+
+type UserRole = 'ADMIN' | 'MEMBER';
+
 // Global state variables
 let inventory: InventoryItem[] = [];
 let logs: ActivityLog[] = [];
+let requests: RequestRecord[] = [];
 let selectedItem: InventoryItem | null = null;
-
-// ==========================================
-// 1. Initial Sample Dataset
-// ==========================================
-const DEFAULT_INVENTORY: InventoryItem[] = [
-    {
-        id: "mc-01",
-        name: "Arduino Uno R3",
-        category: "microcontrollers",
-        quantity: 15,
-        location: "Lab Shelf A2",
-        specs: "ATmega328P microcontroller, 5V operating voltage, 14 digital I/O pins, 6 analog inputs. Industry standard for learning electronics and rapid prototyping.",
-        borrowedBy: [
-            { name: "Rahul Sharma", roll: "21102045", qty: 2, purpose: "Robo Soccer Chassis testing", date: "2026-08-05" }
-        ]
-    },
-    {
-        id: "mc-02",
-        name: "ESP32 NodeMCU Development Board",
-        category: "microcontrollers",
-        quantity: 20,
-        location: "Lab Shelf A3",
-        specs: "Dual-core Tensilica LX6 microprocessor, integrated Wi-Fi and Bluetooth (WROOM-32 module), 38 pins. Perfect for IoT, smart automation, and wireless telemetry.",
-        borrowedBy: []
-    },
-    {
-        id: "mc-03",
-        name: "Raspberry Pi 4 Model B (4GB)",
-        category: "microcontrollers",
-        quantity: 5,
-        location: "Lab Shelf A1",
-        specs: "Broadcom BCM2711 quad-core Cortex-A72 64-bit SoC @ 1.5GHz, 4GB LPDDR4-3200 SDRAM. Supports dual 4K displays, gigabit Ethernet, USB 3.0. Used for computer vision and ROS.",
-        borrowedBy: [
-            { name: "Sneha Gupta", roll: "22103112", qty: 2, purpose: "Object detection using OpenCV", date: "2026-08-06" },
-            { name: "Amit Patel", roll: "21103099", qty: 2, purpose: "ROS 2 Navigation simulation", date: "2026-08-07" }
-        ]
-    },
-    {
-        id: "sn-01",
-        name: "HC-SR04 Ultrasonic Distance Sensor",
-        category: "sensors",
-        quantity: 35,
-        location: "Drawer B1",
-        specs: "Operating Voltage: 5V DC, Range: 2cm to 400cm, Effectual Angle: < 15 degrees. Uses ultrasonic waves to determine distance to objects. Crucial for obstacle avoidance.",
-        borrowedBy: []
-    },
-    {
-        id: "sn-02",
-        name: "MPU6050 Accelerometer & Gyroscope",
-        category: "sensors",
-        quantity: 12,
-        location: "Drawer B2",
-        specs: "3-axis gyroscope and 3-axis accelerometer on a single chip, with an onboard Digital Motion Processor (DMP). Communicates via I2C interface. Ideal for self-balancing robots.",
-        borrowedBy: [
-            { name: "Vikram Singh", roll: "23102201", qty: 1, purpose: "Quadcopter IMU alignment", date: "2026-08-04" }
-        ]
-    },
-    {
-        id: "ac-01",
-        name: "SG90 Micro Servo Motor",
-        category: "actuators",
-        quantity: 25,
-        location: "Drawer C1",
-        specs: "Operating speed: 0.12s/60 degrees (4.8V), Stall torque: 1.6 kg/cm, Rotation angle: 180 degrees. Light weight (9g). Used for robotic arms, steering, and active pan-tilts.",
-        borrowedBy: []
-    },
-    {
-        id: "ac-02",
-        name: "NEMA 17 Stepper Motor (High Torque)",
-        category: "actuators",
-        quantity: 8,
-        location: "Lab Shelf B4",
-        specs: "1.8 degree step angle (200 steps/rev), holding torque: 40Ncm, rated current 1.7A. Standard motor for 3D printers, CNC routers, and high-precision motion controls.",
-        borrowedBy: []
-    },
-    {
-        id: "pw-01",
-        name: "Orange LiPo 11.1V 2200mAh 30C Battery",
-        category: "power",
-        quantity: 6,
-        location: "Fireproof Cabinet",
-        specs: "3S1P configuration, 11.1V nominal voltage, 2200mAh capacity, 30C continuous discharge rate. Balanced charging lead with XT60 connector. High energy density battery.",
-        borrowedBy: [
-            { name: "Rohit Verma", roll: "21102014", qty: 4, purpose: "Drone propulsion test runs", date: "2026-08-06" },
-            { name: "Divya Teja", roll: "22104085", qty: 2, purpose: "Autonomous Rover endurance test", date: "2026-08-07" }
-        ]
-    },
-    {
-        id: "tl-01",
-        name: "TS100 Smart Soldering Iron",
-        category: "tools",
-        quantity: 4,
-        location: "Tool Cabinet A",
-        specs: "65W power, dual-temperature sensors, OLED screen, STM32 MCU inside. Connects to 12-24V power supply. Rapid heating up to 400C in 15 seconds. Portable precision soldering.",
-        borrowedBy: [
-            { name: "Arjun Reddy", roll: "21102144", qty: 1, purpose: "Soldering PCB nodes at hostel", date: "2026-08-06" }
-        ]
-    },
-    {
-        id: "tl-02",
-        name: "Creality Ender 3 V2 3D Printer",
-        category: "tools",
-        quantity: 2,
-        location: "3D Printing Zone",
-        specs: "Build Volume: 220 x 220 x 250 mm, Silent TMC2208 stepper drivers, carborundum glass platform, rotary knob interface. Prints PLA, ABS, PETG filaments. Crucial for custom mechanical brackets.",
-        borrowedBy: []
-    }
-];
-
-const DEFAULT_LOGS: ActivityLog[] = [
-    { type: "system", timestamp: "2026-08-01 10:00", text: "Database initialized with base robotics stock." },
-    { type: "borrow", timestamp: "2026-08-05 14:32", text: "<span>Rahul Sharma</span> checked out 2x <span>Arduino Uno R3</span> for 'Robo Soccer Chassis testing'." },
-    { type: "borrow", timestamp: "2026-08-06 11:15", text: "<span>Sneha Gupta</span> checked out 2x <span>Raspberry Pi 4 Model B (4GB)</span> for 'Object detection using OpenCV'." },
-    { type: "borrow", timestamp: "2026-08-06 16:45", text: "<span>Arjun Reddy</span> checked out 1x <span>TS100 Smart Soldering Iron</span> for 'Soldering PCB nodes at hostel'." },
-    { type: "borrow", timestamp: "2026-08-07 09:20", text: "<span>Amit Patel</span> checked out 2x <span>Raspberry Pi 4 Model B (4GB)</span> for 'ROS 2 Navigation simulation'." }
-];
 
 // ==========================================
 // 2. Three.js 3D Background Engine
@@ -139,24 +28,20 @@ class Background3D {
     private camera!: THREE.PerspectiveCamera;
     private renderer!: THREE.WebGLRenderer;
     
-    private grid1!: THREE.GridHelper;
-    private grid2!: THREE.GridHelper;
-    private wallGrid!: THREE.GridHelper;
     private particles!: THREE.Points;
+    private particlePhases: Float32Array = new Float32Array(0);
+    private currentTheme = 'cyberpunk';
     
     private mouseX = 0;
     private mouseY = 0;
     private targetCameraX = 0;
     private targetCameraY = 4;
-    
-    private gridSize = 250;
-    private gridDivisions = 50;
-    private moveSpeed = 0.05;
 
     constructor() {
         this.canvas = document.getElementById('canvas-3d') as HTMLCanvasElement;
+        if (!this.canvas) return;
         this.init();
-        this.createGrid();
+        this.createLighting();
         this.createParticles();
         this.setupEvents();
         this.animate();
@@ -180,22 +65,8 @@ class Background3D {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     }
 
-    private createGrid() {
-        const gridColor1 = new THREE.Color(0x00f0ff);
-        const gridColor2 = new THREE.Color(0xbd00ff);
-        const helperColor = new THREE.Color(0x131326);
-
-        this.grid1 = new THREE.GridHelper(this.gridSize, this.gridDivisions, gridColor1, helperColor);
-        this.grid1.position.y = -6;
-        this.grid1.position.z = 0;
-        this.scene.add(this.grid1);
-
-        this.grid2 = new THREE.GridHelper(this.gridSize, this.gridDivisions, gridColor2, helperColor);
-        this.grid2.position.y = -6;
-        this.grid2.position.z = -this.gridSize;
-        this.scene.add(this.grid2);
-
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    private createLighting() {
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         this.scene.add(ambientLight);
 
         const pointLight = new THREE.PointLight(0xbd00ff, 1.5, 100);
@@ -205,60 +76,97 @@ class Background3D {
         const pointLight2 = new THREE.PointLight(0x00f0ff, 1.5, 100);
         pointLight2.position.set(20, 5, 10);
         this.scene.add(pointLight2);
+    }
 
-        // Vertical background wall grid for depth
-        const wallColor = new THREE.Color(0x00f0ff);
-        this.wallGrid = new THREE.GridHelper(this.gridSize, this.gridDivisions, wallColor, helperColor);
-        this.wallGrid.rotation.x = Math.PI / 2;
-        this.wallGrid.position.set(0, 35, -60);
-        this.scene.add(this.wallGrid);
+    public updateThemeColors(theme: string) {
+        this.currentTheme = theme;
+        let fogHex = 0x06060e;
+        if (theme === 'matrix') fogHex = 0x020d07;
+        else if (theme === 'midnight') fogHex = 0x060e20;
+        else if (theme === 'light') fogHex = 0xf1f5f9;
+        else if (theme === 'sakura') fogHex = 0xfce2ed;
+        else if (theme === 'avengers') fogHex = 0x090a15;
+
+        if (this.scene) {
+            this.scene.fog = new THREE.FogExp2(fogHex, theme === 'sakura' ? 0.01 : 0.015);
+        }
+
+        this.setParticleColorsForTheme(theme);
+    }
+
+    private setParticleColorsForTheme(theme: string) {
+        if (!this.particles) return;
+        const colors = this.particles.geometry.attributes.color.array as Float32Array;
+        const count = colors.length / 3;
+
+        let color1 = new THREE.Color(0x00f0ff);
+        let color2 = new THREE.Color(0xbd00ff);
+        let color3 = new THREE.Color(0xff007a);
+
+        if (theme === 'avengers') {
+            color1 = new THREE.Color(0x00f0ff); // Stark Arc Cyan
+            color2 = new THREE.Color(0xa855f7); // Wakanda Vibranium Purple
+            color3 = new THREE.Color(0xef4444); // Iron Crimson Energy
+        } else if (theme === 'sakura') {
+            color1 = new THREE.Color(0xec4899); // Sakura Blossom Pink
+            color2 = new THREE.Color(0xf43f5e); // Rose Petal Crimson
+            color3 = new THREE.Color(0xf472b6); // Soft Blossom Rose
+        } else if (theme === 'matrix') {
+            color1 = new THREE.Color(0x00ff66);
+            color2 = new THREE.Color(0x00cc44);
+            color3 = new THREE.Color(0x33ff88);
+        } else if (theme === 'midnight') {
+            color1 = new THREE.Color(0x38bdf8);
+            color2 = new THREE.Color(0x818cf8);
+            color3 = new THREE.Color(0xc084fc);
+        } else if (theme === 'light') {
+            color1 = new THREE.Color(0x0284c7);
+            color2 = new THREE.Color(0x7c3aed);
+            color3 = new THREE.Color(0xdb2777);
+        }
+
+        for (let i = 0; i < count; i++) {
+            const rand = Math.random();
+            let c = color1;
+            if (rand > 0.6) c = color2;
+            else if (rand > 0.3) c = color3;
+
+            colors[i * 3] = c.r;
+            colors[i * 3 + 1] = c.g;
+            colors[i * 3 + 2] = c.b;
+        }
+
+        this.particles.geometry.attributes.color.needsUpdate = true;
     }
 
     private createParticles() {
-        const particleCount = 250;
+        const particleCount = 350;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
-
-        const cyanColor = new THREE.Color(0x00f0ff);
-        const purpleColor = new THREE.Color(0xbd00ff);
-        const pinkColor = new THREE.Color(0xff007a);
+        this.particlePhases = new Float32Array(particleCount);
 
         for (let i = 0; i < particleCount; i++) {
-            const x = (Math.random() - 0.5) * 120;
-            const y = Math.random() * 35 - 5;
-            const z = (Math.random() - 0.7) * 150;
-
-            positions[i * 3] = x;
-            positions[i * 3 + 1] = y;
-            positions[i * 3 + 2] = z;
-
-            const rand = Math.random();
-            let mixedColor = cyanColor;
-            if (rand > 0.6) {
-                mixedColor = purpleColor;
-            } else if (rand > 0.3) {
-                mixedColor = pinkColor;
-            }
-
-            colors[i * 3] = mixedColor.r;
-            colors[i * 3 + 1] = mixedColor.g;
-            colors[i * 3 + 2] = mixedColor.b;
+            positions[i * 3] = (Math.random() - 0.5) * 120;
+            positions[i * 3 + 1] = Math.random() * 40 - 10;
+            positions[i * 3 + 2] = (Math.random() - 0.7) * 150;
+            this.particlePhases[i] = Math.random() * Math.PI * 2;
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
         const material = new THREE.PointsMaterial({
-            size: 0.18,
+            size: 0.24,
             vertexColors: true,
             transparent: true,
-            opacity: 0.85,
+            opacity: 0.88,
             blending: THREE.AdditiveBlending
         });
 
         this.particles = new THREE.Points(geometry, material);
         this.scene.add(this.particles);
+        this.setParticleColorsForTheme(this.currentTheme);
     }
 
     private setupEvents() {
@@ -278,32 +186,37 @@ class Background3D {
     private animate() {
         requestAnimationFrame(() => this.animate());
 
-        this.grid1.position.z += this.moveSpeed;
-        this.grid2.position.z += this.moveSpeed;
+        if (this.particles) {
+            const positions = this.particles.geometry.attributes.position.array as Float32Array;
+            const particleCount = positions.length / 3;
+            const time = Date.now() * 0.001;
 
-        if (this.grid1.position.z >= this.gridSize) {
-            this.grid1.position.z = this.grid2.position.z - this.gridSize;
-        }
-        if (this.grid2.position.z >= this.gridSize) {
-            this.grid2.position.z = this.grid1.position.z - this.gridSize;
-        }
+            for (let i = 0; i < particleCount; i++) {
+                if (this.currentTheme === 'sakura') {
+                    // Gentle falling & swaying Sakura Cherry Blossom petals
+                    positions[i * 3 + 1] -= 0.035;
+                    positions[i * 3] += Math.sin(time * 1.5 + this.particlePhases[i]) * 0.025;
+                    positions[i * 3 + 2] += Math.cos(time * 1.0 + this.particlePhases[i]) * 0.015;
 
-        const positions = this.particles.geometry.attributes.position.array as Float32Array;
-        const particleCount = positions.length / 3;
+                    if (positions[i * 3 + 1] < -10) {
+                        positions[i * 3 + 1] = 30;
+                        positions[i * 3] = (Math.random() - 0.5) * 120;
+                    }
+                } else {
+                    positions[i * 3 + 1] += 0.015;
+                    positions[i * 3 + 2] += 0.03;
 
-        for (let i = 0; i < particleCount; i++) {
-            positions[i * 3 + 1] += 0.015;
-            positions[i * 3 + 2] += 0.03;
-
-            if (positions[i * 3 + 1] > 30) {
-                positions[i * 3 + 1] = -5;
+                    if (positions[i * 3 + 1] > 30) {
+                        positions[i * 3 + 1] = -5;
+                    }
+                    if (positions[i * 3 + 2] > 20) {
+                        positions[i * 3 + 2] = -120;
+                        positions[i * 3] = (Math.random() - 0.5) * 120;
+                    }
+                }
             }
-            if (positions[i * 3 + 2] > 20) {
-                positions[i * 3 + 2] = -120;
-                positions[i * 3] = (Math.random() - 0.5) * 120;
-            }
+            this.particles.geometry.attributes.position.needsUpdate = true;
         }
-        this.particles.geometry.attributes.position.needsUpdate = true;
 
         this.targetCameraX = this.mouseX * 3;
         this.targetCameraY = 4 + (this.mouseY * 1.5);
@@ -323,18 +236,23 @@ class Background3D {
 class DatabaseManager {
     static init() {
         if (!localStorage.getItem('cicr_inventory')) {
-            localStorage.setItem('cicr_inventory', JSON.stringify(DEFAULT_INVENTORY));
+            localStorage.setItem('cicr_inventory', JSON.stringify([]));
         }
         if (!localStorage.getItem('cicr_logs')) {
-            localStorage.setItem('cicr_logs', JSON.stringify(DEFAULT_LOGS));
+            localStorage.setItem('cicr_logs', JSON.stringify([]));
+        }
+        if (!localStorage.getItem('cicr_requests')) {
+            localStorage.setItem('cicr_requests', JSON.stringify([]));
         }
         inventory = JSON.parse(localStorage.getItem('cicr_inventory')!);
         logs = JSON.parse(localStorage.getItem('cicr_logs')!);
+        requests = JSON.parse(localStorage.getItem('cicr_requests')!);
     }
 
     static save() {
         localStorage.setItem('cicr_inventory', JSON.stringify(inventory));
         localStorage.setItem('cicr_logs', JSON.stringify(logs));
+        localStorage.setItem('cicr_requests', JSON.stringify(requests));
     }
 
     static addLog(type: ActivityLog['type'], text: string) {
@@ -351,7 +269,10 @@ class DatabaseManager {
 class DashboardManager {
     private activeCategory = 'all';
     private searchQuery = '';
+    private listenersInitialized = false;
+    private mobileSidebarOpen = false;
 
+    private appContainer: HTMLElement;
     private inventoryGrid: HTMLElement;
     private noResults: HTMLElement;
     private searchInput: HTMLInputElement;
@@ -361,15 +282,16 @@ class DashboardManager {
     private statTotal: HTMLElement;
     private statBorrowed: HTMLElement;
     private statLow: HTMLElement;
-    private statCategories: HTMLElement;
+    private statOut: HTMLElement;
+    private mobileSidebarToggle: HTMLButtonElement | null;
+    private mobileSidebarBackdrop: HTMLElement | null;
 
-    private btnAddTrigger: HTMLElement;
-    private btnLogs: HTMLElement;
-    private navDashboard: HTMLElement;
-    private navInventory: HTMLElement;
-    private navAbout: HTMLElement;
+    private clockTimerId: any = null;
 
     constructor() {
+        this.appContainer = document.getElementById('app-container')!;
+        this.mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle') as HTMLButtonElement | null;
+        this.mobileSidebarBackdrop = document.getElementById('mobile-sidebar-backdrop');
         this.inventoryGrid = document.getElementById('inventory-grid')!;
         this.noResults = document.getElementById('no-results')!;
         this.searchInput = document.getElementById('search-input') as HTMLInputElement;
@@ -379,15 +301,7 @@ class DashboardManager {
         this.statTotal = document.getElementById('stat-total')!;
         this.statBorrowed = document.getElementById('stat-borrowed')!;
         this.statLow = document.getElementById('stat-low')!;
-        this.statCategories = document.getElementById('stat-categories')!;
-
-        this.btnAddTrigger = document.getElementById('nav-add-item')!;
-        this.btnLogs = document.getElementById('nav-logs-bell')!;
-        this.navDashboard = document.getElementById('nav-dashboard')!;
-        this.navInventory = document.getElementById('nav-inventory')!;
-        this.navAbout = document.getElementById('nav-about')!;
-
-
+        this.statOut = document.getElementById('stat-out')!;
 
         this.init();
         this.loadInventory();
@@ -396,10 +310,253 @@ class DashboardManager {
     public init() {
         this.renderStats();
         this.renderInventory();
-        this.setupEventListeners();
+        if (!this.listenersInitialized) {
+            this.setupEventListeners();
+            this.listenersInitialized = true;
+        }
+    }
+
+    private setMobileSidebar(open: boolean) {
+        const shouldOpen = open && window.innerWidth <= 1100;
+        this.mobileSidebarOpen = shouldOpen;
+        this.appContainer.classList.toggle('sidebar-open', shouldOpen);
+        this.mobileSidebarToggle?.setAttribute('aria-expanded', String(shouldOpen));
+        if (this.mobileSidebarBackdrop) {
+            this.mobileSidebarBackdrop.style.display = shouldOpen ? 'block' : 'none';
+        }
+    }
+
+    private startClock() {
+        if (this.clockTimerId) clearInterval(this.clockTimerId);
+
+        const updateTime = () => {
+            const now = new Date();
+            
+            // Format time: hh:mm:ss am/pm
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'pm' : 'am';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            const formattedHours = String(hours).padStart(2, '0');
+            
+            const clockEl = document.getElementById('dashboard-clock');
+            if (clockEl) {
+                clockEl.innerText = `${formattedHours}:${minutes}:${seconds} ${ampm}`;
+            }
+
+            // Format date: Tuesday, 17 March 2026
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            const dayName = days[now.getDay()];
+            const dateNum = now.getDate();
+            const monthName = months[now.getMonth()];
+            const year = now.getFullYear();
+
+            const dateEl = document.getElementById('dashboard-date');
+            if (dateEl) {
+                dateEl.innerText = `${dayName}, ${dateNum} ${monthName} ${year}`;
+            }
+
+            // Update time-of-day greeting
+            const curHour = now.getHours();
+            let timeOfDay = 'evening';
+            if (curHour < 12) {
+                timeOfDay = 'morning';
+            } else if (curHour < 17) {
+                timeOfDay = 'afternoon';
+            }
+            
+            const username = localStorage.getItem('cicr_auth') || 'Operator';
+            const greetingEl = document.getElementById('dashboard-greeting');
+            if (greetingEl) {
+                greetingEl.innerText = `Good ${timeOfDay}, ${username}`;
+            }
+        };
+
+        updateTime();
+        this.clockTimerId = setInterval(updateTime, 1000);
     }
 
     private setupEventListeners() {
+        // Ticking Clock and dynamic greeting initialization
+        this.startClock();
+
+        const closeMobileSidebar = () => this.setMobileSidebar(false);
+        const toggleMobileSidebar = () => this.setMobileSidebar(!this.mobileSidebarOpen);
+
+        this.mobileSidebarToggle?.addEventListener('click', () => {
+            toggleMobileSidebar();
+        });
+
+        this.mobileSidebarBackdrop?.addEventListener('click', () => {
+            closeMobileSidebar();
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 1100) {
+                closeMobileSidebar();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeMobileSidebar();
+            }
+        });
+
+        // 1. Sidebar Nav click listeners
+        const sidebarLinks = document.querySelectorAll('.sidebar-nav-link');
+        const sections = document.querySelectorAll('#app-main-content > section');
+        const breadcrumbActive = document.getElementById('breadcrumb-current');
+
+        const switchSection = (targetId: string) => {
+            sections.forEach(node => {
+                const sec = node as HTMLElement;
+                if (sec.id === targetId) {
+                    sec.classList.add('active');
+                    sec.style.display = 'flex';
+                    if (sec.id === 'inventory-view' || sec.id === 'projects-view' || sec.id === 'meetings-view' || sec.id === 'events-view') {
+                        sec.style.display = 'block';
+                    }
+                } else {
+                    sec.classList.remove('active');
+                    sec.style.display = 'none';
+                }
+            });
+
+            // Update sidebar link active class
+            sidebarLinks.forEach(link => {
+                const target = (link as HTMLElement).dataset.target;
+                if (target === targetId) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+
+            // Update breadcrumbs text
+            if (breadcrumbActive) {
+                const nameMap: Record<string, string> = {
+                    'dashboard-view': 'DASHBOARD',
+                    'projects-view': 'PROJECTS',
+                    'meetings-view': 'MEETINGS',
+                    'events-view': 'EVENTS',
+                    'inventory-view': 'INVENTORY'
+                };
+                breadcrumbActive.innerText = nameMap[targetId] || 'WORKSPACE';
+            }
+
+            closeMobileSidebar();
+        };
+
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = (link as HTMLElement).dataset.target;
+                if (target) {
+                    switchSection(target);
+                    closeMobileSidebar();
+                }
+            });
+        });
+
+        // 2. Dashboard action pills switching listeners
+        const pillProjects = document.getElementById('dashboard-pill-projects');
+        if (pillProjects) {
+            pillProjects.addEventListener('click', () => switchSection('projects-view'));
+        }
+        const pillMeetings = document.getElementById('dashboard-pill-meetings');
+        if (pillMeetings) {
+            pillMeetings.addEventListener('click', () => switchSection('meetings-view'));
+        }
+        const pillEvents = document.getElementById('dashboard-pill-events');
+        if (pillEvents) {
+            pillEvents.addEventListener('click', () => switchSection('events-view'));
+        }
+        const pillAdmin = document.getElementById('dashboard-pill-admin');
+        if (pillAdmin) {
+            pillAdmin.addEventListener('click', () => {
+                ModalManager.open('add-item-modal');
+            });
+        }
+        const pillCommunity = document.getElementById('dashboard-pill-community');
+        if (pillCommunity) {
+            pillCommunity.addEventListener('click', () => {
+                ModalManager.openAboutModal();
+            });
+        }
+
+        // 3. Dashboard card switching listeners
+        const cardVault = document.getElementById('dash-card-vault');
+        if (cardVault) {
+            cardVault.addEventListener('click', () => switchSection('inventory-view'));
+        }
+        const cardLogs = document.getElementById('dash-card-logs');
+        if (cardLogs) {
+            cardLogs.addEventListener('click', () => {
+                ModalManager.openLogsDrawer();
+            });
+        }
+        const cardProjects = document.getElementById('dash-card-projects');
+        if (cardProjects) {
+            cardProjects.addEventListener('click', () => switchSection('projects-view'));
+        }
+        const cardMeetings = document.getElementById('dash-card-meetings');
+        if (cardMeetings) {
+            cardMeetings.addEventListener('click', () => switchSection('meetings-view'));
+        }
+        const cardDiscussions = document.getElementById('dash-card-discussions');
+        if (cardDiscussions) {
+            cardDiscussions.addEventListener('click', () => {
+                ModalManager.openAboutModal();
+            });
+        }
+        const cardRecruitment = document.getElementById('dash-card-recruitment');
+        if (cardRecruitment) {
+            cardRecruitment.addEventListener('click', () => {
+                ModalManager.openAboutModal();
+            });
+        }
+
+        // 4. Notifications & History Drawer trigger
+        const notifBtn = document.getElementById('sidebar-notifications-btn');
+        if (notifBtn) {
+            notifBtn.addEventListener('click', () => {
+                ModalManager.openLogsDrawer();
+            });
+        }
+
+        // 5. Command palette mock trigger
+        const commandBtn = document.getElementById('sidebar-command-btn');
+        if (commandBtn) {
+            commandBtn.addEventListener('click', () => {
+                const headerSearch = document.getElementById('header-search-input');
+                if (headerSearch) {
+                    headerSearch.focus();
+                }
+            });
+        }
+
+        // 6. Profile Logout button
+        const logoutBtn = document.getElementById('sidebar-logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // trigger logout directly on AuthManager
+                const oldLogoutBtn = document.getElementById('nav-logout');
+                if (oldLogoutBtn) {
+                    oldLogoutBtn.click();
+                } else {
+                    localStorage.removeItem('cicr_auth');
+                    window.location.reload();
+                }
+            });
+        }
+
+        // 7. Inventory Search Input listeners
         this.searchInput.addEventListener('input', (e) => {
             this.searchQuery = (e.target as HTMLInputElement).value.toLowerCase().trim();
             this.clearSearchBtn.style.display = this.searchQuery ? 'block' : 'none';
@@ -414,7 +571,7 @@ class DashboardManager {
             this.searchInput.focus();
         });
 
-        // Sync active category states between sidebar items and tag pills
+        // 8. Sync active category states between sidebar items and tag pills
         const sidebarItems = document.querySelectorAll('.sidebar-item');
         const tagPills = document.querySelectorAll('.tag-pill');
 
@@ -446,6 +603,7 @@ class DashboardManager {
             item.addEventListener('click', () => {
                 const cat = (item as HTMLElement).dataset.category || 'all';
                 selectCategory(cat);
+                switchSection('inventory-view');
             });
         });
 
@@ -456,104 +614,54 @@ class DashboardManager {
             });
         });
 
-        const closeWelcomeScreen = () => {
-            const welcomeScreen = document.getElementById('welcome-screen');
-            if (welcomeScreen && welcomeScreen.style.display !== 'none') {
-                welcomeScreen.style.transform = 'translateY(-100%)';
-                welcomeScreen.style.transition = 'transform 0.8s cubic-bezier(0.85, 0, 0.15, 1)';
-                setTimeout(() => {
-                    welcomeScreen.style.display = 'none';
-                }, 800);
+        // 9. Theme Switcher Buttons listeners
+        const themeBtnDark = document.getElementById('theme-btn-dark');
+        const themeBtnLight = document.getElementById('theme-btn-light');
+        const themeBtnPink = document.getElementById('theme-btn-pink');
+        const themeBtns = [themeBtnDark, themeBtnLight, themeBtnPink];
+
+        const applyTheme = (themeName: 'dark' | 'light' | 'pink') => {
+            document.body.classList.remove('theme-light', 'theme-pink');
+            themeBtns.forEach(btn => btn?.classList.remove('active'));
+
+            if (themeName === 'light') {
+                document.body.classList.add('theme-light');
+                themeBtnLight?.classList.add('active');
+            } else if (themeName === 'pink') {
+                document.body.classList.add('theme-pink');
+                themeBtnPink?.classList.add('active');
+            } else {
+                themeBtnDark?.classList.add('active');
             }
+
+            localStorage.setItem('cicr_theme', themeName);
         };
 
-        this.btnAddTrigger.addEventListener('click', (e) => {
-            e.preventDefault();
-            closeWelcomeScreen();
-            ModalManager.open('add-item-modal');
-        });
+        themeBtnDark?.addEventListener('click', () => applyTheme('dark'));
+        themeBtnLight?.addEventListener('click', () => applyTheme('light'));
+        themeBtnPink?.addEventListener('click', () => applyTheme('pink'));
 
-        this.btnLogs.addEventListener('click', () => {
-            closeWelcomeScreen();
-            ModalManager.openLogsDrawer();
-        });
-
-        // Dashboard Tab click listener
-        this.navDashboard.addEventListener('click', (e) => {
-            e.preventDefault();
-            closeWelcomeScreen();
-            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            this.navDashboard.classList.add('active');
-            
-            const appContainer = document.getElementById('app-container')!;
-            appContainer.classList.add('view-mode-landing');
-            appContainer.classList.remove('view-mode-vault');
-        });
-
-        // Inventory Tab click listener
-        const showInventoryTab = () => {
-            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            this.navInventory.classList.add('active');
-            
-            const appContainer = document.getElementById('app-container')!;
-            appContainer.classList.remove('view-mode-landing');
-            appContainer.classList.add('view-mode-vault');
-        };
-
-        this.navInventory.addEventListener('click', (e) => {
-            e.preventDefault();
-            closeWelcomeScreen();
-            this.searchInput.value = '';
-            this.searchQuery = '';
-            this.clearSearchBtn.style.display = 'none';
-            selectCategory('all');
-            showInventoryTab();
-        });
-
-        // "GET STARTED WITH VAULT" button click listener
-        const startBtn = document.getElementById('hero-btn-start');
-        if (startBtn) {
-            startBtn.addEventListener('click', () => {
-                showInventoryTab();
-            });
-        }
-
-        this.navAbout.addEventListener('click', (e) => {
-            e.preventDefault();
-            closeWelcomeScreen();
-            ModalManager.openAboutModal();
-        });
-
-        const heroExplore = document.getElementById('hero-btn-explore');
-        const heroAbout = document.getElementById('hero-btn-about');
-        
-        if (heroExplore) {
-            heroExplore.addEventListener('click', () => {
-                showInventoryTab();
-            });
-        }
-        if (heroAbout) {
-            heroAbout.addEventListener('click', () => {
-                ModalManager.openAboutModal();
-            });
-        }
+        // Load active theme state on dashboard init
+        const activeTheme = (localStorage.getItem('cicr_theme') || 'dark') as 'dark' | 'light' | 'pink';
+        applyTheme(activeTheme);
     }
 
     private renderStats() {
         let totalQty = 0;
         let checkedOutQty = 0;
         let lowStockCount = 0;
-        const uniqueCats = new Set<string>();
+        let outOfStockCount = 0;
 
         inventory.forEach(item => {
             totalQty += item.quantity;
-            uniqueCats.add(item.category);
 
-            const borrowedSum = item.borrowedBy.reduce((sum, rec) => sum + rec.qty, 0);
+            const borrowedSum = (item.borrowedBy || []).reduce((sum, rec) => sum + rec.qty, 0);
             checkedOutQty += borrowedSum;
 
             const currentAvailable = item.quantity - borrowedSum;
-            if (currentAvailable <= 2 && currentAvailable > 0) {
+            if (currentAvailable <= 0) {
+                outOfStockCount++;
+            } else if (currentAvailable <= 2) {
                 lowStockCount++;
             }
         });
@@ -561,7 +669,7 @@ class DashboardManager {
         this.statTotal.innerText = String(totalQty);
         this.statBorrowed.innerText = String(checkedOutQty);
         this.statLow.innerText = String(lowStockCount);
-        this.statCategories.innerText = String(uniqueCats.size);
+        this.statOut.innerText = String(outOfStockCount);
     }
 
     private renderInventory() {
@@ -589,7 +697,6 @@ class DashboardManager {
             card.style.transitionDelay = `${(index % 4) * 0.08}s`;
             this.inventoryGrid.appendChild(card);
             
-            // Stagger addition of active class so transition plays
             requestAnimationFrame(() => {
                 setTimeout(() => {
                     card.classList.add('active');
@@ -750,6 +857,167 @@ class ModalManager {
         selectedItem = null;
     }
 
+    private static getCurrentRole(): UserRole {
+        const storedRole = localStorage.getItem('cicr_role');
+        if (storedRole === 'ADMIN' || storedRole === 'MEMBER') {
+            return storedRole;
+        }
+
+        return localStorage.getItem('cicr_auth') === ADMIN_USERNAME ? 'ADMIN' : 'MEMBER';
+    }
+
+    private static isAdmin() {
+        return this.getCurrentRole() === 'ADMIN';
+    }
+
+    private static setBorrowModalMode(mode: 'borrow' | 'request', componentName: string, available: number) {
+        const modalTitle = document.getElementById('borrow-form-title');
+        const subtitle = document.getElementById('borrow-form-subtitle');
+        const submitBtn = document.getElementById('borrow-form-submit') as HTMLButtonElement | null;
+        const qtyLimit = document.getElementById('borrow-qty-limit');
+
+        if (modalTitle) {
+            modalTitle.innerText = mode === 'borrow' ? 'Borrow Component' : 'Request Component';
+        }
+        if (subtitle) {
+            subtitle.innerText = `${mode === 'borrow' ? 'Borrowing' : 'Requesting'} ${componentName}`;
+        }
+        if (submitBtn) {
+            submitBtn.innerText = mode === 'borrow' ? 'Confirm Borrow' : 'Send Request';
+        }
+        if (qtyLimit) {
+            qtyLimit.innerText = `Max units available: ${available}`;
+        }
+    }
+
+    private static renderRequests() {
+        const requestInbox = document.getElementById('request-inbox') as HTMLElement | null;
+        const requestList = document.getElementById('request-list');
+        const requestCountBadge = document.getElementById('request-count-badge');
+
+        if (!requestInbox || !requestList || !requestCountBadge) return;
+
+        if (!this.isAdmin()) {
+            requestInbox.style.display = 'none';
+            requestCountBadge.innerText = '0';
+            return;
+        }
+
+        requestInbox.style.display = 'flex';
+        const pendingRequests = requests.filter((request) => request.status === 'PENDING');
+        requestCountBadge.innerText = String(pendingRequests.length);
+        requestList.innerHTML = '';
+
+        if (pendingRequests.length === 0) {
+            requestList.innerHTML = '<div class="request-empty-state">No pending member requests right now.</div>';
+            return;
+        }
+
+        pendingRequests.forEach((request) => {
+            const requestEl = document.createElement('div');
+            requestEl.className = 'request-item';
+            requestEl.innerHTML = `
+                <div class="request-item-header">
+                    <div>
+                        <h4 class="request-item-title">${request.itemName}</h4>
+                        <div class="request-item-meta">
+                            <span>${request.name}</span>
+                            <span>${request.roll}</span>
+                            <span>${request.qty} units</span>
+                        </div>
+                    </div>
+                    <span class="request-status-chip request-status-pending">${request.status}</span>
+                </div>
+                <div class="request-item-meta">
+                    <span>Purpose: ${request.purpose}</span>
+                    <span>Requested: ${request.requestedAt}</span>
+                </div>
+                <div class="request-item-actions">
+                    <button class="btn btn-primary request-approve-btn" data-request-id="${request.id}">
+                        <i data-lucide="check"></i> Approve
+                    </button>
+                    <button class="btn btn-secondary request-reject-btn" data-request-id="${request.id}">
+                        <i data-lucide="x"></i> Reject
+                    </button>
+                </div>
+            `;
+
+            requestList.appendChild(requestEl);
+        });
+
+        requestList.querySelectorAll('.request-approve-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                const requestId = (button as HTMLButtonElement).dataset.requestId;
+                if (requestId) {
+                    this.reviewRequest(requestId, 'APPROVED');
+                }
+            });
+        });
+
+        requestList.querySelectorAll('.request-reject-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                const requestId = (button as HTMLButtonElement).dataset.requestId;
+                if (requestId) {
+                    this.reviewRequest(requestId, 'REJECTED');
+                }
+            });
+        });
+    }
+
+    private static reviewRequest(requestId: string, nextStatus: 'APPROVED' | 'REJECTED') {
+        if (!this.isAdmin()) return;
+
+        const request = requests.find((entry) => entry.id === requestId);
+        if (!request || request.status !== 'PENDING') return;
+
+        if (nextStatus === 'APPROVED') {
+            const item = inventory.find((entry) => entry.id === request.itemId);
+            const borrowedSum = item ? item.borrowedBy.reduce((sum, rec) => sum + rec.qty, 0) : 0;
+            const available = item ? item.quantity - borrowedSum : 0;
+
+            if (!item || available < request.qty) {
+                request.status = 'REJECTED';
+                request.reviewedAt = new Date().toISOString();
+                request.reviewedBy = localStorage.getItem('cicr_auth') || 'ADMIN';
+                request.reviewNote = 'Auto-rejected because stock was no longer available.';
+                DatabaseManager.addLog('reject', `<span>${request.name}</span>'s request for <span>${request.itemName}</span> was rejected because stock ran out.`);
+                DatabaseManager.save();
+                this.renderRequests();
+                if (selectedItem && selectedItem.id === request.itemId) {
+                    this.openDetailModal(selectedItem);
+                }
+                window.dashboard?.init();
+                return;
+            }
+
+            const defaultDueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            item.borrowedBy.push({
+                name: request.name,
+                roll: request.roll,
+                qty: request.qty,
+                purpose: request.purpose,
+                date: new Date().toISOString().split('T')[0],
+                dueDate: request.dueDate || defaultDueDate
+            });
+
+            DatabaseManager.addLog('approve', `<span>${request.name}</span>'s request for <span>${request.itemName}</span> was approved by admin.`);
+            request.status = 'APPROVED';
+        } else {
+            DatabaseManager.addLog('reject', `<span>${request.name}</span>'s request for <span>${request.itemName}</span> was rejected by admin.`);
+            request.status = 'REJECTED';
+        }
+
+        request.reviewedAt = new Date().toISOString();
+        request.reviewedBy = localStorage.getItem('cicr_auth') || 'ADMIN';
+        DatabaseManager.save();
+        this.renderRequests();
+        if (selectedItem && selectedItem.id === request.itemId) {
+            this.openDetailModal(selectedItem);
+        }
+        window.dashboard?.init();
+        lucide.createIcons();
+    }
+
     static openAboutModal() {
         this.open('about-modal');
     }
@@ -778,6 +1046,8 @@ class ModalManager {
         badge.className = 'modal-status-badge'; 
         
         const borrowBtn = document.getElementById('btn-borrow') as HTMLButtonElement;
+        const returnBtn = document.getElementById('btn-return') as HTMLButtonElement;
+        const role = this.getCurrentRole();
 
         if (available === 0) {
             badge.innerText = 'Out of Stock';
@@ -796,13 +1066,37 @@ class ModalManager {
             borrowBtn.style.opacity = '1';
         }
 
+        if (role === 'ADMIN' && item.borrowedBy.length > 0) {
+            returnBtn.style.display = 'inline-flex';
+        } else {
+            returnBtn.style.display = 'none';
+        }
+
+        if (role === 'ADMIN') {
+            borrowBtn.innerHTML = '<i data-lucide="shopping-cart"></i> Checkout / Borrow';
+        } else {
+            borrowBtn.innerHTML = '<i data-lucide="send"></i> Request Issue';
+        }
+
         const borrowersPanel = document.getElementById('borrowers-panel')!;
         const listContainer = document.getElementById('borrowers-list')!;
         listContainer.innerHTML = '';
 
         if (item.borrowedBy.length > 0) {
             borrowersPanel.style.display = 'block';
+            const todayStr = new Date().toISOString().split('T')[0];
+
             item.borrowedBy.forEach((rec, idx) => {
+                let due = rec.dueDate;
+                if (!due && rec.date) {
+                    const bTime = new Date(rec.date).getTime();
+                    if (!isNaN(bTime)) {
+                        due = new Date(bTime + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    }
+                }
+                const isOverdue = Boolean(due && due < todayStr);
+                const dueBadge = due ? `<span class="borrower-due-badge ${isOverdue ? 'overdue' : ''}">${isOverdue ? 'OVERDUE: ' : 'Due: '}${due}</span>` : '';
+
                 const recEl = document.createElement('div');
                 recEl.className = 'borrower-record';
                 recEl.innerHTML = `
@@ -810,7 +1104,8 @@ class ModalManager {
                         <span class="borrower-name">${rec.name}</span>
                         <span class="borrower-roll">${rec.roll} &bull; ${rec.purpose}</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        ${dueBadge}
                         <span class="borrower-qty-badge">${rec.qty} units</span>
                         <button class="btn btn-secondary btn-inline-return" style="padding: 6px 10px; font-size: 11px;" data-index="${idx}">
                             <i data-lucide="corner-up-left" style="width:12px;height:12px;"></i> Return
@@ -839,38 +1134,112 @@ class ModalManager {
         const borrowedSum = selectedItem.borrowedBy.reduce((sum, rec) => sum + rec.qty, 0);
         const available = selectedItem.quantity - borrowedSum;
 
-        document.getElementById('borrow-form-subtitle')!.innerText = `Component: ${selectedItem.name}`;
-        
-        const qtyLimit = document.getElementById('borrow-qty-limit')!;
-        qtyLimit.innerText = `Max units available: ${available}`;
+        this.setBorrowModalMode(this.isAdmin() ? 'borrow' : 'request', selectedItem.name, available);
 
         const qtyInput = document.getElementById('borrow-qty') as HTMLInputElement;
         qtyInput.max = String(available);
         qtyInput.value = '1';
+
+        const dueDateInput = document.getElementById('borrow-due-date') as HTMLInputElement | null;
+        if (dueDateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            const defaultDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            dueDateInput.min = today;
+            dueDateInput.value = defaultDue;
+        }
 
         this.close('detail-modal');
         this.open('borrow-form-modal');
     }
 
     static openLogsDrawer() {
+        this.renderRequests();
+
         const logsList = document.getElementById('logs-list')!;
         logsList.innerHTML = '';
 
-        if (logs.length === 0) {
-            logsList.innerHTML = '<div style="text-align: center; color: var(--text-dim); margin-top:40px;">No logs logged.</div>';
+        // 1. Scan for active unreturned loans that have passed their due date (OVERDUE - Red)
+        const todayStr = new Date().toISOString().split('T')[0];
+        const activeOverdueList: { item: InventoryItem; rec: BorrowRecord; due: string }[] = [];
+
+        inventory.forEach((item) => {
+            (item.borrowedBy || []).forEach((rec) => {
+                if (rec.returned) return;
+
+                let due = rec.dueDate;
+                if (!due && rec.date) {
+                    const bTime = new Date(rec.date).getTime();
+                    if (!isNaN(bTime)) {
+                        due = new Date(bTime + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    }
+                }
+
+                if (due && due < todayStr) {
+                    activeOverdueList.push({ item, rec, due });
+                }
+            });
+        });
+
+        const hasOverdue = activeOverdueList.length > 0;
+        const hasLogs = logs.length > 0;
+
+        if (!hasOverdue && !hasLogs) {
+            logsList.innerHTML = '<div class="request-empty-state">No logs logged.</div>';
         } else {
+            // Render active Overdue alerts first (Red status, only when an active borrowed item has passed its due date)
+            activeOverdueList.forEach(({ item, rec, due }) => {
+                const logEl = document.createElement('div');
+                logEl.className = 'log-item log-action-overdue';
+                logEl.innerHTML = `
+                    <div class="log-meta">
+                        <span class="log-type-tag"><i data-lucide="clock-alert"></i> OVERDUE</span>
+                        <span>Due: ${due}</span>
+                    </div>
+                    <div class="log-text-content"><span>${rec.name}</span> (${rec.roll}) has not returned <span>${rec.qty}x ${item.name}</span>. Loan was due on <span>${due}</span>.</div>
+                `;
+                logsList.appendChild(logEl);
+            });
+
+            // Render all historical transaction logs with their corresponding status colors
             logs.forEach(log => {
                 const logEl = document.createElement('div');
                 logEl.className = `log-item log-action-${log.type}`;
                 
                 let icon = 'info';
-                if (log.type === 'borrow') icon = 'shopping-cart';
-                if (log.type === 'return') icon = 'corner-up-left';
-                if (log.type === 'add') icon = 'plus';
+                let label = log.type.toUpperCase();
+
+                if (log.type === 'borrow') {
+                    icon = 'shopping-cart';
+                    label = 'BORROW';
+                } else if (log.type === 'return') {
+                    icon = 'corner-up-left';
+                    label = 'RETURNED';
+                } else if (log.type === 'overdue') {
+                    icon = 'clock-alert';
+                    label = 'OVERDUE';
+                } else if (log.type === 'low_stock') {
+                    icon = 'alert-circle';
+                    label = 'LOW STOCK';
+                } else if (log.type === 'add') {
+                    icon = 'plus';
+                    label = 'NEW COMPONENT';
+                } else if (log.type === 'system') {
+                    icon = 'info';
+                    label = 'SYSTEM';
+                } else if (log.type === 'request') {
+                    icon = 'send';
+                    label = 'REQUEST';
+                } else if (log.type === 'approve') {
+                    icon = 'check';
+                    label = 'APPROVED';
+                } else if (log.type === 'reject') {
+                    icon = 'x';
+                    label = 'REJECTED';
+                }
 
                 logEl.innerHTML = `
                     <div class="log-meta">
-                        <span style="display:flex; align-items:center; gap:4px;"><i data-lucide="${icon}" style="width:12px;height:12px;"></i> ${log.type.toUpperCase()}</span>
+                        <span class="log-type-tag"><i data-lucide="${icon}"></i> ${label}</span>
                         <span>${log.timestamp}</span>
                     </div>
                     <div class="log-text-content">${log.text}</div>
@@ -929,21 +1298,49 @@ class ModalManager {
             return;
         }
 
-        const date = new Date().toISOString().split('T')[0];
+        const requestMode = !this.isAdmin();
 
-        selectedItem.borrowedBy.push({
-            name: borrowerName,
-            roll: rollNum,
-            qty: qty,
-            purpose: purpose,
-            date: date
-        });
+        const dueDateInput = document.getElementById('borrow-due-date') as HTMLInputElement | null;
+        const defaultDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const dueDate = (dueDateInput && dueDateInput.value) ? dueDateInput.value : defaultDue;
 
-        DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
+        if (requestMode) {
+            const request: RequestRecord = {
+                id: `req-${Date.now()}`,
+                itemId: selectedItem.id,
+                itemName: selectedItem.name,
+                name: borrowerName,
+                roll: rollNum,
+                qty,
+                purpose,
+                dueDate,
+                status: 'PENDING',
+                requestedAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+            };
+
+            requests.unshift(request);
+            DatabaseManager.addLog('request', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
+        } else {
+            const date = new Date().toISOString().split('T')[0];
+
+            selectedItem.borrowedBy.push({
+                name: borrowerName,
+                roll: rollNum,
+                qty: qty,
+                purpose: purpose,
+                date: date,
+                dueDate: dueDate
+            });
+
+            DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> (Due: ${dueDate}) for '${purpose}'.`);
+        }
 
         (document.getElementById('borrow-form') as HTMLFormElement).reset();
         DatabaseManager.save();
         this.close('borrow-form-modal');
+        if (requestMode) {
+            this.openLogsDrawer();
+        }
         window.dashboard!.init();
     }
 
@@ -1075,41 +1472,11 @@ class AuthManager {
     private static checkAuth() {
         const currentUser = localStorage.getItem('cicr_auth');
         const welcomeScreen = document.getElementById('welcome-screen');
+        if (welcomeScreen) welcomeScreen.style.display = 'none';
         
         if (currentUser) {
-            // Logged in: show welcome screen first on top of dashboard
-            if (welcomeScreen) {
-                welcomeScreen.style.display = 'flex';
-                welcomeScreen.style.transform = 'translateY(0)';
-                
-                const enterBtn = document.getElementById('welcome-btn-enter');
-                if (enterBtn) {
-                    enterBtn.onclick = () => {
-                        welcomeScreen.style.transform = 'translateY(-100%)';
-                        welcomeScreen.style.transition = 'transform 0.8s cubic-bezier(0.85, 0, 0.15, 1)';
-                        setTimeout(() => {
-                            welcomeScreen.style.display = 'none';
-                            // Immediately switch to Inventory view mode
-                            this.appContainer.classList.remove('view-mode-landing');
-                            this.appContainer.classList.add('view-mode-vault');
-                            
-                            const dashboardLink = document.getElementById('nav-dashboard');
-                            const inventoryLink = document.getElementById('nav-inventory');
-                            if (dashboardLink && inventoryLink) {
-                                dashboardLink.classList.remove('active');
-                                inventoryLink.classList.add('active');
-                            }
-                        }, 800);
-                    };
-                }
-            }
-            this.appContainer.classList.add('view-mode-landing');
-            this.appContainer.classList.remove('view-mode-vault');
-            this.globalNavbar.style.display = 'flex';
-            this.loginSuccess(currentUser, true); // Pass a flag to indicate we bypassed the login form transition
+            this.loginSuccess(currentUser);
         } else {
-            // Not logged in: show login screen immediately, hide welcome screen
-            if (welcomeScreen) welcomeScreen.style.display = 'none';
             this.globalNavbar.style.display = 'none';
             this.authOverlay.classList.remove('hidden');
             this.authOverlay.style.display = 'flex';
@@ -1141,80 +1508,59 @@ class AuthManager {
         this.loginErr.style.animation = 'shake-error 0.4s ease';
     }
 
-    private static loginSuccess(username: string, bypassWelcome: boolean = false) {
+    private static loginSuccess(username: string) {
         localStorage.setItem('cicr_auth', username);
-        this.navUsername.innerText = username;
-        this.globalNavbar.style.display = 'flex';
-
-        const welcomeScreen = document.getElementById('welcome-screen')!;
-
-        // Reset active view styles
-        this.appContainer.classList.add('view-mode-landing');
-        this.appContainer.classList.remove('view-mode-vault');
-        
-        // Reset active link state in global navbar
-        const dashboardLink = document.getElementById('nav-dashboard');
-        const inventoryLink = document.getElementById('nav-inventory');
-        if (dashboardLink && inventoryLink) {
-            dashboardLink.classList.add('active');
-            inventoryLink.classList.remove('active');
+        if (this.navUsername) {
+            this.navUsername.innerText = username;
         }
 
-        if (bypassWelcome) {
-            // Already logged in on load: show appContainer in background
-            this.authOverlay.style.display = 'none';
-            this.appContainer.style.display = 'flex';
-            
-            if (!window.dashboard) {
-                window.dashboard = new DashboardManager();
-            } else {
-                window.dashboard.init();
-            }
-            lucide.createIcons();
-            TerminalSimulator.start();
-        } else {
-            // Fresh login: fade out auth form, show welcome screen, prepare appContainer
-            this.authOverlay.classList.add('hidden');
-            setTimeout(() => {
-                this.authOverlay.style.display = 'none';
-                
-                // Show welcome screen with entrance animations
-                welcomeScreen.style.display = 'flex';
-                welcomeScreen.style.transform = 'translateY(0)';
-                
-                // Setup enter vault trigger to slide welcome screen away
-                const enterBtn = document.getElementById('welcome-btn-enter');
-                if (enterBtn) {
-                    enterBtn.onclick = () => {
-                        welcomeScreen.style.transform = 'translateY(-100%)';
-                        welcomeScreen.style.transition = 'transform 0.8s cubic-bezier(0.85, 0, 0.15, 1)';
-                        setTimeout(() => {
-                            welcomeScreen.style.display = 'none';
-                            // Immediately switch to Inventory view mode
-                            this.appContainer.classList.remove('view-mode-landing');
-                            this.appContainer.classList.add('view-mode-vault');
-                            
-                            const dashboardLink = document.getElementById('nav-dashboard');
-                            const inventoryLink = document.getElementById('nav-inventory');
-                            if (dashboardLink && inventoryLink) {
-                                dashboardLink.classList.remove('active');
-                                inventoryLink.classList.add('active');
-                            }
-                        }, 800);
-                    };
-                }
+        // Set username and initial in the left sidebar profile card
+        const profileUserDisplay = document.getElementById('profile-username-display');
+        const profileAvatarInitial = document.getElementById('profile-avatar-initial');
+        if (profileUserDisplay) profileUserDisplay.innerText = username;
+        if (profileAvatarInitial) profileAvatarInitial.innerText = username.charAt(0).toUpperCase();
 
-                // Render dashboard behind the scenes
-                this.appContainer.style.display = 'flex';
-                if (!window.dashboard) {
-                    window.dashboard = new DashboardManager();
+        const welcomeScreen = document.getElementById('welcome-screen');
+        if (welcomeScreen) welcomeScreen.style.display = 'none';
+
+        // Directly transition: hide auth form, show app container
+        this.authOverlay.style.display = 'none';
+        this.appContainer.style.display = 'grid';
+
+        // Select Dashboard link in the left sidebar by default
+        const activeNavClass = () => {
+            const sidebarLinks = document.querySelectorAll('.sidebar-nav-link');
+            sidebarLinks.forEach(link => {
+                const target = (link as HTMLElement).dataset.target;
+                if (target === 'dashboard-view') {
+                    link.classList.add('active');
                 } else {
-                    window.dashboard.init();
+                    link.classList.remove('active');
                 }
-                lucide.createIcons();
-                TerminalSimulator.start();
-            }, 400);
+            });
+            const sections = document.querySelectorAll('#app-main-content > section');
+            sections.forEach(node => {
+                const sec = node as HTMLElement;
+                if (sec.id === 'dashboard-view') {
+                    sec.classList.add('active');
+                    sec.style.display = 'flex';
+                } else {
+                    sec.classList.remove('active');
+                    sec.style.display = 'none';
+                }
+            });
+            const breadcrumbActive = document.getElementById('breadcrumb-current');
+            if (breadcrumbActive) breadcrumbActive.innerText = 'DASHBOARD';
+        };
+        activeNavClass();
+
+        if (!window.dashboard) {
+            window.dashboard = new DashboardManager();
+        } else {
+            window.dashboard.init();
         }
+        lucide.createIcons();
+        TerminalSimulator.start();
     }
 
     private static handleSignup() {
@@ -1360,6 +1706,412 @@ class TerminalSimulator {
 
 
 
+// ==========================================
+// Cherry Blossom (Sakura) Falling Leaves Engine
+// ==========================================
+interface SakuraPetal {
+    x: number;
+    y: number;
+    size: number;
+    speedY: number;
+    swayFreq: number;
+    swayAmp: number;
+    swayPhase: number;
+    rotation: number;
+    rotationSpeed: number;
+    flipAngle: number;
+    flipSpeed: number;
+    opacity: number;
+    colorStart: string;
+    colorEnd: string;
+}
+
+class SakuraAnimation {
+    private canvas: HTMLCanvasElement | null = null;
+    private ctx: CanvasRenderingContext2D | null = null;
+    private petals: SakuraPetal[] = [];
+    private animationFrameId: number | null = null;
+    private isRunning = false;
+    private width = window.innerWidth;
+    private height = window.innerHeight;
+
+    private colors = [
+        { start: '#ffd1e8', end: '#ec4899' },
+        { start: '#fce7f3', end: '#f43f5e' },
+        { start: '#fbcfe8', end: '#fda4af' },
+        { start: '#f472b6', end: '#db2777' },
+    ];
+
+    constructor() {
+        this.canvas = document.getElementById('sakura-canvas') as HTMLCanvasElement;
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        this.initPetals(75);
+        this.setupEvents();
+    }
+
+    private resize() {
+        if (!this.canvas) return;
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+    }
+
+    private initPetals(count: number) {
+        this.petals = [];
+        for (let i = 0; i < count; i++) {
+            this.petals.push(this.createPetal(true));
+        }
+    }
+
+    private createPetal(randomY = false): SakuraPetal {
+        const colorPair = this.colors[Math.floor(Math.random() * this.colors.length)];
+        return {
+            x: Math.random() * this.width,
+            y: randomY ? Math.random() * this.height : -20 - Math.random() * 40,
+            size: Math.random() * 9 + 8,
+            speedY: Math.random() * 1.2 + 0.8,
+            swayFreq: Math.random() * 0.02 + 0.01,
+            swayAmp: Math.random() * 2.5 + 1.2,
+            swayPhase: Math.random() * Math.PI * 2,
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: (Math.random() - 0.5) * 0.03,
+            flipAngle: Math.random() * Math.PI,
+            flipSpeed: Math.random() * 0.03 + 0.01,
+            opacity: Math.random() * 0.35 + 0.6,
+            colorStart: colorPair.start,
+            colorEnd: colorPair.end,
+        };
+    }
+
+    private setupEvents() {
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    public start() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.loop();
+    }
+
+    public stop() {
+        this.isRunning = false;
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+        if (this.ctx && this.canvas) {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    }
+
+    private drawPetal(petal: SakuraPetal) {
+        if (!this.ctx) return;
+        const { x, y, size, rotation, flipAngle, opacity, colorStart, colorEnd } = petal;
+
+        this.ctx.save();
+        this.ctx.translate(x, y);
+        this.ctx.rotate(rotation);
+
+        const scaleX = Math.cos(flipAngle);
+        this.ctx.scale(scaleX, 1);
+
+        this.ctx.globalAlpha = opacity;
+
+        const grad = this.ctx.createLinearGradient(0, -size, 0, size);
+        grad.addColorStop(0, colorStart);
+        grad.addColorStop(1, colorEnd);
+        this.ctx.fillStyle = grad;
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -size);
+        this.ctx.bezierCurveTo(size * 0.75, -size * 0.75, size * 0.9, size * 0.4, 0, size);
+        this.ctx.bezierCurveTo(-size * 0.9, size * 0.4, -size * 0.75, -size * 0.75, 0, -size);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        this.ctx.strokeStyle = 'rgba(236, 72, 153, 0.25)';
+        this.ctx.lineWidth = 0.8;
+        this.ctx.stroke();
+
+        this.ctx.restore();
+    }
+
+    private loop() {
+        if (!this.isRunning || !this.ctx || !this.canvas) return;
+
+        this.ctx.clearRect(0, 0, this.width, this.height);
+
+        for (let i = 0; i < this.petals.length; i++) {
+            const p = this.petals[i];
+
+            p.y += p.speedY;
+            p.swayPhase += p.swayFreq;
+            p.x += Math.sin(p.swayPhase) * p.swayAmp;
+            p.rotation += p.rotationSpeed;
+            p.flipAngle += p.flipSpeed;
+
+            if (p.y > this.height + 30 || p.x < -40 || p.x > this.width + 40) {
+                this.petals[i] = this.createPetal(false);
+            }
+
+            this.drawPetal(p);
+        }
+
+        this.animationFrameId = requestAnimationFrame(() => this.loop());
+    }
+}
+
+// ==========================================
+// Avengers Cinematic Ambient Engine (Shield + Arc Reactor HUD)
+// ==========================================
+class AvengersAnimation {
+    private canvas: HTMLCanvasElement | null = null;
+    private ctx: CanvasRenderingContext2D | null = null;
+    private animationFrameId: number | null = null;
+    private isRunning = false;
+    private pulseTime = 0;
+
+    constructor() {
+        this.canvas = document.getElementById('avengers-canvas') as HTMLCanvasElement;
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    private resize() {
+        if (!this.canvas) return;
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+
+    public start() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.resize();
+        this.loop();
+    }
+
+    public stop() {
+        this.isRunning = false;
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+        if (this.ctx && this.canvas) {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    }
+
+    private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number, color: string, strokeColor?: string, strokeWidth: number = 2) {
+        let rot = (Math.PI / 2) * 3;
+        let step = Math.PI / spikes;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+            let x = cx + Math.cos(rot) * outerRadius;
+            let y = cy + Math.sin(rot) * outerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+
+            x = cx + Math.cos(rot) * innerRadius;
+            y = cy + Math.sin(rot) * innerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        if (strokeColor) {
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = strokeWidth;
+            ctx.stroke();
+        }
+    }
+
+    private drawBackground() {
+        if (!this.ctx || !this.canvas) return;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        this.ctx.clearRect(0, 0, w, h);
+
+        const cx = w / 2;
+        const cy = h / 2;
+        const baseRadius = Math.min(w, h) * 0.27;
+        const pulse = Math.sin(this.pulseTime) * 0.02;
+        // Light, subtle, translucent background opacity so content and texts shine through clearly
+        const opacity = 0.16 + pulse;
+
+        this.ctx.save();
+        this.ctx.globalAlpha = opacity;
+
+        // 1. Soft Vibranium / Stark Arc Energy Aura Glow (light & subtle)
+        const bgGlow = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.2, cx, cy, baseRadius * 1.35);
+        bgGlow.addColorStop(0, 'rgba(239, 68, 68, 0.22)');
+        bgGlow.addColorStop(0.5, 'rgba(59, 130, 246, 0.12)');
+        bgGlow.addColorStop(0.85, 'rgba(0, 240, 255, 0.05)');
+        bgGlow.addColorStop(1, 'transparent');
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 1.35, 0, Math.PI * 2);
+        this.ctx.fillStyle = bgGlow;
+        this.ctx.fill();
+
+        // 2. Light Arc Cyan & Stark Gold Outer Tech Halo Rings
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 1.22, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(1.5, baseRadius * 0.015);
+        this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.35)';
+        this.ctx.stroke();
+
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 1.12, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2, baseRadius * 0.02);
+        this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+        this.ctx.shadowColor = '#00f0ff';
+        this.ctx.shadowBlur = 10;
+        this.ctx.stroke();
+        this.ctx.shadowBlur = 0;
+
+        // 12 Stark HUD Nodes
+        const nodes = 12;
+        for (let i = 0; i < nodes; i++) {
+            const angle = (i * Math.PI * 2) / nodes + this.pulseTime * 0.12;
+            const nx = cx + Math.cos(angle) * (baseRadius * 1.12);
+            const ny = cy + Math.sin(angle) * (baseRadius * 1.12);
+            this.ctx.beginPath();
+            this.ctx.arc(nx, ny, Math.max(2, baseRadius * 0.018), 0, Math.PI * 2);
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            this.ctx.fill();
+        }
+
+        // 3. CAPTAIN AMERICA SHIELD WITH DISTINCT BLACK BOUNDARIES
+        // Outer Red Vibranium Ring
+        const redGrad1 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.74, cx, cy, baseRadius);
+        redGrad1.addColorStop(0, '#f87171');
+        redGrad1.addColorStop(0.6, '#ef4444');
+        redGrad1.addColorStop(1, '#b91c1c');
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
+        this.ctx.fillStyle = redGrad1;
+        this.ctx.fill();
+
+        // Bold Outer Black Boundary of the Shield
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(4, baseRadius * 0.032);
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.stroke();
+
+        // Middle Silver White Ring
+        const silverGrad = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.48, cx, cy, baseRadius * 0.74);
+        silverGrad.addColorStop(0, '#ffffff');
+        silverGrad.addColorStop(0.5, '#e2e8f0');
+        silverGrad.addColorStop(1, '#94a3b8');
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
+        this.ctx.fillStyle = silverGrad;
+        this.ctx.fill();
+
+        // Middle Silver Black Boundary
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(3, baseRadius * 0.022);
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.stroke();
+
+        // Inner Red Ring
+        const redGrad2 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.28, cx, cy, baseRadius * 0.48);
+        redGrad2.addColorStop(0, '#f87171');
+        redGrad2.addColorStop(0.7, '#ef4444');
+        redGrad2.addColorStop(1, '#b91c1c');
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.48, 0, Math.PI * 2);
+        this.ctx.fillStyle = redGrad2;
+        this.ctx.fill();
+
+        // Inner Red Black Boundary
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.48, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(3, baseRadius * 0.022);
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.stroke();
+
+        // Center Cobalt/Stark Blue Disk
+        const blueGrad = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, baseRadius * 0.28);
+        blueGrad.addColorStop(0, '#60a5fa');
+        blueGrad.addColorStop(0.7, '#2563eb');
+        blueGrad.addColorStop(1, '#1e40af');
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
+        this.ctx.fillStyle = blueGrad;
+        this.ctx.fill();
+
+        // Center Blue Black Boundary
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(3, baseRadius * 0.022);
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.stroke();
+
+        // Center Luminous White 5-Point Star with Black Boundary
+        this.drawStar(
+            this.ctx,
+            cx,
+            cy,
+            5,
+            baseRadius * 0.25,
+            baseRadius * 0.11,
+            '#ffffff',
+            '#000000',
+            Math.max(2, baseRadius * 0.016)
+        );
+
+        // 4. Light Stark HUD Target Crosshair Marks
+        this.ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)';
+        this.ctx.lineWidth = 1.4;
+
+        const notchLen = baseRadius * 0.18;
+        // Top
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy - baseRadius * 1.25);
+        this.ctx.lineTo(cx, cy - baseRadius * 1.25 + notchLen);
+        this.ctx.stroke();
+
+        // Bottom
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy + baseRadius * 1.25);
+        this.ctx.lineTo(cx, cy + baseRadius * 1.25 - notchLen);
+        this.ctx.stroke();
+
+        // Left
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx - baseRadius * 1.25, cy);
+        this.ctx.lineTo(cx - baseRadius * 1.25 + notchLen, cy);
+        this.ctx.stroke();
+
+        // Right
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx + baseRadius * 1.25, cy);
+        this.ctx.lineTo(cx + baseRadius * 1.25 - notchLen, cy);
+        this.ctx.stroke();
+
+        this.ctx.restore();
+    }
+
+    private loop() {
+        if (!this.isRunning) return;
+        this.pulseTime += 0.02;
+        this.drawBackground();
+        this.animationFrameId = requestAnimationFrame(() => this.loop());
+    }
+}
+
 // Extend global window interface for development debugging
 declare global {
     interface Window {
@@ -1369,12 +2121,97 @@ declare global {
 }
 
 // ==========================================
+// Theme Manager System
+// ==========================================
+class ThemeManager {
+    private static themeSelectEl: HTMLSelectElement | null = null;
+    private static navThemeSelectEl: HTMLSelectElement | null = null;
+    private static headerThemeSelectEl: HTMLSelectElement | null = null;
+    private static sakuraAnim: SakuraAnimation | null = null;
+    private static avengersAnim: AvengersAnimation | null = null;
+
+    public static init() {
+        this.sakuraAnim = new SakuraAnimation();
+        this.avengersAnim = new AvengersAnimation();
+
+        this.themeSelectEl = document.getElementById('theme-select') as HTMLSelectElement;
+        this.navThemeSelectEl = document.getElementById('nav-theme-select') as HTMLSelectElement;
+        this.headerThemeSelectEl = document.getElementById('header-theme-select') as HTMLSelectElement;
+
+        const savedTheme = localStorage.getItem('cicr_vault_theme') || 'cyberpunk';
+        this.applyTheme(savedTheme);
+
+        if (this.themeSelectEl) {
+            this.themeSelectEl.value = savedTheme;
+            this.themeSelectEl.addEventListener('change', (e) => {
+                const target = e.target as HTMLSelectElement;
+                this.applyTheme(target.value);
+            });
+        }
+
+        if (this.navThemeSelectEl) {
+            this.navThemeSelectEl.value = savedTheme;
+            this.navThemeSelectEl.addEventListener('change', (e) => {
+                const target = e.target as HTMLSelectElement;
+                this.applyTheme(target.value);
+            });
+        }
+
+        if (this.headerThemeSelectEl) {
+            this.headerThemeSelectEl.value = savedTheme;
+            this.headerThemeSelectEl.addEventListener('change', (e) => {
+                const target = e.target as HTMLSelectElement;
+                this.applyTheme(target.value);
+            });
+        }
+    }
+
+    public static applyTheme(theme: string) {
+        document.documentElement.setAttribute('data-theme', theme);
+        document.body.classList.remove('theme-light', 'theme-pink', 'theme-sakura', 'theme-avengers');
+        if (theme === 'light') {
+            document.body.classList.add('theme-light');
+        } else if (theme === 'pink' || theme === 'sakura') {
+            document.body.classList.add('theme-sakura');
+        } else if (theme === 'avengers') {
+            document.body.classList.add('theme-avengers');
+        }
+        localStorage.setItem('cicr_vault_theme', theme);
+
+        if (this.themeSelectEl && this.themeSelectEl.value !== theme) {
+            this.themeSelectEl.value = theme;
+        }
+        if (this.navThemeSelectEl && this.navThemeSelectEl.value !== theme) {
+            this.navThemeSelectEl.value = theme;
+        }
+        if (this.headerThemeSelectEl && this.headerThemeSelectEl.value !== theme) {
+            this.headerThemeSelectEl.value = theme;
+        }
+
+        if (window.bg3D) {
+            window.bg3D.updateThemeColors(theme);
+        }
+
+        if (theme === 'sakura' || theme === 'pink') {
+            this.sakuraAnim?.start();
+            this.avengersAnim?.stop();
+        } else if (theme === 'avengers') {
+            this.sakuraAnim?.stop();
+            this.avengersAnim?.start();
+        } else {
+            this.sakuraAnim?.stop();
+            this.avengersAnim?.stop();
+        }
+    }
+}
+
+// ==========================================
 // 7. Application Bootstrap
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    window.bg3D = new Background3D();
+    ThemeManager.init();
     DatabaseManager.init();
-    // Disabled 3D canvas background to support static high-fidelity green gridlines
-    // window.bg3D = new Background3D();
     ModalManager.init();
     AuthManager.init();
     lucide.createIcons();

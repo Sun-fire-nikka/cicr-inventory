@@ -19,7 +19,11 @@ export const supabase = dbWrite;
 
 const app: Application = express();
 
-app.use(cors());
+const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
+app.use(cors({
+  origin: allowedOrigin,
+  credentials: true,
+}));
 app.use(express.json());
 
 // Redis-backed cookie sessions (v1.5.0). JWT Bearer auth remains the primary
