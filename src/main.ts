@@ -708,7 +708,11 @@ class DashboardManager {
 
     private async loadInventory() {
         try {
-            const res = await fetch(`${API_BASE}/items`);
+            const token = localStorage.getItem('cicr_token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const res = await fetch(`${API_BASE}/items`, { headers });
             const result = await res.json();
 
             inventory = (result.data || []).map((item: any) => ({
@@ -1251,7 +1255,7 @@ class ModalManager {
         lucide.createIcons();
     }
 
-    private static handleAddItemSubmit() {
+    private static async handleAddItemSubmit() {
         const name = (document.getElementById('item-name') as HTMLInputElement).value.trim();
         const category = (document.getElementById('item-category') as HTMLSelectElement).value;
         const qty = parseInt((document.getElementById('item-qty') as HTMLInputElement).value);
@@ -1260,28 +1264,44 @@ class ModalManager {
 
         if (!name || !category || isNaN(qty) || !location) return;
 
-        const id = `${category.slice(0, 2)}-${Date.now().toString().slice(-4)}`;
+        const token = localStorage.getItem('cicr_token');
+        if (!token) {
+            alert('Please log in to add items.');
+            return;
+        }
 
-        const newItem: InventoryItem = {
-            id,
-            name,
-            category,
-            quantity: qty,
-            location,
-            specs,
-            borrowedBy: []
-        };
+        try {
+            const res = await fetch(`${API_BASE}/items`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name,
+                    description: specs,
+                    category,
+                    location,
+                    quantity: qty
+                })
+            });
 
-        inventory.unshift(newItem);
-        DatabaseManager.addLog('add', `Registered new component <span>${name}</span> (Qty: ${qty}) at <span>${location}</span>.`);
-        
-        (document.getElementById('add-item-form') as HTMLFormElement).reset();
-        
-        this.close('add-item-modal');
-        window.dashboard!.init();
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.message || 'Failed to add item.');
+                return;
+            }
+
+            (document.getElementById('add-item-form') as HTMLFormElement).reset();
+            this.close('add-item-modal');
+            window.dashboard!.init();
+        } catch (err) {
+            alert('Network error. Please try again.');
+        }
     }
 
-    private static handleBorrowSubmit() {
+    private static async handleBorrowSubmit() {
         if (!selectedItem) return;
 
         const borrowerName = (document.getElementById('borrow-name') as HTMLInputElement).value.trim();
@@ -1289,11 +1309,17 @@ class ModalManager {
         const qty = parseInt((document.getElementById('borrow-qty') as HTMLInputElement).value);
         const purpose = (document.getElementById('borrow-purpose') as HTMLInputElement).value.trim();
 
-        const borrowedSum = selectedItem.borrowedBy.reduce((sum, rec) => sum + rec.qty, 0);
+        const borrowedSum = selectedItem.borrowedBy.reduce((sum: number, rec: any) => sum + rec.qty, 0);
         const available = selectedItem.quantity - borrowedSum;
 
         if (qty > available || qty <= 0 || isNaN(qty) || !borrowerName || !rollNum || !purpose) {
             alert("Please enter a valid borrow quantity within limits.");
+            return;
+        }
+
+        const token = localStorage.getItem('cicr_token');
+        if (!token) {
+            alert('Please log in to borrow items.');
             return;
         }
 
@@ -1303,58 +1329,105 @@ class ModalManager {
         const defaultDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const dueDate = (dueDateInput && dueDateInput.value) ? dueDateInput.value : defaultDue;
 
-        if (requestMode) {
-            const request: RequestRecord = {
-                id: `req-${Date.now()}`,
-                itemId: selectedItem.id,
-                itemName: selectedItem.name,
-                name: borrowerName,
-                roll: rollNum,
-                qty,
-                purpose,
-                dueDate,
-                status: 'PENDING',
-                requestedAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
-            };
+        const durationDays = Math.ceil((new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
-            requests.unshift(request);
-            DatabaseManager.addLog('request', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
-        } else {
-            const date = new Date().toISOString().split('T')[0];
+        try {
+            let res: Response;
 
-            selectedItem.borrowedBy.push({
-                name: borrowerName,
-                roll: rollNum,
-                qty: qty,
-                purpose: purpose,
-                date: date,
-                dueDate: dueDate
-            });
+            if (requestMode) {
+                // Student: submit borrow request → goes to admin for OTP approval
+                res = await fetch(`${API_BASE}/borrow/request-otp`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        item_id: selectedItem.id,
+                        quantity: qty,
+                        purpose,
+                        duration_days: durationDays,
+                        selected_admin_id: 'kush'
+                    })
+                });
+            } else {
+                // Admin: direct borrow
+                res = await fetch(`${API_BASE}/borrow`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        inventory_id: selectedItem.id,
+                        quantity: qty,
+                        purpose,
+                        duration_days: durationDays
+                    })
+                });
+            }
 
-            DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> (Due: ${dueDate}) for '${purpose}'.`);
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.message || 'Borrow request failed.');
+                return;
+            }
+
+            (document.getElementById('borrow-form') as HTMLFormElement).reset();
+            this.close('borrow-form-modal');
+
+            if (requestMode) {
+                alert(`Borrow request submitted! OTP sent to admin for approval.`);
+                this.openLogsDrawer();
+            } else {
+                alert(`Successfully borrowed ${qty}x ${selectedItem.name}.`);
+            }
+
+            window.dashboard!.init();
+        } catch (err) {
+            alert('Network error. Please try again.');
         }
-
-        (document.getElementById('borrow-form') as HTMLFormElement).reset();
-        DatabaseManager.save();
-        this.close('borrow-form-modal');
-        if (requestMode) {
-            this.openLogsDrawer();
-        }
-        window.dashboard!.init();
     }
 
-    private static handleReturnClick(idx: number) {
+    private static async handleReturnClick(idx: number) {
         if (!selectedItem) return;
 
         const rec = selectedItem.borrowedBy[idx];
         if (!rec) return;
 
-        selectedItem.borrowedBy.splice(idx, 1);
-        DatabaseManager.addLog('return', `<span>${rec.name}</span> returned ${rec.qty}x <span>${selectedItem.name}</span>.`);
+        const token = localStorage.getItem('cicr_token');
+        if (!token) {
+            alert('Please log in to return items.');
+            return;
+        }
 
-        DatabaseManager.save();
-        this.openDetailModal(selectedItem);
-        window.dashboard!.init();
+        try {
+            const res = await fetch(`${API_BASE}/borrow/return`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    inventory_id: selectedItem.id,
+                    borrower_name: rec.name
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.message || 'Return failed.');
+                return;
+            }
+
+            alert(`${rec.name} returned ${rec.qty}x ${selectedItem.name}.`);
+            this.openDetailModal(selectedItem);
+            window.dashboard!.init();
+        } catch (err) {
+            alert('Network error. Please try again.');
+        }
     }
 }
 
