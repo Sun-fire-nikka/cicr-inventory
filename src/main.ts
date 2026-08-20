@@ -426,6 +426,16 @@ class DashboardManager {
                 }
             });
 
+            // Hide the header search box when on the inventory view to prevent double search bars
+            const headerSearchBox = document.querySelector('.header-search') as HTMLElement;
+            if (headerSearchBox) {
+                if (targetId === 'inventory-view') {
+                    headerSearchBox.style.display = 'none';
+                } else {
+                    headerSearchBox.style.display = 'flex';
+                }
+            }
+
             // Update sidebar link active class
             sidebarLinks.forEach(link => {
                 const target = (link as HTMLElement).dataset.target;
@@ -1549,6 +1559,13 @@ class AuthManager {
                     sec.style.display = 'none';
                 }
             });
+
+            // Make sure the header search box is visible in dashboard view on login
+            const headerSearchBox = document.querySelector('.header-search') as HTMLElement;
+            if (headerSearchBox) {
+                headerSearchBox.style.display = 'flex';
+            }
+
             const breadcrumbActive = document.getElementById('breadcrumb-current');
             if (breadcrumbActive) breadcrumbActive.innerText = 'DASHBOARD';
         };
