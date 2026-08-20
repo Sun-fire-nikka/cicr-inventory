@@ -34,6 +34,7 @@
     --glow-cyan: 0 0 15px rgba(0, 240, 255, 0.35);
     --glow-purple: 0 0 15px rgba(189, 0, 255, 0.35);
     --glow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    --autofill-bg: #0b0b16;
     
     /* Transition */
     --transition-speed: 0.3s;
@@ -2174,8 +2175,8 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
 input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 1000px #0b0b16 inset !important;
-    -webkit-text-fill-color: var(--white) !important;
+    -webkit-box-shadow: 0 0 0 1000px var(--autofill-bg, #0b0b16) inset !important;
+    -webkit-text-fill-color: var(--text-main, #ffffff) !important;
     border: 1px solid var(--border-glass) !important;
     transition: background-color 5000s ease-in-out 0s;
 }
@@ -4722,6 +4723,7 @@ body.theme-light {
     --active-bg: rgba(14, 165, 233, 0.1);
     --active-border: rgba(14, 165, 233, 0.22);
     --active-color: var(--neon-cyan);
+    --autofill-bg: #ffffff;
 }
 
 body.theme-light .cyber-scanner-line,
@@ -5321,6 +5323,7 @@ body.theme-sakura {
     --active-bg: rgba(236, 72, 153, 0.16);
     --active-border: rgba(236, 72, 153, 0.4);
     --active-color: #db2777;
+    --autofill-bg: #fff0f6;
 }
 
 [data-theme="sakura"] body,
@@ -5341,8 +5344,8 @@ body.theme-sakura {
 body.theme-sakura::before {
     background-image: 
         radial-gradient(circle at 50% 0%, rgba(244, 114, 182, 0.25) 0%, transparent 60%),
-        linear-gradient(rgba(236, 72, 153, 0.15) 1.2px, transparent 1.2px),
-        linear-gradient(90deg, rgba(236, 72, 153, 0.15) 1.2px, transparent 1.2px);
+        linear-gradient(var(--grid-color) 1.2px, transparent 1.2px),
+        linear-gradient(90deg, var(--grid-color) 1.2px, transparent 1.2px);
     background-size: 100% 100%, 40px 40px, 40px 40px;
     opacity: 1;
 }
@@ -5493,6 +5496,8 @@ body.theme-sakura .log-item {
     --active-bg: rgba(239, 68, 68, 0.18);
     --active-border: rgba(239, 68, 68, 0.45);
     --active-color: #f8fafc;
+    --grid-color: transparent;
+    --autofill-bg: #0c1020;
 }
 
 [data-theme="avengers"] body,
@@ -5512,8 +5517,8 @@ body.theme-avengers::before {
         radial-gradient(circle at 20% 20%, rgba(239, 68, 68, 0.15) 0%, transparent 55%),
         radial-gradient(circle at 80% 80%, rgba(37, 99, 235, 0.15) 0%, transparent 55%),
         radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.08) 0%, transparent 60%),
-        linear-gradient(rgba(239, 68, 68, 0.07) 1.2px, transparent 1.2px),
-        linear-gradient(90deg, rgba(59, 130, 246, 0.07) 1.2px, transparent 1.2px);
+        linear-gradient(var(--grid-color) 1.2px, transparent 1.2px),
+        linear-gradient(90deg, var(--grid-color) 1.2px, transparent 1.2px);
     background-size: 100% 100%, 100% 100%, 100% 100%, 36px 36px, 36px 36px;
     opacity: 1;
 }
