@@ -1890,6 +1890,7 @@ class AvengersAnimation {
     private animationFrameId: number | null = null;
     private isRunning = false;
     private pulseTime = 0;
+    private particles: Array<{ x: number, y: number, speedX: number, speedY: number, size: number, alpha: number, color: string }> = [];
 
     constructor() {
         this.canvas = document.getElementById('avengers-canvas') as HTMLCanvasElement;
@@ -1918,9 +1919,29 @@ class AvengersAnimation {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
+        this.particles = [];
         if (this.ctx && this.canvas) {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         }
+    }
+
+    private spawnParticle() {
+        if (!this.canvas) return;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        
+        // Spawn from center shield or bottom of screen
+        const fromCenter = Math.random() > 0.4;
+        const x = fromCenter ? (w / 2 + (Math.random() - 0.5) * 60) : (Math.random() * w);
+        const y = fromCenter ? (h / 2 + (Math.random() - 0.5) * 60) : (h + 10);
+        
+        const speedX = (Math.random() - 0.5) * 0.7;
+        const speedY = 0.4 + Math.random() * 1.2;
+        const size = 1.0 + Math.random() * 2.2;
+        const alpha = 0.5 + Math.random() * 0.5;
+        const color = Math.random() > 0.5 ? 'rgba(0, 240, 255, 0.7)' : 'rgba(239, 68, 68, 0.7)';
+        
+        this.particles.push({ x, y, speedX, speedY, size, alpha, color });
     }
 
     private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number, color: string, strokeColor?: string, strokeWidth: number = 2) {
@@ -1960,140 +1981,214 @@ class AvengersAnimation {
 
         const cx = w / 2;
         const cy = h / 2;
-        const baseRadius = Math.min(w, h) * 0.27;
-        const pulse = Math.sin(this.pulseTime) * 0.02;
-        // Light, subtle, translucent background opacity so content and texts shine through clearly
+        const baseRadius = Math.min(w, h) * 0.26;
+        const pulse = Math.sin(this.pulseTime) * 0.015;
         const opacity = 0.16 + pulse;
+
+        // 1. Particle update and draw loop (Sparks floating up)
+        if (this.particles.length < 50 && Math.random() < 0.25) {
+            this.spawnParticle();
+        }
+
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.y -= p.speedY;
+            p.x += p.speedX;
+            p.alpha -= 0.004;
+            if (p.alpha <= 0 || p.y < -10) {
+                this.particles.splice(i, 1);
+                continue;
+            }
+            this.ctx.save();
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            this.ctx.fillStyle = p.color;
+            this.ctx.globalAlpha = p.alpha * opacity;
+            this.ctx.fill();
+            this.ctx.restore();
+        }
 
         this.ctx.save();
         this.ctx.globalAlpha = opacity;
 
-        // 1. Soft Vibranium / Stark Arc Energy Aura Glow (light & subtle)
+        // 2. Soft Vibranium / Stark Arc Energy Aura Glow
         const bgGlow = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.2, cx, cy, baseRadius * 1.35);
-        bgGlow.addColorStop(0, 'rgba(239, 68, 68, 0.22)');
-        bgGlow.addColorStop(0.5, 'rgba(59, 130, 246, 0.12)');
-        bgGlow.addColorStop(0.85, 'rgba(0, 240, 255, 0.05)');
+        bgGlow.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
+        bgGlow.addColorStop(0.5, 'rgba(59, 130, 246, 0.15)');
+        bgGlow.addColorStop(0.85, 'rgba(0, 240, 255, 0.06)');
         bgGlow.addColorStop(1, 'transparent');
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, baseRadius * 1.35, 0, Math.PI * 2);
         this.ctx.fillStyle = bgGlow;
         this.ctx.fill();
 
-        // 2. Light Arc Cyan & Stark Gold Outer Tech Halo Rings
+        // 3. Stark Dotted Tech Halo Rings (Opposite Rotation)
+        this.ctx.save();
+        this.ctx.translate(cx, cy);
+        this.ctx.rotate(-this.pulseTime * 0.07);
+
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 1.22, 0, Math.PI * 2);
+        this.ctx.arc(0, 0, baseRadius * 1.22, 0, Math.PI * 2);
         this.ctx.lineWidth = Math.max(1.5, baseRadius * 0.015);
         this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.35)';
         this.ctx.stroke();
 
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 1.12, 0, Math.PI * 2);
+        this.ctx.arc(0, 0, baseRadius * 1.12, 0, Math.PI * 2);
         this.ctx.lineWidth = Math.max(2, baseRadius * 0.02);
         this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
-        this.ctx.shadowColor = '#00f0ff';
-        this.ctx.shadowBlur = 10;
+        this.ctx.setLineDash([8, 12]);
         this.ctx.stroke();
-        this.ctx.shadowBlur = 0;
+        this.ctx.setLineDash([]);
+        this.ctx.restore();
 
-        // 12 Stark HUD Nodes
+        // Dotted Tech Ring Nodes (Clockwise Rotation)
+        this.ctx.save();
+        this.ctx.translate(cx, cy);
+        this.ctx.rotate(this.pulseTime * 0.05);
         const nodes = 12;
         for (let i = 0; i < nodes; i++) {
-            const angle = (i * Math.PI * 2) / nodes + this.pulseTime * 0.12;
-            const nx = cx + Math.cos(angle) * (baseRadius * 1.12);
-            const ny = cy + Math.sin(angle) * (baseRadius * 1.12);
+            const angle = (i * Math.PI * 2) / nodes;
+            const nx = Math.cos(angle) * (baseRadius * 1.12);
+            const ny = Math.sin(angle) * (baseRadius * 1.12);
             this.ctx.beginPath();
             this.ctx.arc(nx, ny, Math.max(2, baseRadius * 0.018), 0, Math.PI * 2);
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
             this.ctx.fill();
         }
+        this.ctx.restore();
 
-        // 3. CAPTAIN AMERICA SHIELD WITH DISTINCT BLACK BOUNDARIES
+        // 4. Rotating Radar Scanning Sweep
+        this.ctx.save();
+        this.ctx.translate(cx, cy);
+        this.ctx.rotate(this.pulseTime * 0.12);
+        const sweepGrad = this.ctx.createLinearGradient(0, 0, baseRadius * 1.25, 0);
+        sweepGrad.addColorStop(0, 'rgba(0, 240, 255, 0.20)');
+        sweepGrad.addColorStop(1, 'transparent');
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, 0);
+        this.ctx.arc(0, 0, baseRadius * 1.25, -0.15, 0.15);
+        this.ctx.closePath();
+        this.ctx.fillStyle = sweepGrad;
+        this.ctx.fill();
+        this.ctx.restore();
+
+        // 5. CAPTAIN AMERICA SHIELD (Clockwise Rotation)
+        this.ctx.save();
+        this.ctx.translate(cx, cy);
+        this.ctx.rotate(this.pulseTime * 0.04);
+
         // Outer Red Vibranium Ring
-        const redGrad1 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.74, cx, cy, baseRadius);
+        const redGrad1 = this.ctx.createRadialGradient(0, 0, baseRadius * 0.74, 0, 0, baseRadius);
         redGrad1.addColorStop(0, '#f87171');
         redGrad1.addColorStop(0.6, '#ef4444');
         redGrad1.addColorStop(1, '#b91c1c');
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
+        this.ctx.arc(0, 0, baseRadius, 0, Math.PI * 2);
         this.ctx.fillStyle = redGrad1;
+        this.ctx.shadowColor = '#ef4444';
+        this.ctx.shadowBlur = 15;
         this.ctx.fill();
+        this.ctx.shadowBlur = 0; // reset shadow
 
         // Bold Outer Black Boundary of the Shield
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(4, baseRadius * 0.032);
+        this.ctx.arc(0, 0, baseRadius, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(3.5, baseRadius * 0.028);
         this.ctx.strokeStyle = '#000000';
         this.ctx.stroke();
 
         // Middle Silver White Ring
-        const silverGrad = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.48, cx, cy, baseRadius * 0.74);
+        const silverGrad = this.ctx.createRadialGradient(0, 0, baseRadius * 0.48, 0, 0, baseRadius * 0.74);
         silverGrad.addColorStop(0, '#ffffff');
         silverGrad.addColorStop(0.5, '#e2e8f0');
         silverGrad.addColorStop(1, '#94a3b8');
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
+        this.ctx.arc(0, 0, baseRadius * 0.74, 0, Math.PI * 2);
         this.ctx.fillStyle = silverGrad;
         this.ctx.fill();
 
+        // Divided Arc Reactor divisions inside the silver ring
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, baseRadius * 0.61, 0, Math.PI * 2);
+        this.ctx.lineWidth = 1.2;
+        this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+        this.ctx.setLineDash([4, 6]);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+
         // Middle Silver Black Boundary
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 0.74, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(3, baseRadius * 0.022);
+        this.ctx.arc(0, 0, baseRadius * 0.74, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.02);
         this.ctx.strokeStyle = '#000000';
         this.ctx.stroke();
 
         // Inner Red Ring
-        const redGrad2 = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.28, cx, cy, baseRadius * 0.48);
+        const redGrad2 = this.ctx.createRadialGradient(0, 0, baseRadius * 0.28, 0, 0, baseRadius * 0.48);
         redGrad2.addColorStop(0, '#f87171');
         redGrad2.addColorStop(0.7, '#ef4444');
         redGrad2.addColorStop(1, '#b91c1c');
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 0.48, 0, Math.PI * 2);
+        this.ctx.arc(0, 0, baseRadius * 0.48, 0, Math.PI * 2);
         this.ctx.fillStyle = redGrad2;
         this.ctx.fill();
 
         // Inner Red Black Boundary
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 0.48, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(3, baseRadius * 0.022);
+        this.ctx.arc(0, 0, baseRadius * 0.48, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.02);
         this.ctx.strokeStyle = '#000000';
         this.ctx.stroke();
 
-        // Center Cobalt/Stark Blue Disk
-        const blueGrad = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, baseRadius * 0.28);
+        // Center Blue Disk
+        const blueGrad = this.ctx.createRadialGradient(0, 0, 0, 0, 0, baseRadius * 0.28);
         blueGrad.addColorStop(0, '#60a5fa');
         blueGrad.addColorStop(0.7, '#2563eb');
         blueGrad.addColorStop(1, '#1e40af');
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
+        this.ctx.arc(0, 0, baseRadius * 0.28, 0, Math.PI * 2);
         this.ctx.fillStyle = blueGrad;
+        this.ctx.fill();
+
+        // Glowing Arc Reactor Core under the star
+        const coreGlow = this.ctx.createRadialGradient(0, 0, 0, 0, 0, baseRadius * 0.17);
+        coreGlow.addColorStop(0, '#ffffff');
+        coreGlow.addColorStop(0.4, 'rgba(0, 240, 255, 0.85)');
+        coreGlow.addColorStop(0.7, 'rgba(37, 99, 235, 0.35)');
+        coreGlow.addColorStop(1, 'transparent');
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, baseRadius * 0.17, 0, Math.PI * 2);
+        this.ctx.fillStyle = coreGlow;
         this.ctx.fill();
 
         // Center Blue Black Boundary
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 0.28, 0, Math.PI * 2);
-        this.ctx.lineWidth = Math.max(3, baseRadius * 0.022);
+        this.ctx.arc(0, 0, baseRadius * 0.28, 0, Math.PI * 2);
+        this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.02);
         this.ctx.strokeStyle = '#000000';
         this.ctx.stroke();
 
         // Center Luminous White 5-Point Star with Black Boundary
         this.drawStar(
             this.ctx,
-            cx,
-            cy,
+            0,
+            0,
             5,
-            baseRadius * 0.25,
-            baseRadius * 0.11,
+            baseRadius * 0.23,
+            baseRadius * 0.10,
             '#ffffff',
             '#000000',
-            Math.max(2, baseRadius * 0.016)
+            Math.max(1.8, baseRadius * 0.015)
         );
 
-        // 4. Light Stark HUD Target Crosshair Marks
-        this.ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)';
-        this.ctx.lineWidth = 1.4;
+        this.ctx.restore();
 
+        // 6. Light Stark HUD Target Crosshair Marks (Stationary)
+        this.ctx.strokeStyle = 'rgba(239, 68, 68, 0.35)';
+        this.ctx.lineWidth = 1.4;
         const notchLen = baseRadius * 0.18;
+
         // Top
         this.ctx.beginPath();
         this.ctx.moveTo(cx, cy - baseRadius * 1.25);
@@ -2123,7 +2218,7 @@ class AvengersAnimation {
 
     private loop() {
         if (!this.isRunning) return;
-        this.pulseTime += 0.02;
+        this.pulseTime += 0.025;
         this.drawBackground();
         this.animationFrameId = requestAnimationFrame(() => this.loop());
     }
