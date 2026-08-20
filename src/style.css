@@ -5301,6 +5301,7 @@ body.theme-sakura {
     --bg-glass-active: rgba(254, 226, 239, 1);
     --border-glass: rgba(244, 114, 182, 0.35);
     --border-glass-hover: rgba(236, 72, 153, 0.55);
+    --grid-color: transparent;
     
     --neon-cyan: #ec4899;
     --neon-purple: #d946ef;
