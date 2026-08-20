@@ -1944,24 +1944,25 @@ class AvengersAnimation {
         this.particles.push({ x, y, speedX, speedY, size, alpha, color });
     }
 
-    private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number, color: string, strokeColor?: string, strokeWidth: number = 2) {
-        let rot = (Math.PI / 2) * 3;
-        let step = Math.PI / spikes;
 
+
+    private drawAvengersLogo(ctx: CanvasRenderingContext2D, r: number, color: string, strokeColor?: string, strokeWidth: number = 2) {
+        ctx.save();
+        ctx.lineJoin = 'miter';
+        ctx.shadowColor = 'rgba(0, 240, 255, 0.6)';
+        ctx.shadowBlur = 10;
+
+        // 1. Stylized letter "A"
         ctx.beginPath();
-        ctx.moveTo(cx, cy - outerRadius);
-        for (let i = 0; i < spikes; i++) {
-            let x = cx + Math.cos(rot) * outerRadius;
-            let y = cy + Math.sin(rot) * outerRadius;
-            ctx.lineTo(x, y);
-            rot += step;
-
-            x = cx + Math.cos(rot) * innerRadius;
-            y = cy + Math.sin(rot) * innerRadius;
-            ctx.lineTo(x, y);
-            rot += step;
-        }
-        ctx.lineTo(cx, cy - outerRadius);
+        ctx.moveTo(-r * 0.15, -r * 0.85); // top-left peak
+        ctx.lineTo(r * 0.15, -r * 0.85);  // top-right peak
+        ctx.lineTo(r * 0.45, r * 0.55); // outer bottom-right leg
+        ctx.lineTo(r * 0.20, r * 0.55); // inner bottom-right leg
+        
+        ctx.lineTo(r * 0.12, r * 0.18); // crossbar top-right
+        ctx.lineTo(-r * 0.12, r * 0.18); // crossbar top-left
+        ctx.lineTo(-r * 0.28, r * 0.55); // outer bottom-left leg
+        ctx.lineTo(-r * 0.52, r * 0.55); // inner bottom-left leg
         ctx.closePath();
         ctx.fillStyle = color;
         ctx.fill();
@@ -1971,6 +1972,74 @@ class AvengersAnimation {
             ctx.lineWidth = strokeWidth;
             ctx.stroke();
         }
+
+        // Triangular hole inside the top of "A"
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 0.5);
+        ctx.lineTo(r * 0.11, 0);
+        ctx.lineTo(-r * 0.11, 0);
+        ctx.closePath();
+        const innerBlueGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.08);
+        innerBlueGrad.addColorStop(0, '#60a5fa');
+        innerBlueGrad.addColorStop(0.7, '#2563eb');
+        innerBlueGrad.addColorStop(1, '#1e40af');
+        ctx.fillStyle = innerBlueGrad;
+        ctx.fill();
+        if (strokeColor) {
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = strokeWidth;
+            ctx.stroke();
+        }
+
+        // 2. Crossbar arrow pointing right-up
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.12, r * 0.18); // crossbar start
+        ctx.lineTo(r * 0.55, r * 0.18);  // arrow tail bottom
+        ctx.lineTo(r * 0.55, r * 0.35);  // arrow barb bottom
+        ctx.lineTo(r * 0.90, r * 0.05);  // arrow head tip
+        ctx.lineTo(r * 0.50, -r * 0.28); // arrow barb top
+        ctx.lineTo(r * 0.50, -r * 0.05); // arrow tail top
+        ctx.lineTo(-r * 0.08, -r * 0.05); // crossbar top back
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        if (strokeColor) {
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = strokeWidth;
+            ctx.stroke();
+        }
+
+        // 3. Outer circle wrapping around "A" (with gap for bottom-left leg and top/right arrow)
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.72, -Math.PI * 0.05, Math.PI * 0.72); // bottom and right arc
+        ctx.lineWidth = r * 0.12;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+
+        if (strokeColor) {
+            ctx.save();
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeStyle = strokeColor;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.72, Math.PI * 0.98, Math.PI * 1.58); // top-left arc
+        ctx.lineWidth = r * 0.12;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+
+        if (strokeColor) {
+            ctx.save();
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeStyle = strokeColor;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        ctx.restore();
     }
 
     private drawBackground() {
@@ -1984,6 +2053,18 @@ class AvengersAnimation {
         const baseRadius = Math.min(w, h) * 0.26;
         const pulse = Math.sin(this.pulseTime) * 0.015;
         const opacity = 0.16 + pulse;
+
+        // Sweeping holographic scanline bar (horizontal)
+        const scanY = (this.pulseTime * 140) % h;
+        this.ctx.save();
+        this.ctx.globalAlpha = opacity * 0.4;
+        const scanGrad = this.ctx.createLinearGradient(0, scanY - 60, 0, scanY + 60);
+        scanGrad.addColorStop(0, 'transparent');
+        scanGrad.addColorStop(0.5, 'rgba(0, 240, 255, 0.12)');
+        scanGrad.addColorStop(1, 'transparent');
+        this.ctx.fillStyle = scanGrad;
+        this.ctx.fillRect(0, scanY - 60, w, 120);
+        this.ctx.restore();
 
         // 1. Particle update and draw loop (Sparks floating up)
         if (this.particles.length < 50 && Math.random() < 0.25) {
@@ -2091,11 +2172,11 @@ class AvengersAnimation {
         this.ctx.fill();
         this.ctx.shadowBlur = 0; // reset shadow
 
-        // Bold Outer Black Boundary of the Shield
+        // Bold Outer Glowing Red Boundary of the Shield
         this.ctx.beginPath();
         this.ctx.arc(0, 0, baseRadius, 0, Math.PI * 2);
         this.ctx.lineWidth = Math.max(3.5, baseRadius * 0.028);
-        this.ctx.strokeStyle = '#000000';
+        this.ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
         this.ctx.stroke();
 
         // Middle Silver White Ring
@@ -2108,20 +2189,23 @@ class AvengersAnimation {
         this.ctx.fillStyle = silverGrad;
         this.ctx.fill();
 
-        // Divided Arc Reactor divisions inside the silver ring
+        // Divided Arc Reactor divisions inside the silver ring (Counter-Rotating)
+        this.ctx.save();
+        this.ctx.rotate(-this.pulseTime * 0.08);
         this.ctx.beginPath();
         this.ctx.arc(0, 0, baseRadius * 0.61, 0, Math.PI * 2);
-        this.ctx.lineWidth = 1.2;
-        this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
-        this.ctx.setLineDash([4, 6]);
+        this.ctx.lineWidth = 1.5;
+        this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.55)';
+        this.ctx.setLineDash([6, 8]);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
+        this.ctx.restore();
 
-        // Middle Silver Black Boundary
+        // Middle Silver Glowing White Boundary
         this.ctx.beginPath();
         this.ctx.arc(0, 0, baseRadius * 0.74, 0, Math.PI * 2);
         this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.02);
-        this.ctx.strokeStyle = '#000000';
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
         this.ctx.stroke();
 
         // Inner Red Ring
@@ -2134,11 +2218,11 @@ class AvengersAnimation {
         this.ctx.fillStyle = redGrad2;
         this.ctx.fill();
 
-        // Inner Red Black Boundary
+        // Inner Red Glowing Boundary
         this.ctx.beginPath();
         this.ctx.arc(0, 0, baseRadius * 0.48, 0, Math.PI * 2);
         this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.02);
-        this.ctx.strokeStyle = '#000000';
+        this.ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
         this.ctx.stroke();
 
         // Center Blue Disk
@@ -2162,26 +2246,70 @@ class AvengersAnimation {
         this.ctx.fillStyle = coreGlow;
         this.ctx.fill();
 
-        // Center Blue Black Boundary
+        // Center Blue Glowing Cyan Boundary
         this.ctx.beginPath();
         this.ctx.arc(0, 0, baseRadius * 0.28, 0, Math.PI * 2);
         this.ctx.lineWidth = Math.max(2.5, baseRadius * 0.02);
-        this.ctx.strokeStyle = '#000000';
+        this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.75)';
         this.ctx.stroke();
 
-        // Center Luminous White 5-Point Star with Black Boundary
-        this.drawStar(
+        // Glowing cyan outline backing for Avengers logo
+        this.drawAvengersLogo(
             this.ctx,
-            0,
-            0,
-            5,
-            baseRadius * 0.23,
-            baseRadius * 0.10,
-            '#ffffff',
-            '#000000',
-            Math.max(1.8, baseRadius * 0.015)
+            baseRadius * 0.26,
+            'rgba(0, 240, 255, 0.28)',
+            '#00f0ff',
+            Math.max(2.8, baseRadius * 0.02)
         );
 
+        // Center Stylized Avengers Logo with Black Boundary and Cyan Glow
+        this.drawAvengersLogo(
+            this.ctx,
+            baseRadius * 0.26,
+            '#ffffff',
+            '#000000',
+            Math.max(1.5, baseRadius * 0.012)
+        );
+
+        // Sweeping metallic light reflection sheen
+        this.ctx.save();
+        this.ctx.globalCompositeOperation = 'source-atop';
+        const sweepPos = Math.sin(this.pulseTime * 0.4) * baseRadius * 1.5;
+        const shineGrad = this.ctx.createLinearGradient(
+            -baseRadius + sweepPos, -baseRadius,
+            baseRadius + sweepPos, baseRadius
+        );
+        shineGrad.addColorStop(0, 'transparent');
+        shineGrad.addColorStop(0.35, 'rgba(255, 255, 255, 0)');
+        shineGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.22)');
+        shineGrad.addColorStop(0.65, 'rgba(255, 255, 255, 0)');
+        shineGrad.addColorStop(1, 'transparent');
+        this.ctx.fillStyle = shineGrad;
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, baseRadius, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.restore();
+
+        this.ctx.restore();
+
+        // Stark Tech Telemetry Segments (Slow rotating)
+        this.ctx.save();
+        this.ctx.translate(cx, cy);
+        this.ctx.rotate(this.pulseTime * 0.035);
+        this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.16)';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, baseRadius * 1.28, 0.1, Math.PI * 0.45);
+        this.ctx.stroke();
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, baseRadius * 1.28, Math.PI * 0.6, Math.PI * 0.95);
+        this.ctx.stroke();
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, baseRadius * 1.28, Math.PI * 1.1, Math.PI * 1.45);
+        this.ctx.stroke();
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, baseRadius * 1.28, Math.PI * 1.6, Math.PI * 1.95);
+        this.ctx.stroke();
         this.ctx.restore();
 
         // 6. Light Stark HUD Target Crosshair Marks (Stationary)

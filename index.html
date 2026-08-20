@@ -196,74 +196,76 @@
                 </div>
             </div>
 
-            <!-- Notifications Button -->
-            <button class="sidebar-action-btn" id="sidebar-notifications-btn">
-                <div class="btn-left-content">
-                    <i data-lucide="bell" class="btn-icon"></i>
-                    <span class="btn-text">NOTIFICATIONS</span>
-                </div>
-                <span class="badge" id="sidebar-notif-badge">5</span>
-            </button>
-
-            <!-- Command Palette Button -->
-            <button class="sidebar-action-btn" id="sidebar-command-btn">
-                <div class="btn-left-content">
-                    <i data-lucide="search" class="btn-icon"></i>
-                    <div class="btn-text-stack">
-                        <span class="btn-text-main">COMMAND PALETTE</span>
+            <div class="sidebar-scroll-content">
+                <!-- Notifications Button -->
+                <button class="sidebar-action-btn" id="sidebar-notifications-btn">
+                    <div class="btn-left-content">
+                        <i data-lucide="bell" class="btn-icon"></i>
+                        <span class="btn-text">NOTIFICATIONS</span>
                     </div>
-                </div>
-                <span class="shortcut-tag">Ctrl K</span>
-            </button>
+                    <span class="badge" id="sidebar-notif-badge">5</span>
+                </button>
 
-            <!-- Navigation Links Section -->
-            <div class="sidebar-section">
-                <div class="sidebar-section-header">
-                    <span>CORE WORKSPACE</span>
-                    <i data-lucide="chevron-down" class="section-arrow"></i>
-                </div>
-                <div class="sidebar-nav-links">
-                    <a href="#" class="sidebar-nav-link active" id="side-nav-dashboard" data-target="dashboard-view">
-                        <i data-lucide="layout-dashboard"></i>
-                        <span>Dashboard</span>
-                    </a>
-                    <a href="#" class="sidebar-nav-link" id="side-nav-inventory" data-target="inventory-view">
-                        <i data-lucide="layers"></i>
-                        <span>Inventory</span>
-                    </a>
-
-                    <details class="vault-dropdown" open>
-                        <summary class="sidebar-nav-title">
-                            <span>VAULT INDEX</span>
-                            <i data-lucide="chevron-down"></i>
-                        </summary>
-                        <div class="sidebar-items-group">
-                            <div class="sidebar-item active" data-category="all">
-                                <i data-lucide="layers"></i>
-                                <span>All Assets</span>
-                            </div>
-                            <div class="sidebar-item" data-category="microcontrollers">
-                                <i data-lucide="cpu"></i>
-                                <span>Micro</span>
-                            </div>
-                            <div class="sidebar-item" data-category="sensors">
-                                <i data-lucide="radar"></i>
-                                <span>Sensors</span>
-                            </div>
-                            <div class="sidebar-item" data-category="actuators">
-                                <i data-lucide="compass"></i>
-                                <span>Actuators</span>
-                            </div>
-                            <div class="sidebar-item" data-category="power">
-                                <i data-lucide="battery-charging"></i>
-                                <span>Power</span>
-                            </div>
-                            <div class="sidebar-item" data-category="tools">
-                                <i data-lucide="wrench"></i>
-                                <span>Tools</span>
-                            </div>
+                <!-- Command Palette Button -->
+                <button class="sidebar-action-btn" id="sidebar-command-btn">
+                    <div class="btn-left-content">
+                        <i data-lucide="search" class="btn-icon"></i>
+                        <div class="btn-text-stack">
+                            <span class="btn-text-main">COMMAND PALETTE</span>
                         </div>
-                    </details>
+                    </div>
+                    <span class="shortcut-tag">Ctrl K</span>
+                </button>
+
+                <!-- Navigation Links Section -->
+                <div class="sidebar-section">
+                    <div class="sidebar-section-header">
+                        <span>CORE WORKSPACE</span>
+                        <i data-lucide="chevron-down" class="section-arrow"></i>
+                    </div>
+                    <div class="sidebar-nav-links">
+                        <a href="#" class="sidebar-nav-link active" id="side-nav-dashboard" data-target="dashboard-view">
+                            <i data-lucide="layout-dashboard"></i>
+                            <span>Dashboard</span>
+                        </a>
+                        <a href="#" class="sidebar-nav-link" id="side-nav-inventory" data-target="inventory-view">
+                            <i data-lucide="layers"></i>
+                            <span>Inventory</span>
+                        </a>
+
+                        <details class="vault-dropdown" open>
+                            <summary class="sidebar-nav-title">
+                                <span>VAULT INDEX</span>
+                                <i data-lucide="chevron-down"></i>
+                            </summary>
+                            <div class="sidebar-items-group">
+                                <div class="sidebar-item active" data-category="all">
+                                    <i data-lucide="layers"></i>
+                                    <span>All Assets</span>
+                                </div>
+                                <div class="sidebar-item" data-category="microcontrollers">
+                                    <i data-lucide="cpu"></i>
+                                    <span>Micro</span>
+                                </div>
+                                <div class="sidebar-item" data-category="sensors">
+                                    <i data-lucide="radar"></i>
+                                    <span>Sensors</span>
+                                </div>
+                                <div class="sidebar-item" data-category="actuators">
+                                    <i data-lucide="compass"></i>
+                                    <span>Actuators</span>
+                                </div>
+                                <div class="sidebar-item" data-category="power">
+                                    <i data-lucide="battery-charging"></i>
+                                    <span>Power</span>
+                                </div>
+                                <div class="sidebar-item" data-category="tools">
+                                    <i data-lucide="wrench"></i>
+                                    <span>Tools</span>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
                 </div>
             </div>
 
