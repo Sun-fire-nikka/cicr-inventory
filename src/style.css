@@ -5395,6 +5395,26 @@ body.theme-sakura .no-results p {
     color: #881337 !important;
 }
 
+body.theme-sakura .stat-bubble-new .bubble-value {
+    color: #4c0519 !important;
+}
+
+body.theme-sakura .stat-bubble-new .bubble-value.text-purple {
+    color: #701a75 !important;
+}
+
+body.theme-sakura .stat-bubble-new .bubble-value.text-yellow {
+    color: #c2410c !important;
+}
+
+body.theme-sakura .stat-bubble-new .bubble-value.text-pink {
+    color: #be123c !important;
+}
+
+body.theme-sakura .log-text-content span {
+    color: #be123c !important;
+}
+
 body.theme-sakura .sidebar-nav-link.active,
 body.theme-sakura .sidebar-item.active,
 body.theme-sakura .tag-pill.active {
