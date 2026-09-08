@@ -14,6 +14,11 @@ import {
   deleteUserApproval,
   getAllUserApprovals
 } from './userApprovalService';
+import {
+  sendAdminNewUserRegistrationAlert,
+  sendUserApprovalSuccessEmail,
+  sendUserRejectionNotificationEmail
+} from '../../services/emailService';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -56,6 +61,16 @@ export const register = async (req: Request, res: Response) => {
 
     // Track approval status
     setUserApproval(normEmail, initialStatus, isMasterAdmin ? 'SYSTEM' : undefined);
+
+    // Send instant email notification to Admins if non-master-admin registers
+    if (!isMasterAdmin) {
+      sendAdminNewUserRegistrationAlert([MASTER_ADMIN_EMAIL], {
+        userName: name.trim(),
+        userEmail: normEmail,
+        rollNumber: roll_number || null,
+        registeredAt: newUser.created_at || new Date().toISOString()
+      }).catch((e) => console.error('[EMAIL ERROR] Failed to send admin registration alert:', e));
+    }
 
     const message = isMasterAdmin
       ? 'Master Admin registered successfully!'
@@ -222,6 +237,12 @@ export const approveUser = async (req: AuthRequest, res: Response) => {
     if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
 
     const updated = setUserApproval(user.email, 'APPROVED', req.user?.name || 'ADMIN');
+
+    // Send instant approval confirmation email to user
+    sendUserApprovalSuccessEmail(user.email, user.name).catch((e) =>
+      console.error('[EMAIL ERROR] Failed to send user approval email:', e)
+    );
+
     return res.status(200).json({ status: 'success', message: `User ${user.name} approved successfully.`, data: updated });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
@@ -235,6 +256,12 @@ export const rejectUser = async (req: AuthRequest, res: Response) => {
     if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
 
     const updated = setUserApproval(user.email, 'REJECTED', req.user?.name || 'ADMIN');
+
+    // Send rejection notification email to user
+    sendUserRejectionNotificationEmail(user.email, user.name).catch((e) =>
+      console.error('[EMAIL ERROR] Failed to send user rejection email:', e)
+    );
+
     return res.status(200).json({ status: 'success', message: `User ${user.name} registration rejected.`, data: updated });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });

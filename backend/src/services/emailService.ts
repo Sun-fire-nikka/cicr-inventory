@@ -520,3 +520,263 @@ export const sendLoginOtpEmail = async (
     return { success: false, error: formatSmtpError(error) };
   }
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ADMIN USER REGISTRATION ALERT EMAIL
+// ──────────────────────────────────────────────────────────────────────────────
+
+export interface NewUserAlertContext {
+  userName: string;
+  userEmail: string;
+  rollNumber?: string | null;
+  registeredAt?: string;
+}
+
+export const sendAdminNewUserRegistrationAlert = async (
+  adminEmails: string[],
+  userContext: NewUserAlertContext
+) => {
+  try {
+    if (!adminEmails || adminEmails.length === 0) return { success: false, message: 'No admin recipients provided' };
+
+    const regTime = userContext.registeredAt
+      ? new Date(userContext.registeredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+      : new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: userContext.userEmail,
+      to: adminEmails.join(', '),
+      subject: `[CICR Admin] 🔔 New Account Access Request: ${userContext.userName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('admin-registration-alert', 'high'),
+      priority: 'high' as const,
+      text: [
+        `CICR ADMIN NOTIFICATION`,
+        `==================================`,
+        `A new user has registered on the CICR Inventory Portal and is requesting member access:`,
+        ``,
+        `Name: ${userContext.userName}`,
+        `Email: ${userContext.userEmail}`,
+        `Roll Number: ${userContext.rollNumber || 'Not Specified'}`,
+        `Registered At: ${regTime} IST`,
+        `Status: PENDING ADMIN APPROVAL`,
+        ``,
+        `Please log in to the CICR Admin Portal to approve or reject this request.`,
+        ``,
+        `Regards,`,
+        `CICR Automated Security Service`
+      ].join('\n'),
+      html: `
+        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(0,240,255,0.2);">
+          <div style="text-align:center;margin-bottom:24px;">
+            <h2 style="color:#00f0ff;margin:0 0 6px 0;letter-spacing:1px;font-size:22px;">⚡ CICR INVENTORY</h2>
+            <p style="color:#94a3b8;font-size:13px;margin:0;text-transform:uppercase;letter-spacing:1.5px;">Admin Member Approval Queue</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:20px;margin-bottom:24px;">
+            <div style="display:inline-block;background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.3);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:bold;margin-bottom:14px;">
+              ⏳ PENDING APPROVAL
+            </div>
+            <h3 style="color:#ffffff;margin:0 0 12px 0;font-size:16px;">New Account Registration Request</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;width:110px;">Name:</td>
+                <td style="padding:6px 0;color:#ffffff;font-weight:bold;">${userContext.userName}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Email:</td>
+                <td style="padding:6px 0;color:#00f0ff;">${userContext.userEmail}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Roll Number:</td>
+                <td style="padding:6px 0;color:#e2e8f0;">${userContext.rollNumber || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Registered:</td>
+                <td style="padding:6px 0;color:#e2e8f0;">${regTime} IST</td>
+              </tr>
+            </table>
+          </div>
+          <div style="text-align:center;padding:12px 0 6px 0;">
+            <p style="color:#cbd5e1;font-size:13px;margin:0 0 16px 0;">
+              This user cannot access hardware inventory or checkout items until approved in the Admin Portal.
+            </p>
+            <a href="https://cicr-inventory.vercel.app/" style="display:inline-block;background:linear-gradient(135deg,#00f0ff,#a855f7);color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 28px;border-radius:6px;font-size:14px;box-shadow:0 4px 14px rgba(0,240,255,0.3);">
+              Open Admin Portal to Review
+            </a>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:28px;padding-top:16px;text-align:center;">
+            <p style="color:#64748b;font-size:11px;margin:0;">
+              CICR Robotics Society &bull; Jaypee Institute of Information Technology, Sector 128
+            </p>
+          </div>
+        </div>
+      `,
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Admin registration alert sent to ${adminEmails.join(', ')} for ${userContext.userName} (${userContext.userEmail})`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('admin-registration-alert', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Admin Registration Alert email', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send admin registration alert: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// USER APPROVAL CONFIRMATION EMAIL
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const sendUserApprovalSuccessEmail = async (
+  recipientEmail: string,
+  recipientName: string
+) => {
+  try {
+    const mailOptions = {
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      to: recipientEmail,
+      subject: `[CICR Inventory] 🎉 Access Approved! Welcome to CICR Portal`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('user-approval-success', 'normal'),
+      priority: 'normal' as const,
+      text: [
+        `Hello ${recipientName},`,
+        ``,
+        `Great news! Your account registration for the CICR Robotics Inventory Portal has been APPROVED by Master Admin Vardaan Saxena.`,
+        ``,
+        `You now have full access to:`,
+        `- Browse available microcontrollers, sensors, motors, and robotics equipment.`,
+        `- Borrow hardware components for your robotics projects and hackathons.`,
+        `- Track your loans, due dates, and return statuses.`,
+        ``,
+        `Log in now at: https://cicr-inventory.vercel.app/`,
+        ``,
+        `Best regards,`,
+        `CICR Team`
+      ].join('\n'),
+      html: `
+        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(16,185,129,0.3);">
+          <div style="text-align:center;margin-bottom:24px;">
+            <h2 style="color:#10b981;margin:0 0 6px 0;font-size:24px;">🎉 Account Approved!</h2>
+            <p style="color:#94a3b8;font-size:13px;margin:0;">Welcome to CICR Hardware & Robotics Vault</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:20px;margin-bottom:24px;">
+            <p style="color:#ffffff;font-size:15px;margin:0 0 12px 0;">Hello <strong>${recipientName}</strong>,</p>
+            <p style="color:#cbd5e1;font-size:14px;line-height:1.6;margin:0 0 16px 0;">
+              Your account request has been verified and <strong style="color:#10b981;">APPROVED</strong> by the CICR Admin Team. You can now access the portal and issue hardware components for your robotics projects.
+            </p>
+            <div style="background:rgba(16,185,129,0.08);border-left:4px solid #10b981;padding:12px;border-radius:4px;font-size:13px;color:#e2e8f0;">
+              ✅ <strong>Hardware Access Granted:</strong> Microcontrollers, sensors, actuators, and power modules are now available for borrowing.
+            </div>
+          </div>
+          <div style="text-align:center;padding:8px 0;">
+            <a href="https://cicr-inventory.vercel.app/" style="display:inline-block;background:linear-gradient(135deg,#10b981,#00f0ff);color:#0d0f17;text-decoration:none;font-weight:bold;padding:12px 30px;border-radius:6px;font-size:14px;box-shadow:0 4px 14px rgba(16,185,129,0.3);">
+              Log In to CICR Portal
+            </a>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:28px;padding-top:16px;text-align:center;">
+            <p style="color:#64748b;font-size:11px;margin:0;">
+              CICR Robotics Society &bull; Jaypee Institute of Information Technology, Sector 128
+            </p>
+          </div>
+        </div>
+      `,
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] User approval email dispatched to ${recipientEmail} for ${recipientName}`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('user-approval-success', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('User Approval email', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send user approval email to ${recipientEmail}: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// USER REJECTION NOTIFICATION EMAIL
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const sendUserRejectionNotificationEmail = async (
+  recipientEmail: string,
+  recipientName: string
+) => {
+  try {
+    const mailOptions = {
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      to: recipientEmail,
+      subject: `[CICR Inventory] Registration Status Update`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('user-rejection', 'normal'),
+      priority: 'normal' as const,
+      text: [
+        `Hello ${recipientName},`,
+        ``,
+        `Your account registration request for the CICR Robotics Inventory Portal was reviewed by the Admin team and could not be approved at this time.`,
+        ``,
+        `If you believe this was done in error or you need access for an active college robotics project, please contact the CICR Admin directly at vardaansaxena096@gmail.com.`,
+        ``,
+        `Regards,`,
+        `CICR Management Team`
+      ].join('\n'),
+      html: `
+        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(239,68,68,0.3);">
+          <div style="text-align:center;margin-bottom:24px;">
+            <h2 style="color:#ef4444;margin:0 0 6px 0;font-size:22px;">Registration Status Update</h2>
+            <p style="color:#94a3b8;font-size:13px;margin:0;">CICR Robotics Inventory Portal</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:20px;margin-bottom:20px;">
+            <p style="color:#ffffff;font-size:15px;margin:0 0 12px 0;">Hello <strong>${recipientName}</strong>,</p>
+            <p style="color:#cbd5e1;font-size:14px;line-height:1.6;margin:0 0 14px 0;">
+              Your account access request was reviewed by the CICR Admin and could not be approved at this time.
+            </p>
+            <p style="color:#94a3b8;font-size:13px;margin:0;">
+              If you require access for an active JIIT-128 robotics project or competition, please reach out directly to Master Admin Vardaan at <a href="mailto:vardaansaxena096@gmail.com" style="color:#00f0ff;">vardaansaxena096@gmail.com</a>.
+            </p>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:24px;padding-top:16px;text-align:center;">
+            <p style="color:#64748b;font-size:11px;margin:0;">
+              CICR Robotics Society &bull; Jaypee Institute of Information Technology, Sector 128
+            </p>
+          </div>
+        </div>
+      `,
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] User rejection email dispatched to ${recipientEmail}`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('user-rejection', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('User Rejection email', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send user rejection email to ${recipientEmail}: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+

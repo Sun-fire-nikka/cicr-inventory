@@ -143,7 +143,8 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
     const userEmail = req.user?.email;
     const userName = req.user?.name || 'Borrower';
-    const { inventory_id, quantity, purpose } = req.body;
+    const inventory_id = req.body.inventory_id || req.body.itemId || req.body.item_id;
+    const { quantity, purpose } = req.body;
 
     if (!inventory_id || !quantity || !purpose) {
       return res.status(400).json({ status: 'error', message: 'inventory_id, quantity, and purpose are required.' });
@@ -348,7 +349,7 @@ export const verifyOtp = async (req: AuthRequest, res: Response) => {
 export const returnItem = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    const { borrow_id } = req.body;
+    const borrow_id = req.body.borrow_id || req.body.borrowId || req.body.id;
 
     if (!borrow_id) {
       return res.status(400).json({ status: 'error', message: 'borrow_id is required.' });
