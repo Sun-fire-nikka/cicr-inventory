@@ -1,4 +1,11 @@
 {
-  "approvalState": {},
+  "approvalState": {
+    "992501030399@mail.jiit.ac.in": {
+      "status": "APPROVED",
+      "role": "MEMBER",
+      "approvedAt": "2026-09-08T16:26:05.586Z",
+      "approvedBy": "Vardaan"
+    }
+  },
   "purgedEmails": []
 }

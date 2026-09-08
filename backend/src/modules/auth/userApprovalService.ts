@@ -63,7 +63,7 @@ export const isManagedUser = (email: string): boolean => {
   const normEmail = email.trim().toLowerCase();
   if (isSuperAdminEmail(normEmail)) return true;
   if (purgedEmails.has(normEmail)) return false;
-  return Boolean(approvalState[normEmail]);
+  return true;
 };
 
 export const getUserApproval = (email: string, initialRole: 'ADMIN' | 'MEMBER' = 'MEMBER'): UserApprovalRecord => {

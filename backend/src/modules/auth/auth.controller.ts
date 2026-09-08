@@ -106,19 +106,15 @@ export const login = async (req: Request, res: Response) => {
       .maybeSingle();
 
     if (error || !user) {
-      return res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
+      return res.status(401).json({ status: 'error', message: 'Invalid credentials. User not found.' });
     }
 
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
-      return res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
+      return res.status(401).json({ status: 'error', message: 'Invalid credentials. Incorrect password.' });
     }
 
-    const isMasterAdmin = user.email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
-    if (!isMasterAdmin && !isManagedUser(user.email)) {
-      return res.status(401).json({ status: 'error', message: 'Account not found or has been removed.' });
-    }
-
+    const isMasterAdmin = isSuperAdminEmail(user.email);
     const approval = isMasterAdmin
       ? { status: 'APPROVED' as const, role: 'ADMIN' as const }
       : getUserApproval(user.email, user.role);
@@ -126,7 +122,7 @@ export const login = async (req: Request, res: Response) => {
     if (approval.status === 'PENDING') {
       return res.status(403).json({
         status: 'pending_approval',
-        message: 'Your account is pending admin approval. You will receive access once approved by CICR Admin (Vardaan).'
+        message: 'Your account is pending admin approval. You will receive access once approved by CICR Admin.'
       });
     }
 
@@ -177,7 +173,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 
     if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
 
-    const isMasterAdmin = user.email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+    const isMasterAdmin = isSuperAdminEmail(user.email);
     const approval = isMasterAdmin
       ? { status: 'APPROVED', role: 'ADMIN' }
       : getUserApproval(user.email, user.role);
@@ -207,13 +203,12 @@ export const listUsersForAdmin = async (req: AuthRequest, res: Response) => {
     const allApprovals = getAllUserApprovals();
 
     const userList = (users || [])
-      .filter((u) => isManagedUser(u.email))
       .map((u) => {
         const normEmail = u.email.toLowerCase();
         const isMasterAdmin = isSuperAdminEmail(normEmail);
         const record = isMasterAdmin
-          ? { status: 'APPROVED', role: 'ADMIN' }
-          : allApprovals[normEmail] || { status: 'PENDING', role: u.role || 'MEMBER' };
+          ? { status: 'APPROVED' as const, role: 'ADMIN' as const }
+          : allApprovals[normEmail] || getUserApproval(normEmail, u.role || 'MEMBER');
 
         return {
           id: u.id,
@@ -300,6 +295,7 @@ export const changeUserRole = async (req: AuthRequest, res: Response) => {
     }
 
     const updated = setUserRole(user.email, role);
+    await supabase.from('users').update({ role }).eq('id', id);
     return res.status(200).json({ status: 'success', message: `Role for ${user.name} changed to ${role}.`, data: updated });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });

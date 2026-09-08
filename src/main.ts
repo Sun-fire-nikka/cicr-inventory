@@ -2039,12 +2039,12 @@ class AuthManager {
             }
 
             if (data.status === 'pending_approval') {
-                this.showLoginError("⏳ Access Pending: Your account has been registered and is awaiting approval by the CICR Admin (Vardaan).");
+                this.showLoginError(data.message || "Access Pending: Your account has been registered and is awaiting approval by the CICR Admin.");
                 return;
             }
 
             if (data.status === 'rejected') {
-                this.showLoginError("⛔ Access Denied: Your account registration was rejected by the CICR Admin.");
+                this.showLoginError(data.message || "Access Denied: Your account registration was rejected by the CICR Admin.");
                 return;
             }
 
