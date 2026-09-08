@@ -266,6 +266,11 @@
                             <i data-lucide="code-2"></i>
                             <span>Meet The Developers</span>
                         </a>
+                        <a href="#" class="sidebar-nav-link" id="side-nav-admin" data-target="admin-view" style="display: none;">
+                            <i data-lucide="shield-check"></i>
+                            <span>Admin Portal</span>
+                            <span class="badge" id="admin-pending-badge" style="display: none; background: #ff007a; color: #ffffff; margin-left: auto; font-size: 7.5px; padding: 1px 5px; border-radius: 9999px; font-weight: 800;">0</span>
+                        </a>
 
                         <details class="vault-dropdown" open>
                             <summary class="sidebar-nav-title">
@@ -419,6 +424,22 @@
                                 <div class="dash-card-body">
                                     <h3 class="dash-card-title">Meet The Developers</h3>
                                     <p class="dash-card-desc">Meet the engineering minds and mentors behind the CICR Robotics Vault.</p>
+                                </div>
+                                <div class="dash-card-footer">
+                                    <i data-lucide="arrow-right"></i>
+                                </div>
+                            </div>
+
+                            <div class="dash-card card-pink" id="dash-card-admin" style="display: none;">
+                                <div class="dash-card-header">
+                                    <div class="dash-card-icon-wrapper">
+                                        <i data-lucide="shield-check"></i>
+                                    </div>
+                                    <span class="dash-card-tag" id="dash-admin-badge-tag">ADMIN ACCESS</span>
+                                </div>
+                                <div class="dash-card-body">
+                                    <h3 class="dash-card-title">Member Approvals</h3>
+                                    <p class="dash-card-desc">Review pending registration requests, approve new accounts, and configure member roles.</p>
                                 </div>
                                 <div class="dash-card-footer">
                                     <i data-lucide="arrow-right"></i>
@@ -605,6 +626,93 @@
                             </div>
                         </div>
                    </section>
+
+                    <!-- Section: Admin Management & Member Approvals -->
+                    <section class="admin-layout-section reveal" id="admin-view" style="display: none;">
+                        <div class="admin-panel-container">
+                            <!-- Admin Banner Header -->
+                            <div class="admin-header-card glass">
+                                <div class="admin-header-left">
+                                    <div class="admin-shield-icon">
+                                        <i data-lucide="shield-check"></i>
+                                    </div>
+                                    <div>
+                                        <span class="admin-header-tag">ADMIN CONTROL CENTER</span>
+                                        <h2 class="admin-header-title">Member Access & Approvals</h2>
+                                        <p class="admin-header-desc">Manage registrations, grant access approvals, and assign administrative roles.</p>
+                                    </div>
+                                </div>
+                                <div class="admin-header-stats">
+                                    <div class="admin-stat-box stat-pink">
+                                        <span class="admin-stat-num" id="admin-stat-pending">0</span>
+                                        <span class="admin-stat-lbl">Pending Requests</span>
+                                    </div>
+                                    <div class="admin-stat-box stat-green">
+                                        <span class="admin-stat-num" id="admin-stat-approved">0</span>
+                                        <span class="admin-stat-lbl">Approved Members</span>
+                                    </div>
+                                    <div class="admin-stat-box stat-cyan">
+                                        <span class="admin-stat-num" id="admin-stat-admins">0</span>
+                                        <span class="admin-stat-lbl">Admins</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pending Approvals Section -->
+                            <div class="admin-block-card glass">
+                                <div class="admin-block-header">
+                                    <div class="admin-block-title-wrap">
+                                        <i data-lucide="user-check" class="text-pink"></i>
+                                        <h3>Pending Approval Queue</h3>
+                                        <span class="admin-badge-count" id="admin-pending-count-tag">0 PENDING</span>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" id="admin-refresh-btn" title="Refresh User List">
+                                        <i data-lucide="refresh-cw"></i> Refresh
+                                    </button>
+                                </div>
+
+                                <div class="admin-queue-list" id="admin-pending-list">
+                                    <!-- Dynamic pending items injected here -->
+                                    <div class="admin-empty-state">
+                                        <i data-lucide="check-circle-2"></i>
+                                        <p>No pending registration requests. All members reviewed!</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- All Users & Roles Directory -->
+                            <div class="admin-block-card glass">
+                                <div class="admin-block-header">
+                                    <div class="admin-block-title-wrap">
+                                        <i data-lucide="users" class="text-cyan"></i>
+                                        <h3>Registered Users Directory</h3>
+                                    </div>
+                                    <div class="admin-search-wrapper">
+                                        <i data-lucide="search"></i>
+                                        <input type="text" id="admin-users-search" placeholder="Search user by name or email...">
+                                    </div>
+                                </div>
+
+                                <div class="admin-table-responsive">
+                                    <table class="admin-users-table">
+                                        <thead>
+                                            <tr>
+                                                <th>User</th>
+                                                <th>Email</th>
+                                                <th>Approval Status</th>
+                                                <th>Role</th>
+                                                <th>Registered</th>
+                                                <th style="text-align: right;">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-users-tbody">
+                                            <!-- Dynamic table rows injected here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
 
              </main>
            </div>

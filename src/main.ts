@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
-import type { InventoryItem, ActivityLog, RequestRecord, UserDatabase, BorrowRecord } from './types';
+import type { InventoryItem, ActivityLog, RequestRecord, BorrowRecord } from './types';
 
 // Global declarations for CDN libraries
 declare const lucide: {
@@ -235,143 +235,139 @@ class Background3D {
 }
 
 // ==========================================
-// 3. Database Manager & LocalStorage Sync
+// 3. Database Manager & Supabase Realtime Auto-Sync
 // ==========================================
-const DEFAULT_CATALOG: InventoryItem[] = [
-    {
-        id: "mcu-01",
-        name: "ESP32-WROOM-32D Development Board",
-        category: "microcontrollers",
-        quantity: 12,
-        location: "Rack A, Shelf 2",
-        specs: "Dual-core Tensilica Xtensa 32-bit LX6 MCU, Wi-Fi & Bluetooth v4.2 BR/EDR and BLE.",
-        image: "microchip.jpg",
-        tags: ["WiFi", "Bluetooth", "IoT"],
-        borrowedBy: [
-            { name: "Aarav Sharma", roll: "9921103001", qty: 2, purpose: "Autonomous Swarm Rover", date: "2026-09-01", dueDate: "2026-09-12" },
-            { name: "Priya Singh", roll: "9921103045", qty: 1, purpose: "Smart Agriculture Node", date: "2026-09-04", dueDate: "2026-09-15" }
-        ]
-    },
-    {
-        id: "mcu-02",
-        name: "Arduino UNO R3 DIP Edition",
-        category: "microcontrollers",
-        quantity: 15,
-        location: "Rack A, Shelf 1",
-        specs: "ATmega328P 8-bit AVR RISC MCU, 16MHz clock, 14 digital I/O pins, 6 analog inputs.",
-        image: "microchip.jpg",
-        tags: ["Beginner", "AVR", "Robotics"],
-        borrowedBy: [
-            { name: "Rohan Verma", roll: "9921103088", qty: 4, purpose: "Robo-Soccer Line Follower", date: "2026-08-28", dueDate: "2026-09-05" }
-        ]
-    },
-    {
-        id: "mcu-03",
-        name: "Raspberry Pi 4 Model B (4GB RAM)",
-        category: "microcontrollers",
-        quantity: 6,
-        location: "Secure Cabinet B, Drawer 1",
-        specs: "Quad core Cortex-A72 (ARM v8) 64-bit SoC @ 1.5GHz, 4GB LPDDR4, Dual 4K Micro-HDMI.",
-        image: "microchip.jpg",
-        tags: ["ROS", "Computer Vision", "Linux"],
-        borrowedBy: [
-            { name: "Aditya Malhotra", roll: "9921103112", qty: 2, purpose: "SLAM Lidar Bot", date: "2026-09-02", dueDate: "2026-09-14" },
-            { name: "Simran Kaur", roll: "9921103130", qty: 1, purpose: "Edge AI Camera", date: "2026-09-03", dueDate: "2026-09-10" }
-        ]
-    },
-    {
-        id: "sen-01",
-        name: "HC-SR04 Ultrasonic Distance Sensor",
-        category: "sensors",
-        quantity: 24,
-        location: "Bin S1, Blue Drawer",
-        specs: "Non-contact measurement from 2cm to 400cm with 3mm precision. 5V operating voltage.",
-        image: "drone.jpg",
-        tags: ["Sonar", "Obstacle Avoidance"],
-        borrowedBy: [
-            { name: "Kunal Bansal", roll: "9921103154", qty: 4, purpose: "Obstacle Detection Bot", date: "2026-09-05", dueDate: "2026-09-16" }
-        ]
-    },
-    {
-        id: "sen-02",
-        name: "MPU-6050 6-DoF IMU Gyro & Accelerometer",
-        category: "sensors",
-        quantity: 10,
-        location: "Bin S2, Blue Drawer",
-        specs: "Triple-axis MEMS gyroscope and triple-axis MEMS accelerometer with Digital Motion Processor (DMP).",
-        image: "drone.jpg",
-        tags: ["IMU", "Balancing Bot", "Flight Controller"],
-        borrowedBy: [
-            { name: "Mehak Chawla", roll: "9921103178", qty: 3, purpose: "Self Balancing Two-Wheel Bot", date: "2026-09-03", dueDate: "2026-09-13" }
-        ]
-    },
-    {
-        id: "act-01",
-        name: "MG996R Metal Gear High Torque Servo",
-        category: "actuators",
-        quantity: 18,
-        location: "Cabinet C, Tray 3",
-        specs: "11 kg-cm stall torque at 6V, metal gears, double ball bearing, 180-degree rotation.",
-        image: "rover.jpg",
-        tags: ["Robotic Arm", "Steering", "High Torque"],
-        borrowedBy: [
-            { name: "Devansh Rastogi", roll: "9921103201", qty: 6, purpose: "6-Axis Robotic Manipulator", date: "2026-09-02", dueDate: "2026-09-12" }
-        ]
-    },
-    {
-        id: "act-02",
-        name: "L298N Dual H-Bridge Motor Driver Module",
-        category: "actuators",
-        quantity: 14,
-        location: "Cabinet C, Tray 1",
-        specs: "Dual full-bridge driver, drives 2 DC motors or 1 bipolar stepper motor up to 2A per channel.",
-        image: "rover.jpg",
-        tags: ["DC Motor", "H-Bridge", "Diff Drive"],
-        borrowedBy: [
-            { name: "Arjun Mehta", roll: "9921103225", qty: 6, purpose: "Combat Robot 4WD", date: "2026-09-04", dueDate: "2026-09-14" }
-        ]
-    },
-    {
-        id: "pow-01",
-        name: "3S 2200mAh 11.1V 35C LiPo Battery Pack",
-        category: "power",
-        quantity: 8,
-        location: "Fireproof LiPo Vault Box 1",
-        specs: "High discharge 35C continuous rating, XT60 connector, JST-XH balance lead.",
-        image: "rover.jpg",
-        tags: ["LiPo", "High Current", "Drone"],
-        borrowedBy: [
-            { name: "Nikhil Gupta", roll: "9921103250", qty: 4, purpose: "Autonomous Drone Flight", date: "2026-09-05", dueDate: "2026-09-11" }
-        ]
-    },
-    {
-        id: "tool-01",
-        name: "Hakko FX-888D Digital Soldering Station",
-        category: "tools",
-        quantity: 4,
-        location: "Workstation 1 & 2 Workbench",
-        specs: "70W temperature-adjustable 50°C to 480°C soldering station with digital display and ceramic heater.",
-        image: "microchip.jpg",
-        tags: ["Soldering", "SMD", "Lab Tool"],
-        borrowedBy: []
-    }
-];
-
 class DatabaseManager {
     static init() {
         const storedInventory = localStorage.getItem('cicr_inventory');
-        if (!storedInventory || JSON.parse(storedInventory).length === 0) {
-            localStorage.setItem('cicr_inventory', JSON.stringify(DEFAULT_CATALOG));
+        if (storedInventory) {
+            try {
+                inventory = JSON.parse(storedInventory);
+            } catch {
+                inventory = [];
+            }
+        } else {
+            inventory = [];
         }
-        if (!localStorage.getItem('cicr_logs')) {
-            localStorage.setItem('cicr_logs', JSON.stringify([]));
+
+        const storedLogs = localStorage.getItem('cicr_logs');
+        if (storedLogs) {
+            try {
+                logs = JSON.parse(storedLogs);
+            } catch {
+                logs = [];
+            }
+        } else {
+            logs = [];
         }
-        if (!localStorage.getItem('cicr_requests')) {
-            localStorage.setItem('cicr_requests', JSON.stringify([]));
+
+        const storedRequests = localStorage.getItem('cicr_requests');
+        if (storedRequests) {
+            try {
+                requests = JSON.parse(storedRequests);
+            } catch {
+                requests = [];
+            }
+        } else {
+            requests = [];
         }
-        inventory = JSON.parse(localStorage.getItem('cicr_inventory')!);
-        logs = JSON.parse(localStorage.getItem('cicr_logs')!);
-        requests = JSON.parse(localStorage.getItem('cicr_requests')!);
+
+        // Immediately auto-sync with Supabase backend without delay
+        this.syncFromBackend();
+    }
+
+    static async syncFromBackend() {
+        try {
+            const token = localStorage.getItem('cicr_token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            // 1. Fetch live items from Supabase
+            const res = await fetch(`${API_BASE}/items`);
+            if (res.ok) {
+                const json = await res.json();
+                const dbItems = json.data || [];
+
+                // 2. Fetch live borrow records from Supabase
+                let liveBorrows: any[] = [];
+                if (token) {
+                    try {
+                        const borrowRes = await fetch(`${API_BASE}/borrow/history`, { headers });
+                        if (borrowRes.ok) {
+                            const bJson = await borrowRes.json();
+                            liveBorrows = bJson.data || [];
+                        }
+                    } catch (be) {
+                        console.warn('Live borrow fetch failed:', be);
+                    }
+                }
+
+                // Map Supabase inventory format to frontend InventoryItem format
+                inventory = dbItems.map((item: any) => {
+                    let cat = (item.category || '').toLowerCase();
+                    if (cat.includes('controller') || cat.includes('mcu')) cat = 'microcontrollers';
+                    else if (cat.includes('sensor')) cat = 'sensors';
+                    else if (cat.includes('actuator') || cat.includes('motor')) cat = 'actuators';
+                    else if (cat.includes('power') || cat.includes('battery')) cat = 'power';
+                    else if (cat.includes('tool')) cat = 'tools';
+
+                    const itemBorrows = liveBorrows
+                        .filter((b: any) => b.item_id === item.id && b.status === 'BORROWED')
+                        .map((b: any) => ({
+                            id: b.id,
+                            name: b.users?.name || b.borrower_name || 'Student',
+                            roll: b.users?.roll_number || b.roll_number || 'ID',
+                            qty: b.quantity || 1,
+                            purpose: b.purpose || 'Robotics Project',
+                            date: b.borrowed_at ? b.borrowed_at.split('T')[0] : new Date().toISOString().split('T')[0],
+                            dueDate: b.due_date ? b.due_date.split('T')[0] : ''
+                        }));
+
+                    return {
+                        id: item.id,
+                        name: item.name,
+                        category: cat || 'microcontrollers',
+                        quantity: item.quantity,
+                        location: item.location || 'Lab Shelf',
+                        specs: item.description || 'No specifications provided.',
+                        image: item.image || (cat === 'sensors' ? 'drone.jpg' : cat === 'actuators' || cat === 'power' ? 'rover.jpg' : 'microchip.jpg'),
+                        tags: Array.isArray(item.tags) ? item.tags : typeof item.tags === 'string' ? JSON.parse(item.tags || '[]') : [],
+                        borrowedBy: itemBorrows
+                    };
+                });
+
+                // Save to localStorage cache
+                this.save();
+
+                // 3. Fetch live audit logs from Supabase
+                if (token) {
+                    try {
+                        const auditRes = await fetch(`${API_BASE}/audit`, { headers });
+                        if (auditRes.ok) {
+                            const aJson = await auditRes.json();
+                            if (Array.isArray(aJson.data)) {
+                                logs = aJson.data.map((l: any) => ({
+                                    type: l.action.toLowerCase().includes('borrow') ? 'borrow'
+                                        : l.action.toLowerCase().includes('return') ? 'return'
+                                        : l.action.toLowerCase().includes('add') ? 'add' : 'system',
+                                    timestamp: l.created_at ? l.created_at.replace('T', ' ').slice(0, 16) : new Date().toISOString().slice(0, 16),
+                                    text: l.description || l.action
+                                }));
+                                localStorage.setItem('cicr_logs', JSON.stringify(logs));
+                            }
+                        }
+                    } catch (ae) {
+                        console.warn('Live audit fetch failed:', ae);
+                    }
+                }
+
+                if (window.dashboard) {
+                    window.dashboard.init();
+                }
+            }
+        } catch (err) {
+            console.error('Realtime Supabase sync failed:', err);
+        }
     }
 
     static save() {
@@ -579,9 +575,14 @@ class DashboardManager {
                     'meetings-view': 'MEETINGS',
                     'events-view': 'EVENTS',
                     'inventory-view': 'INVENTORY',
-                    'developers-view': 'MEET THE DEVELOPERS'
+                    'developers-view': 'MEET THE DEVELOPERS',
+                    'admin-view': 'ADMIN PORTAL'
                 };
                 breadcrumbActive.innerText = nameMap[targetId] || 'WORKSPACE';
+            }
+
+            if (targetId === 'admin-view') {
+                AdminManager.loadUsers();
             }
 
             closeMobileSidebar();
@@ -644,6 +645,10 @@ class DashboardManager {
         const cardDevs = document.getElementById('dash-card-devs');
         if (cardDevs) {
             cardDevs.addEventListener('click', () => switchSection('developers-view'));
+        }
+        const cardAdmin = document.getElementById('dash-card-admin');
+        if (cardAdmin) {
+            cardAdmin.addEventListener('click', () => switchSection('admin-view'));
         }
         const cardProjects = document.getElementById('dash-card-projects');
         if (cardProjects) {
@@ -1408,7 +1413,7 @@ class ModalManager {
         lucide.createIcons();
     }
 
-    private static handleAddItemSubmit() {
+    private static async handleAddItemSubmit() {
         const name = (document.getElementById('item-name') as HTMLInputElement).value.trim();
         const category = (document.getElementById('item-category') as HTMLSelectElement).value;
         const qty = parseInt((document.getElementById('item-qty') as HTMLInputElement).value);
@@ -1417,8 +1422,47 @@ class ModalManager {
 
         if (!name || !category || isNaN(qty) || !location) return;
 
-        const id = `${category.slice(0, 2)}-${Date.now().toString().slice(-4)}`;
+        const catMap: Record<string, string> = {
+            microcontrollers: 'Controllers',
+            sensors: 'Sensors',
+            actuators: 'Actuators',
+            power: 'Power',
+            tools: 'Tools'
+        };
+        const backendCategory = catMap[category] || 'Controllers';
 
+        const token = localStorage.getItem('cicr_token');
+        try {
+            const res = await fetch(`${API_BASE}/items`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name,
+                    category: backendCategory,
+                    quantity: qty,
+                    location,
+                    description: specs
+                })
+            });
+
+            if (res.ok) {
+                (document.getElementById('add-item-form') as HTMLFormElement).reset();
+                this.close('add-item-modal');
+                await DatabaseManager.syncFromBackend();
+                return;
+            } else {
+                const errJson = await res.json();
+                alert(errJson.message || 'Failed to add item to database.');
+            }
+        } catch (e) {
+            console.error('Failed to create item in backend:', e);
+        }
+
+        // Fallback local addition if offline
+        const id = `${category.slice(0, 2)}-${Date.now().toString().slice(-4)}`;
         const newItem: InventoryItem = {
             id,
             name,
@@ -1428,17 +1472,14 @@ class ModalManager {
             specs,
             borrowedBy: []
         };
-
         inventory.unshift(newItem);
         DatabaseManager.addLog('add', `Registered new component <span>${name}</span> (Qty: ${qty}) at <span>${location}</span>.`);
-        
         (document.getElementById('add-item-form') as HTMLFormElement).reset();
-        
         this.close('add-item-modal');
         window.dashboard!.init();
     }
 
-    private static handleBorrowSubmit() {
+    private static async handleBorrowSubmit() {
         if (!selectedItem) return;
 
         const borrowerName = (document.getElementById('borrow-name') as HTMLInputElement).value.trim();
@@ -1454,61 +1495,86 @@ class ModalManager {
             return;
         }
 
-        const requestMode = !this.isAdmin();
-
         const dueDateInput = document.getElementById('borrow-due-date') as HTMLInputElement | null;
         const defaultDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const dueDate = (dueDateInput && dueDateInput.value) ? dueDateInput.value : defaultDue;
 
-        if (requestMode) {
-            const request: RequestRecord = {
-                id: `req-${Date.now()}`,
-                itemId: selectedItem.id,
-                itemName: selectedItem.name,
-                name: borrowerName,
-                roll: rollNum,
-                qty,
-                purpose,
-                dueDate,
-                status: 'PENDING',
-                requestedAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
-            };
-
-            requests.unshift(request);
-            DatabaseManager.addLog('request', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
-        } else {
-            const date = new Date().toISOString().split('T')[0];
-
-            selectedItem.borrowedBy.push({
-                name: borrowerName,
-                roll: rollNum,
-                qty: qty,
-                purpose: purpose,
-                date: date,
-                dueDate: dueDate
+        const token = localStorage.getItem('cicr_token');
+        try {
+            const res = await fetch(`${API_BASE}/borrow`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    itemId: selectedItem.id,
+                    quantity: qty,
+                    purpose: purpose,
+                    duration_days: 7
+                })
             });
 
-            DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> (Due: ${dueDate}) for '${purpose}'.`);
+            if (res.ok) {
+                (document.getElementById('borrow-form') as HTMLFormElement).reset();
+                this.close('borrow-form-modal');
+                await DatabaseManager.syncFromBackend();
+                return;
+            }
+        } catch (e) {
+            console.error('Borrow API error:', e);
         }
 
+        // Local fallback
+        const date = new Date().toISOString().split('T')[0];
+        selectedItem.borrowedBy.push({
+            name: borrowerName,
+            roll: rollNum,
+            qty: qty,
+            purpose: purpose,
+            date: date,
+            dueDate: dueDate
+        });
+        DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> (Due: ${dueDate}) for '${purpose}'.`);
         (document.getElementById('borrow-form') as HTMLFormElement).reset();
         DatabaseManager.save();
         this.close('borrow-form-modal');
-        if (requestMode) {
-            this.openLogsDrawer();
-        }
         window.dashboard!.init();
     }
 
-    private static handleReturnClick(idx: number) {
+    private static async handleReturnClick(idx: number) {
         if (!selectedItem) return;
 
         const rec = selectedItem.borrowedBy[idx];
         if (!rec) return;
 
+        const token = localStorage.getItem('cicr_token');
+        try {
+            if (rec.id) {
+                const res = await fetch(`${API_BASE}/borrow/return`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        borrowId: rec.id
+                    })
+                });
+
+                if (res.ok) {
+                    await DatabaseManager.syncFromBackend();
+                    const refreshed = inventory.find(i => i.id === selectedItem?.id);
+                    if (refreshed) this.openDetailModal(refreshed);
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error('Return API error:', e);
+        }
+
         selectedItem.borrowedBy.splice(idx, 1);
         DatabaseManager.addLog('return', `<span>${rec.name}</span> returned ${rec.qty}x <span>${selectedItem.name}</span>.`);
-
         DatabaseManager.save();
         this.openDetailModal(selectedItem);
         window.dashboard!.init();
@@ -1516,7 +1582,7 @@ class ModalManager {
 }
 
 // ==========================================
-// 6. User Authentication Manager
+// 6. User Authentication & Admin Approval Manager
 // ==========================================
 class AuthManager {
     private static loginForm: HTMLFormElement;
@@ -1539,10 +1605,6 @@ class AuthManager {
     private static navLogoutBtn: HTMLElement;
 
     static init() {
-        if (!localStorage.getItem('cicr_users')) {
-            localStorage.setItem('cicr_users', JSON.stringify({}));
-        }
-
         this.loginForm = document.getElementById('login-form') as HTMLFormElement;
         this.signupForm = document.getElementById('signup-form') as HTMLFormElement;
         this.authOverlay = document.getElementById('auth-overlay')!;
@@ -1561,6 +1623,14 @@ class AuthManager {
 
         this.navUsername = document.getElementById('nav-username')!;
         this.navLogoutBtn = document.getElementById('nav-logout')!;
+
+        const sideLogoutBtn = document.getElementById('sidebar-logout-btn');
+        if (sideLogoutBtn) {
+            sideLogoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.handleLogout();
+            });
+        }
 
         this.setupEventListeners();
         this.checkAuth();
@@ -1602,102 +1672,145 @@ class AuthManager {
         // Password visibility toggles
         const loginToggle = document.getElementById('login-password-toggle')!;
         const loginPass = document.getElementById('login-password') as HTMLInputElement;
-        loginToggle.addEventListener('click', () => {
-            const currentType = loginPass.getAttribute('type');
-            const newType = currentType === 'password' ? 'text' : 'password';
-            loginPass.setAttribute('type', newType);
-            
-            const icon = loginToggle.querySelector('i')!;
-            icon.setAttribute('data-lucide', newType === 'password' ? 'eye' : 'eye-off');
-            lucide.createIcons();
-        });
+        if (loginToggle && loginPass) {
+            loginToggle.addEventListener('click', () => {
+                const currentType = loginPass.getAttribute('type');
+                const newType = currentType === 'password' ? 'text' : 'password';
+                loginPass.setAttribute('type', newType);
+                
+                const icon = loginToggle.querySelector('i')!;
+                if (icon) {
+                    icon.setAttribute('data-lucide', newType === 'password' ? 'eye' : 'eye-off');
+                    lucide.createIcons();
+                }
+            });
+        }
 
         const signupToggle = document.getElementById('signup-password-toggle')!;
         const signupPass = document.getElementById('signup-password') as HTMLInputElement;
-        signupToggle.addEventListener('click', () => {
-            const currentType = signupPass.getAttribute('type');
-            const newType = currentType === 'password' ? 'text' : 'password';
-            signupPass.setAttribute('type', newType);
-            
-            const icon = signupToggle.querySelector('i')!;
-            icon.setAttribute('data-lucide', newType === 'password' ? 'eye' : 'eye-off');
-            lucide.createIcons();
-        });
-    }
-
-    private static checkAuth() {
-        const currentUser = localStorage.getItem('cicr_auth');
-        const welcomeScreen = document.getElementById('welcome-screen');
-        if (welcomeScreen) welcomeScreen.style.display = 'none';
-        
-        if (currentUser) {
-            this.loginSuccess(currentUser);
-        } else {
-            this.globalNavbar.style.display = 'none';
-            this.authOverlay.classList.remove('hidden');
-            this.authOverlay.style.display = 'flex';
-            this.appContainer.style.display = 'none';
+        if (signupToggle && signupPass) {
+            signupToggle.addEventListener('click', () => {
+                const currentType = signupPass.getAttribute('type');
+                const newType = currentType === 'password' ? 'text' : 'password';
+                signupPass.setAttribute('type', newType);
+                
+                const icon = signupToggle.querySelector('i')!;
+                if (icon) {
+                    icon.setAttribute('data-lucide', newType === 'password' ? 'eye' : 'eye-off');
+                    lucide.createIcons();
+                }
+            });
         }
     }
 
+    private static async checkAuth() {
+        const welcomeScreen = document.getElementById('welcome-screen');
+        if (welcomeScreen) welcomeScreen.style.display = 'none';
+
+        const token = localStorage.getItem('cicr_token');
+        if (!token) {
+            this.showLoginOverlay();
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/profile`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                const user = result.data;
+                if (user && user.status === 'APPROVED') {
+                    this.loginSuccess(user.name, user.role, user);
+                    return;
+                }
+            }
+        } catch (err) {
+            console.warn('Profile validation check failed:', err);
+        }
+
+        this.handleLogout();
+    }
+
+    private static showLoginOverlay() {
+        this.globalNavbar.style.display = 'none';
+        this.authOverlay.classList.remove('hidden');
+        this.authOverlay.style.display = 'flex';
+        this.appContainer.style.display = 'none';
+    }
+
     private static async handleLogin() {
-        const username = this.loginUserInp.value.trim();
+        const identifier = this.loginUserInp.value.trim();
         const password = this.loginPassInp.value;
 
         this.loginErr.style.display = 'none';
 
-        // 1. Try Backend API Authentication
         try {
-            const emailPayload = username.includes('@') ? username : `${username.toLowerCase()}@mail.jiit.ac.in`;
             const res = await fetch(`${API_BASE}/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: emailPayload, username, password }),
+                body: JSON.stringify({ email: identifier, username: identifier, password }),
             });
 
-            if (res.ok) {
-                const data = await res.json();
-                if (data.token) {
-                    localStorage.setItem('cicr_token', data.token);
+            const data = await res.json();
+
+            if (res.ok && data.token) {
+                localStorage.setItem('cicr_token', data.token);
+                if (data.user) {
+                    localStorage.setItem('cicr_user', JSON.stringify(data.user));
                 }
-                const resolvedName = data.user?.name || username;
-                this.loginSuccess(resolvedName);
+                const resolvedName = data.user?.name || identifier;
+                const role = data.user?.role || 'MEMBER';
+                this.loginSuccess(resolvedName, role, data.user);
                 return;
             }
+
+            if (data.status === 'pending_approval') {
+                this.showLoginError("⏳ Access Pending: Your account has been registered and is awaiting approval by the CICR Admin (Vardaan).");
+                return;
+            }
+
+            if (data.status === 'rejected') {
+                this.showLoginError("⛔ Access Denied: Your account registration was rejected by the CICR Admin.");
+                return;
+            }
+
+            this.showLoginError(data.message || "Invalid credentials. Please verify your email/username and password.");
         } catch (err) {
-            console.warn('Backend auth offline, using resilient local auth:', err);
+            this.showLoginError("Unable to reach backend server. Please verify your connection.");
         }
+    }
 
-        // 2. Master Admin and Local Auth Bypass
-        if (username === 'SRVKILLER09' && password === 'IAMTHEBEST') {
-            this.loginSuccess(username);
-            return;
-        }
-
-        const users = JSON.parse(localStorage.getItem('cicr_users') || '{}') as UserDatabase;
-        if (users[username] && users[username] === password) {
-            this.loginSuccess(username);
-            return;
-        }
-
-        this.loginErr.innerText = "Access Denied: Invalid credentials.";
+    private static showLoginError(msg: string) {
+        this.loginErr.innerText = msg;
         this.loginErr.style.display = 'block';
         this.loginErr.style.animation = 'none';
         this.loginErr.offsetHeight; 
         this.loginErr.style.animation = 'shake-error 0.4s ease';
     }
 
-    private static loginSuccess(username: string) {
+    private static loginSuccess(username: string, role: string = 'MEMBER', _userObj?: any) {
         localStorage.setItem('cicr_auth', username);
         if (this.navUsername) {
             this.navUsername.innerText = username;
         }
 
-        // Set username and initial in the left sidebar profile card
+        // Set username, role, and initial in the left sidebar profile card
         const profileUserDisplay = document.getElementById('profile-username-display');
         const profileAvatarInitial = document.getElementById('profile-avatar-initial');
+        const profileRoleDisplay = document.querySelector('.sidebar-profile-box .profile-role') as HTMLElement;
+        
         if (profileUserDisplay) profileUserDisplay.innerText = username;
         if (profileAvatarInitial) profileAvatarInitial.innerText = username.charAt(0).toUpperCase();
+        if (profileRoleDisplay) {
+            profileRoleDisplay.innerText = role;
+            if (role === 'ADMIN') {
+                profileRoleDisplay.style.color = '#ff007a';
+            } else {
+                profileRoleDisplay.style.color = 'var(--neon-cyan)';
+            }
+        }
 
         const welcomeScreen = document.getElementById('welcome-screen');
         if (welcomeScreen) welcomeScreen.style.display = 'none';
@@ -1705,6 +1818,9 @@ class AuthManager {
         // Directly transition: hide auth form, show app container
         this.authOverlay.style.display = 'none';
         this.appContainer.style.display = 'grid';
+
+        // Show/Hide Admin Portal navigation & cards based on role
+        this.updateAdminVisibility(role);
 
         // Select Dashboard link in the left sidebar by default
         const activeNavClass = () => {
@@ -1745,8 +1861,27 @@ class AuthManager {
         } else {
             window.dashboard.init();
         }
+        DatabaseManager.syncFromBackend();
         lucide.createIcons();
         TerminalSimulator.start();
+
+        if (role === 'ADMIN') {
+            AdminManager.init();
+            AdminManager.loadUsers();
+        }
+    }
+
+    private static updateAdminVisibility(role: string) {
+        const sideAdminLink = document.getElementById('side-nav-admin');
+        const dashAdminCard = document.getElementById('dash-card-admin');
+
+        if (role === 'ADMIN') {
+            if (sideAdminLink) sideAdminLink.style.display = 'flex';
+            if (dashAdminCard) dashAdminCard.style.display = 'flex';
+        } else {
+            if (sideAdminLink) sideAdminLink.style.display = 'none';
+            if (dashAdminCard) dashAdminCard.style.display = 'none';
+        }
     }
 
     private static async handleSignup() {
@@ -1762,45 +1897,36 @@ class AuthManager {
             return;
         }
 
-        if (username === 'SRVKILLER09') {
-            this.showSignupError("Username already exists.");
+        if (!email || !email.includes('@')) {
+            this.showSignupError("Please provide a valid email address.");
             return;
         }
 
-        // Try Backend API Registration
         try {
             const res = await fetch(`${API_BASE}/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: username, email, password, role: username === 'SRVKILLER09' ? 'ADMIN' : 'MEMBER' }),
+                body: JSON.stringify({ name: username, email, password }),
             });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.token) {
-                    localStorage.setItem('cicr_token', data.token);
-                }
+
+            const data = await res.json();
+
+            if (res.ok || data.status === 'success') {
+                this.signupSuccess.innerText = data.message || "Registration request submitted! Your account is pending CICR Admin approval.";
+                this.signupSuccess.style.display = 'block';
+
+                DatabaseManager.addLog('system', `Registration requested: <span>${username}</span> (${email}).`);
+
+                setTimeout(() => {
+                    document.getElementById('go-to-login')!.click();
+                }, 2200);
+                return;
             }
+
+            this.showSignupError(data.message || "Registration failed. Please check your information.");
         } catch (err) {
-            console.warn('Backend registration offline, saved locally:', err);
+            this.showSignupError("Unable to reach backend server. Please verify your connection.");
         }
-
-        const users = JSON.parse(localStorage.getItem('cicr_users') || '{}') as UserDatabase;
-        if (users[username]) {
-            this.showSignupError("Username already registered.");
-            return;
-        }
-
-        users[username] = password;
-        localStorage.setItem('cicr_users', JSON.stringify(users));
-
-        DatabaseManager.addLog('system', `New operator registered: <span>${username}</span> (${email}).`);
-
-        this.signupSuccess.innerText = "Registration complete! Switching to Login...";
-        this.signupSuccess.style.display = 'block';
-
-        setTimeout(() => {
-            document.getElementById('go-to-login')!.click();
-        }, 1200);
     }
 
     private static showSignupError(msg: string) {
@@ -1813,6 +1939,8 @@ class AuthManager {
 
     private static handleLogout() {
         localStorage.removeItem('cicr_auth');
+        localStorage.removeItem('cicr_token');
+        localStorage.removeItem('cicr_user');
         
         this.appContainer.style.display = 'none';
         this.globalNavbar.style.display = 'none';
@@ -1832,6 +1960,270 @@ class AuthManager {
         this.loginErr.style.display = 'none';
     }
 }
+
+// ==========================================
+// Admin Member Management & Approval System
+// ==========================================
+interface AdminUserRecord {
+    id: string;
+    name: string;
+    email: string;
+    roll_number: string | null;
+    role: 'ADMIN' | 'MEMBER';
+    status: 'APPROVED' | 'PENDING' | 'REJECTED';
+    isMasterAdmin?: boolean;
+    created_at: string;
+}
+
+class AdminManager {
+    private static users: AdminUserRecord[] = [];
+    private static isInitialized = false;
+
+    static init() {
+        if (this.isInitialized) return;
+        this.isInitialized = true;
+
+        const refreshBtn = document.getElementById('admin-refresh-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.loadUsers();
+            });
+        }
+
+        const searchInput = document.getElementById('admin-users-search') as HTMLInputElement;
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                this.renderUsersTable(this.filterUsers(searchInput.value));
+            });
+        }
+
+        // Attach window methods for onclick handlers
+        window.adminApprove = (id: string) => this.approveUser(id);
+        window.adminReject = (id: string) => this.rejectUser(id);
+        window.adminSetRole = (id: string, role: 'ADMIN' | 'MEMBER') => this.setRole(id, role);
+        window.adminDeleteUser = (id: string, name: string) => this.deleteUser(id, name);
+    }
+
+    static async loadUsers() {
+        const token = localStorage.getItem('cicr_token');
+        if (!token) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/admin/users`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!res.ok) return;
+
+            const result = await res.json();
+            this.users = result.data || [];
+            this.updateStats();
+            this.renderPendingQueue();
+            
+            const searchInput = document.getElementById('admin-users-search') as HTMLInputElement;
+            const query = searchInput ? searchInput.value : '';
+            this.renderUsersTable(this.filterUsers(query));
+        } catch (err) {
+            console.error('Failed to fetch admin users:', err);
+        }
+    }
+
+    private static updateStats() {
+        const pending = this.users.filter(u => u.status === 'PENDING').length;
+        const approved = this.users.filter(u => u.status === 'APPROVED').length;
+        const admins = this.users.filter(u => u.role === 'ADMIN').length;
+
+        const statPending = document.getElementById('admin-stat-pending');
+        const statApproved = document.getElementById('admin-stat-approved');
+        const statAdmins = document.getElementById('admin-stat-admins');
+        const pendingTag = document.getElementById('admin-pending-count-tag');
+        const sidebarBadge = document.getElementById('admin-pending-badge');
+
+        if (statPending) statPending.innerText = pending.toString();
+        if (statApproved) statApproved.innerText = approved.toString();
+        if (statAdmins) statAdmins.innerText = admins.toString();
+        if (pendingTag) pendingTag.innerText = `${pending} PENDING`;
+
+        if (sidebarBadge) {
+            if (pending > 0) {
+                sidebarBadge.style.display = 'inline-block';
+                sidebarBadge.innerText = pending.toString();
+            } else {
+                sidebarBadge.style.display = 'none';
+            }
+        }
+    }
+
+    private static renderPendingQueue() {
+        const container = document.getElementById('admin-pending-list');
+        if (!container) return;
+
+        const pendingUsers = this.users.filter(u => u.status === 'PENDING');
+        if (pendingUsers.length === 0) {
+            container.innerHTML = `
+                <div class="admin-empty-state">
+                    <i data-lucide="check-circle-2"></i>
+                    <p>No pending registration requests. All accounts are up to date!</p>
+                </div>
+            `;
+            lucide.createIcons();
+            return;
+        }
+
+        container.innerHTML = pendingUsers.map(u => `
+            <div class="pending-request-card glass" data-user-id="${u.id}">
+                <div class="pending-card-top">
+                    <div class="pending-card-avatar">${u.name.charAt(0).toUpperCase()}</div>
+                    <div class="pending-card-meta">
+                        <span class="pending-card-name">${u.name}</span>
+                        <span class="pending-card-email">${u.email}</span>
+                    </div>
+                </div>
+                <div class="pending-card-extra">
+                    <span><i data-lucide="calendar" style="width:11px; height:11px; vertical-align:middle;"></i> ${new Date(u.created_at).toLocaleDateString()}</span>
+                    ${u.roll_number ? `<span>• Roll: ${u.roll_number}</span>` : ''}
+                </div>
+                <div class="pending-card-actions">
+                    <button class="btn-approve" onclick="window.adminApprove('${u.id}')">
+                        <i data-lucide="check"></i> Approve
+                    </button>
+                    <button class="btn-reject" onclick="window.adminReject('${u.id}')">
+                        <i data-lucide="x"></i> Reject
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        lucide.createIcons();
+    }
+
+    private static filterUsers(query: string) {
+        if (!query || !query.trim()) return this.users;
+        const q = query.toLowerCase().trim();
+        return this.users.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+    }
+
+    private static renderUsersTable(usersList: AdminUserRecord[]) {
+        const tbody = document.getElementById('admin-users-tbody');
+        if (!tbody) return;
+
+        if (usersList.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 24px; color: var(--text-dim);">No registered users matching search.</td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = usersList.map(u => {
+            const statusClass = u.status === 'APPROVED' ? 'approved' : u.status === 'PENDING' ? 'pending' : 'rejected';
+            const isMaster = u.isMasterAdmin || u.email.toLowerCase() === 'vardaansaxena096@gmail.com';
+            const roleBadge = isMaster
+                ? `<span class="badge-role master"><i data-lucide="crown" style="width:10px;height:10px;"></i> MASTER ADMIN</span>`
+                : u.role === 'ADMIN'
+                    ? `<span class="badge-role admin"><i data-lucide="shield" style="width:10px;height:10px;"></i> ADMIN</span>`
+                    : `<span class="badge-role member">MEMBER</span>`;
+
+            let actionsHtml = '';
+            if (isMaster) {
+                actionsHtml = `<span style="font-size: 10px; color: var(--neon-cyan); font-weight:800; font-family:'Orbitron',sans-serif;">PERMANENT ADMIN</span>`;
+            } else {
+                const roleBtn = u.role === 'ADMIN'
+                    ? `<button class="btn-table-action btn-demote" onclick="window.adminSetRole('${u.id}', 'MEMBER')" title="Demote to Member"><i data-lucide="shield-off"></i> Demote</button>`
+                    : `<button class="btn-table-action btn-make-admin" onclick="window.adminSetRole('${u.id}', 'ADMIN')" title="Promote to Admin"><i data-lucide="shield-alert"></i> Make Admin</button>`;
+                
+                const deleteBtn = `<button class="btn-table-action btn-del" onclick="window.adminDeleteUser('${u.id}', '${u.name}')" title="Delete User"><i data-lucide="trash-2"></i></button>`;
+
+                actionsHtml = `${roleBtn} ${deleteBtn}`;
+            }
+
+            return `
+                <tr>
+                    <td>
+                        <div class="user-cell-name">
+                            <div class="user-cell-avatar">${u.name.charAt(0).toUpperCase()}</div>
+                            <span>${u.name}</span>
+                        </div>
+                    </td>
+                    <td>${u.email}</td>
+                    <td><span class="badge-status ${statusClass}">${u.status}</span></td>
+                    <td>${roleBadge}</td>
+                    <td>${new Date(u.created_at).toLocaleDateString()}</td>
+                    <td><div class="table-actions-cell">${actionsHtml}</div></td>
+                </tr>
+            `;
+        }).join('');
+
+        lucide.createIcons();
+    }
+
+    static async approveUser(id: string) {
+        const token = localStorage.getItem('cicr_token');
+        try {
+            const res = await fetch(`${API_BASE}/auth/admin/users/${id}/approve`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                await this.loadUsers();
+            }
+        } catch (e) {
+            console.error('Error approving user:', e);
+        }
+    }
+
+    static async rejectUser(id: string) {
+        const token = localStorage.getItem('cicr_token');
+        try {
+            const res = await fetch(`${API_BASE}/auth/admin/users/${id}/reject`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                await this.loadUsers();
+            }
+        } catch (e) {
+            console.error('Error rejecting user:', e);
+        }
+    }
+
+    static async setRole(id: string, role: 'ADMIN' | 'MEMBER') {
+        const token = localStorage.getItem('cicr_token');
+        try {
+            const res = await fetch(`${API_BASE}/auth/admin/users/${id}/role`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ role })
+            });
+            if (res.ok) {
+                await this.loadUsers();
+            }
+        } catch (e) {
+            console.error('Error changing role:', e);
+        }
+    }
+
+    static async deleteUser(id: string, name: string) {
+        if (!confirm(`Are you sure you want to permanently delete user "${name}"?`)) return;
+        const token = localStorage.getItem('cicr_token');
+        try {
+            const res = await fetch(`${API_BASE}/auth/admin/users/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                await this.loadUsers();
+            }
+        } catch (e) {
+            console.error('Error deleting user:', e);
+        }
+    }
+}
+
 
 // ==========================================
 // Terminal Simulator Logic
@@ -2538,11 +2930,15 @@ class AvengersAnimation {
     }
 }
 
-// Extend global window interface for development debugging
+// Extend global window interface for development debugging & admin actions
 declare global {
     interface Window {
         bg3D?: Background3D;
         dashboard?: DashboardManager;
+        adminApprove?: (id: string) => void;
+        adminReject?: (id: string) => void;
+        adminSetRole?: (id: string, role: 'ADMIN' | 'MEMBER') => void;
+        adminDeleteUser?: (id: string, name: string) => void;
     }
 }
 

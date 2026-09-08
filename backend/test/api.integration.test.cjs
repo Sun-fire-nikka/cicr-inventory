@@ -1,6 +1,7 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { default: app, supabase } = require('../dist/app.js');
+const { setUserApproval, setUserRole } = require('../dist/modules/auth/userApprovalService.js');
 
 if (!process.env.SUPABASE_URL || process.env.SUPABASE_URL.includes('placeholder') || process.env.SUPABASE_URL === 'http://localhost:54321') {
   console.log('Skipping live Supabase integration tests (no live SUPABASE_URL configured).');
@@ -90,13 +91,23 @@ test('GET /api/stats returns dashboard stats (public)', async () => {
 });
 
 // ---------- Registration / Login ----------
-test('POST /api/auth/register creates admin (role spoofable)', async () => {
+test('POST /api/auth/register creates user in PENDING state', async () => {
   const { status, json } = await api('/api/auth/register', {
     method: 'POST',
     body: { name: 'Test Admin', email: ADMIN_EMAIL, password: ADMIN_PW, role: 'ADMIN' }
   });
   assert.equal(status, 201);
+  assert.equal(json.data.status, 'PENDING');
   createdUserIds.push(json.data.id);
+});
+
+test('POST /api/auth/login unapproved pending user is blocked', async () => {
+  const { status, json } = await api('/api/auth/login', {
+    method: 'POST',
+    body: { email: ADMIN_EMAIL, password: ADMIN_PW }
+  });
+  assert.equal(status, 403);
+  assert.equal(json.status, 'pending_approval');
 });
 
 test('POST /api/auth/register duplicate email returns 400', async () => {
@@ -122,7 +133,11 @@ test('POST /api/auth/register member succeeds', async () => {
   createdUserIds.push(json.data.id);
 });
 
-test('POST /api/auth/login returns token', async () => {
+test('POST /api/auth/login returns token once approved as ADMIN', async () => {
+  setUserApproval(ADMIN_EMAIL, 'APPROVED', 'MASTER_ADMIN');
+  setUserRole(ADMIN_EMAIL, 'ADMIN');
+  setUserApproval(MEMBER_EMAIL, 'APPROVED', 'MASTER_ADMIN');
+
   const { status, json } = await api('/api/auth/login', {
     method: 'POST',
     body: { email: ADMIN_EMAIL, password: ADMIN_PW }

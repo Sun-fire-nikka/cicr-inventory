@@ -21,6 +21,7 @@ export const isValidEmail = (email: string): boolean => {
   const value = String(email ?? '').trim().toLowerCase();
   if (!value) return false;
   if (INSTITUTIONAL_STUDENT_EMAIL_REGEX.test(value)) return true;
+  if (GENERAL_EMAIL_REGEX.test(value)) return true;
   return false;
 };
 

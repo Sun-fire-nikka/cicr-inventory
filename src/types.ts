@@ -1,4 +1,5 @@
 export interface BorrowRecord {
+    id?: string;
     name: string;
     roll: string;
     qty: number;

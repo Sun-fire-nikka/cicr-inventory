@@ -5,10 +5,19 @@ import { supabase } from '../../app';
 import { dbRead } from '../../config/database';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { isValidEmail } from '../../validators/email.validator';
+import {
+  MASTER_ADMIN_EMAIL,
+  isManagedUser,
+  getUserApproval,
+  setUserApproval,
+  setUserRole,
+  deleteUserApproval,
+  getAllUserApprovals
+} from './userApprovalService';
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, roll_number, role } = req.body;
+    const { name, email, password, roll_number } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ status: 'error', message: 'Name, email, and password required.' });
@@ -18,29 +27,45 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Invalid email format.' });
     }
 
+    const normEmail = email.trim().toLowerCase();
+
     const { data: existingUser } = await dbRead
       .from('users')
       .select('id')
-      .eq('email', email)
+      .eq('email', normEmail)
       .single();
 
     if (existingUser) {
       return res.status(400).json({ status: 'error', message: 'Email already registered.' });
     }
 
+    const isMasterAdmin = normEmail === MASTER_ADMIN_EMAIL.toLowerCase();
+    const userRole = isMasterAdmin ? 'ADMIN' : 'MEMBER';
+    const initialStatus = isMasterAdmin ? 'APPROVED' : 'PENDING';
+
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
-    const userRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
 
     const { data: newUser, error } = await supabase
       .from('users')
-      .insert([{ name, email, password_hash, roll_number: roll_number || null, role: userRole }])
+      .insert([{ name: name.trim(), email: normEmail, password_hash, roll_number: roll_number || null, role: userRole }])
       .select('id, name, email, roll_number, role, created_at')
       .single();
 
     if (error) throw error;
 
-    return res.status(201).json({ status: 'success', message: 'User registered!', data: newUser });
+    // Track approval status
+    setUserApproval(normEmail, initialStatus, isMasterAdmin ? 'SYSTEM' : undefined);
+
+    const message = isMasterAdmin
+      ? 'Master Admin registered successfully!'
+      : 'Account registration submitted! Your request is pending CICR Admin approval.';
+
+    return res.status(201).json({
+      status: 'success',
+      message,
+      data: { ...newUser, status: initialStatus }
+    });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
   }
@@ -48,17 +73,19 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, username, password } = req.body;
+    const identifier = (email || username || '').trim();
 
-    if (!email || !password) {
-      return res.status(400).json({ status: 'error', message: 'Email and password required.' });
+    if (!identifier || !password) {
+      return res.status(400).json({ status: 'error', message: 'Email/Username and password required.' });
     }
 
     const { data: user, error } = await dbRead
       .from('users')
       .select('*')
-      .eq('email', email)
-      .single();
+      .or(`email.eq.${identifier.toLowerCase()},name.eq.${identifier}`)
+      .limit(1)
+      .maybeSingle();
 
     if (error || !user) {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
@@ -69,17 +96,53 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
     }
 
+    const isMasterAdmin = user.email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+    if (!isMasterAdmin && !isManagedUser(user.email)) {
+      return res.status(401).json({ status: 'error', message: 'Account not found or has been removed.' });
+    }
+
+    const approval = isMasterAdmin
+      ? { status: 'APPROVED' as const, role: 'ADMIN' as const }
+      : getUserApproval(user.email, user.role);
+
+    if (approval.status === 'PENDING') {
+      return res.status(403).json({
+        status: 'pending_approval',
+        message: 'Your account is pending admin approval. You will receive access once approved by CICR Admin (Vardaan).'
+      });
+    }
+
+    if (approval.status === 'REJECTED') {
+      return res.status(403).json({
+        status: 'rejected',
+        message: 'Your access request was rejected by the CICR Admin.'
+      });
+    }
+
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       console.error('FATAL: JWT_SECRET environment variable is not set.');
       return res.status(500).json({ status: 'error', message: 'Server misconfiguration.' });
     }
-    const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, secret, { expiresIn: '7d' });
+
+    const effectiveRole = approval.role;
+    const token = jwt.sign(
+      { id: user.id, name: user.name, email: user.email, role: effectiveRole },
+      secret,
+      { expiresIn: '7d' }
+    );
 
     return res.status(200).json({
       status: 'success',
       token,
-      user: { id: user.id, name: user.name, email: user.email, roll_number: user.roll_number, role: user.role }
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        roll_number: user.roll_number,
+        role: effectiveRole,
+        status: approval.status
+      }
     });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
@@ -96,8 +159,126 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 
     if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
 
-    return res.status(200).json({ status: 'success', data: user });
+    const isMasterAdmin = user.email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+    const approval = isMasterAdmin
+      ? { status: 'APPROVED', role: 'ADMIN' }
+      : getUserApproval(user.email, user.role);
+
+    return res.status(200).json({
+      status: 'success',
+      data: { ...user, role: approval.role, status: approval.status }
+    });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
   }
 };
+
+// ==========================================
+// Admin Member Management Endpoints
+// ==========================================
+
+export const listUsersForAdmin = async (req: AuthRequest, res: Response) => {
+  try {
+    const { data: users, error } = await dbRead
+      .from('users')
+      .select('id, name, email, roll_number, role, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const allApprovals = getAllUserApprovals();
+
+    const userList = (users || [])
+      .filter((u) => isManagedUser(u.email))
+      .map((u) => {
+        const normEmail = u.email.toLowerCase();
+        const isMasterAdmin = normEmail === MASTER_ADMIN_EMAIL.toLowerCase();
+        const record = isMasterAdmin
+          ? { status: 'APPROVED', role: 'ADMIN' }
+          : allApprovals[normEmail] || { status: 'PENDING', role: u.role || 'MEMBER' };
+
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          roll_number: u.roll_number,
+          role: record.role,
+          status: record.status,
+          isMasterAdmin,
+          created_at: u.created_at
+        };
+      });
+
+    return res.status(200).json({ status: 'success', count: userList.length, data: userList });
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+export const approveUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { data: user, error } = await dbRead.from('users').select('id, email, name').eq('id', id).single();
+    if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
+
+    const updated = setUserApproval(user.email, 'APPROVED', req.user?.name || 'ADMIN');
+    return res.status(200).json({ status: 'success', message: `User ${user.name} approved successfully.`, data: updated });
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+export const rejectUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { data: user, error } = await dbRead.from('users').select('id, email, name').eq('id', id).single();
+    if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
+
+    const updated = setUserApproval(user.email, 'REJECTED', req.user?.name || 'ADMIN');
+    return res.status(200).json({ status: 'success', message: `User ${user.name} registration rejected.`, data: updated });
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+export const changeUserRole = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (role !== 'ADMIN' && role !== 'MEMBER') {
+      return res.status(400).json({ status: 'error', message: 'Role must be ADMIN or MEMBER.' });
+    }
+
+    const { data: user, error } = await dbRead.from('users').select('id, email, name').eq('id', id).single();
+    if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
+
+    if (user.email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase() && role !== 'ADMIN') {
+      return res.status(400).json({ status: 'error', message: 'Cannot demote the Master Admin.' });
+    }
+
+    const updated = setUserRole(user.email, role);
+    return res.status(200).json({ status: 'success', message: `Role for ${user.name} changed to ${role}.`, data: updated });
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+export const deleteUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { data: user, error } = await dbRead.from('users').select('id, email, name').eq('id', id).single();
+    if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
+
+    if (user.email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase()) {
+      return res.status(400).json({ status: 'error', message: 'Cannot delete Master Admin.' });
+    }
+
+    deleteUserApproval(user.email);
+    await supabase.from('users').delete().eq('id', id);
+
+    return res.status(200).json({ status: 'success', message: `User ${user.name} deleted.` });
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
