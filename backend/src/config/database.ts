@@ -12,8 +12,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // its clients) before any caller's own dotenv.config() runs.
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const anonKey = process.env.SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
+const anonKey = process.env.SUPABASE_ANON_KEY || 'placeholder-anon-key';
 const readUrl = process.env.SUPABASE_READ_URL || supabaseUrl;
 
 // Write pool (primary).

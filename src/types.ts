@@ -30,8 +30,12 @@ export interface InventoryItem {
     name: string;
     category: string;
     quantity: number;
+    availableQuantity?: number;
     location: string;
     specs: string;
+    image?: string;
+    tags?: string[];
+    status?: string;
     borrowedBy: BorrowRecord[];
 }
 

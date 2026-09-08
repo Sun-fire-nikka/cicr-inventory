@@ -7,8 +7,12 @@ declare const lucide: {
     createIcons: () => void;
 };
 
-// API URL
-const API_BASE = 'https://cicr-inventory-backend.onrender.com/api';
+// Dynamic API URL for Local Development & Live Production
+const API_BASE = (import.meta.env.VITE_API_BASE as string) ||
+    (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:5000/api'
+        : 'https://cicr-inventory-backend.onrender.com/api');
+
 const ADMIN_USERNAME = 'SRVKILLER09';
 
 type UserRole = 'ADMIN' | 'MEMBER';
@@ -233,10 +237,131 @@ class Background3D {
 // ==========================================
 // 3. Database Manager & LocalStorage Sync
 // ==========================================
+const DEFAULT_CATALOG: InventoryItem[] = [
+    {
+        id: "mcu-01",
+        name: "ESP32-WROOM-32D Development Board",
+        category: "microcontrollers",
+        quantity: 12,
+        location: "Rack A, Shelf 2",
+        specs: "Dual-core Tensilica Xtensa 32-bit LX6 MCU, Wi-Fi & Bluetooth v4.2 BR/EDR and BLE.",
+        image: "microchip.jpg",
+        tags: ["WiFi", "Bluetooth", "IoT"],
+        borrowedBy: [
+            { name: "Aarav Sharma", roll: "9921103001", qty: 2, purpose: "Autonomous Swarm Rover", date: "2026-09-01", dueDate: "2026-09-12" },
+            { name: "Priya Singh", roll: "9921103045", qty: 1, purpose: "Smart Agriculture Node", date: "2026-09-04", dueDate: "2026-09-15" }
+        ]
+    },
+    {
+        id: "mcu-02",
+        name: "Arduino UNO R3 DIP Edition",
+        category: "microcontrollers",
+        quantity: 15,
+        location: "Rack A, Shelf 1",
+        specs: "ATmega328P 8-bit AVR RISC MCU, 16MHz clock, 14 digital I/O pins, 6 analog inputs.",
+        image: "microchip.jpg",
+        tags: ["Beginner", "AVR", "Robotics"],
+        borrowedBy: [
+            { name: "Rohan Verma", roll: "9921103088", qty: 4, purpose: "Robo-Soccer Line Follower", date: "2026-08-28", dueDate: "2026-09-05" }
+        ]
+    },
+    {
+        id: "mcu-03",
+        name: "Raspberry Pi 4 Model B (4GB RAM)",
+        category: "microcontrollers",
+        quantity: 6,
+        location: "Secure Cabinet B, Drawer 1",
+        specs: "Quad core Cortex-A72 (ARM v8) 64-bit SoC @ 1.5GHz, 4GB LPDDR4, Dual 4K Micro-HDMI.",
+        image: "microchip.jpg",
+        tags: ["ROS", "Computer Vision", "Linux"],
+        borrowedBy: [
+            { name: "Aditya Malhotra", roll: "9921103112", qty: 2, purpose: "SLAM Lidar Bot", date: "2026-09-02", dueDate: "2026-09-14" },
+            { name: "Simran Kaur", roll: "9921103130", qty: 1, purpose: "Edge AI Camera", date: "2026-09-03", dueDate: "2026-09-10" }
+        ]
+    },
+    {
+        id: "sen-01",
+        name: "HC-SR04 Ultrasonic Distance Sensor",
+        category: "sensors",
+        quantity: 24,
+        location: "Bin S1, Blue Drawer",
+        specs: "Non-contact measurement from 2cm to 400cm with 3mm precision. 5V operating voltage.",
+        image: "drone.jpg",
+        tags: ["Sonar", "Obstacle Avoidance"],
+        borrowedBy: [
+            { name: "Kunal Bansal", roll: "9921103154", qty: 4, purpose: "Obstacle Detection Bot", date: "2026-09-05", dueDate: "2026-09-16" }
+        ]
+    },
+    {
+        id: "sen-02",
+        name: "MPU-6050 6-DoF IMU Gyro & Accelerometer",
+        category: "sensors",
+        quantity: 10,
+        location: "Bin S2, Blue Drawer",
+        specs: "Triple-axis MEMS gyroscope and triple-axis MEMS accelerometer with Digital Motion Processor (DMP).",
+        image: "drone.jpg",
+        tags: ["IMU", "Balancing Bot", "Flight Controller"],
+        borrowedBy: [
+            { name: "Mehak Chawla", roll: "9921103178", qty: 3, purpose: "Self Balancing Two-Wheel Bot", date: "2026-09-03", dueDate: "2026-09-13" }
+        ]
+    },
+    {
+        id: "act-01",
+        name: "MG996R Metal Gear High Torque Servo",
+        category: "actuators",
+        quantity: 18,
+        location: "Cabinet C, Tray 3",
+        specs: "11 kg-cm stall torque at 6V, metal gears, double ball bearing, 180-degree rotation.",
+        image: "rover.jpg",
+        tags: ["Robotic Arm", "Steering", "High Torque"],
+        borrowedBy: [
+            { name: "Devansh Rastogi", roll: "9921103201", qty: 6, purpose: "6-Axis Robotic Manipulator", date: "2026-09-02", dueDate: "2026-09-12" }
+        ]
+    },
+    {
+        id: "act-02",
+        name: "L298N Dual H-Bridge Motor Driver Module",
+        category: "actuators",
+        quantity: 14,
+        location: "Cabinet C, Tray 1",
+        specs: "Dual full-bridge driver, drives 2 DC motors or 1 bipolar stepper motor up to 2A per channel.",
+        image: "rover.jpg",
+        tags: ["DC Motor", "H-Bridge", "Diff Drive"],
+        borrowedBy: [
+            { name: "Arjun Mehta", roll: "9921103225", qty: 6, purpose: "Combat Robot 4WD", date: "2026-09-04", dueDate: "2026-09-14" }
+        ]
+    },
+    {
+        id: "pow-01",
+        name: "3S 2200mAh 11.1V 35C LiPo Battery Pack",
+        category: "power",
+        quantity: 8,
+        location: "Fireproof LiPo Vault Box 1",
+        specs: "High discharge 35C continuous rating, XT60 connector, JST-XH balance lead.",
+        image: "rover.jpg",
+        tags: ["LiPo", "High Current", "Drone"],
+        borrowedBy: [
+            { name: "Nikhil Gupta", roll: "9921103250", qty: 4, purpose: "Autonomous Drone Flight", date: "2026-09-05", dueDate: "2026-09-11" }
+        ]
+    },
+    {
+        id: "tool-01",
+        name: "Hakko FX-888D Digital Soldering Station",
+        category: "tools",
+        quantity: 4,
+        location: "Workstation 1 & 2 Workbench",
+        specs: "70W temperature-adjustable 50°C to 480°C soldering station with digital display and ceramic heater.",
+        image: "microchip.jpg",
+        tags: ["Soldering", "SMD", "Lab Tool"],
+        borrowedBy: []
+    }
+];
+
 class DatabaseManager {
     static init() {
-        if (!localStorage.getItem('cicr_inventory')) {
-            localStorage.setItem('cicr_inventory', JSON.stringify([]));
+        const storedInventory = localStorage.getItem('cicr_inventory');
+        if (!storedInventory || JSON.parse(storedInventory).length === 0) {
+            localStorage.setItem('cicr_inventory', JSON.stringify(DEFAULT_CATALOG));
         }
         if (!localStorage.getItem('cicr_logs')) {
             localStorage.setItem('cicr_logs', JSON.stringify([]));
@@ -730,28 +855,38 @@ class DashboardManager {
 
     private async loadInventory() {
         try {
-            const res = await fetch(`${API_BASE}/items`);
-            const result = await res.json();
+            const token = localStorage.getItem('cicr_token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            inventory = (result.data || []).map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                category: item.category || 'Electronics',
-                quantity: item.quantity || 0,
-                availableQuantity: item.available_quantity || item.quantity || 0,
-                location: item.location || 'Lab',
-                specs: item.description || 'No description available',
-                image: item.image || '',
-                status: item.status || 'AVAILABLE',
-                tags: [],
-                borrowedBy: []
-            }));
+            const res = await fetch(`${API_BASE}/items`, { headers });
+            if (res.ok) {
+                const result = await res.json();
+                const fetchedItems = result.data || [];
 
-            this.renderInventory();
-            this.renderStats();
-        }   catch (err) {
-            console.error('Failed to load inventory', err);
+                if (Array.isArray(fetchedItems) && fetchedItems.length > 0) {
+                    inventory = fetchedItems.map((item: any) => ({
+                        id: String(item.id),
+                        name: item.name,
+                        category: (item.category || 'tools').toLowerCase(),
+                        quantity: Number(item.quantity) || 0,
+                        availableQuantity: Number(item.available_quantity ?? item.quantity) || 0,
+                        location: item.location || 'Robotics Lab',
+                        specs: item.description || item.specs || 'Lab inventory component',
+                        image: item.image || (item.category === 'sensors' ? 'drone.jpg' : item.category === 'actuators' ? 'rover.jpg' : 'microchip.jpg'),
+                        status: (item.available_quantity ?? item.quantity) > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
+                        tags: item.tags || [],
+                        borrowedBy: item.borrowedBy || []
+                    }));
+                    DatabaseManager.save();
+                }
+            }
+        } catch (err) {
+            console.warn('Backend items endpoint offline, using cached/sample vault catalog:', err);
         }
+
+        this.renderInventory();
+        this.renderStats();
     }
 
     private createCardElement(item: InventoryItem): HTMLElement {
@@ -1505,18 +1640,41 @@ class AuthManager {
         }
     }
 
-    private static handleLogin() {
+    private static async handleLogin() {
         const username = this.loginUserInp.value.trim();
         const password = this.loginPassInp.value;
 
         this.loginErr.style.display = 'none';
 
+        // 1. Try Backend API Authentication
+        try {
+            const emailPayload = username.includes('@') ? username : `${username.toLowerCase()}@mail.jiit.ac.in`;
+            const res = await fetch(`${API_BASE}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: emailPayload, username, password }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data.token) {
+                    localStorage.setItem('cicr_token', data.token);
+                }
+                const resolvedName = data.user?.name || username;
+                this.loginSuccess(resolvedName);
+                return;
+            }
+        } catch (err) {
+            console.warn('Backend auth offline, using resilient local auth:', err);
+        }
+
+        // 2. Master Admin and Local Auth Bypass
         if (username === 'SRVKILLER09' && password === 'IAMTHEBEST') {
             this.loginSuccess(username);
             return;
         }
 
-        const users = JSON.parse(localStorage.getItem('cicr_users')!) as UserDatabase;
+        const users = JSON.parse(localStorage.getItem('cicr_users') || '{}') as UserDatabase;
         if (users[username] && users[username] === password) {
             this.loginSuccess(username);
             return;
@@ -1591,7 +1749,7 @@ class AuthManager {
         TerminalSimulator.start();
     }
 
-    private static handleSignup() {
+    private static async handleSignup() {
         const username = this.signupUserInp.value.trim();
         const email = this.signupEmailInp.value.trim();
         const password = this.signupPassInp.value;
@@ -1609,7 +1767,24 @@ class AuthManager {
             return;
         }
 
-        const users = JSON.parse(localStorage.getItem('cicr_users')!) as UserDatabase;
+        // Try Backend API Registration
+        try {
+            const res = await fetch(`${API_BASE}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: username, email, password, role: username === 'SRVKILLER09' ? 'ADMIN' : 'MEMBER' }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.token) {
+                    localStorage.setItem('cicr_token', data.token);
+                }
+            }
+        } catch (err) {
+            console.warn('Backend registration offline, saved locally:', err);
+        }
+
+        const users = JSON.parse(localStorage.getItem('cicr_users') || '{}') as UserDatabase;
         if (users[username]) {
             this.showSignupError("Username already registered.");
             return;
@@ -1625,7 +1800,7 @@ class AuthManager {
 
         setTimeout(() => {
             document.getElementById('go-to-login')!.click();
-        }, 1500);
+        }, 1200);
     }
 
     private static showSignupError(msg: string) {

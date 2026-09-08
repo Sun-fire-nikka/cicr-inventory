@@ -5,7 +5,6 @@ import app from './app';
 import { supabase } from './app';
 import { startReminderScheduler } from './services/reminderService';
 import systemRoutes from './routes/system.routes';
-import { startReminderScheduler } from './services/reminderScheduler';
 
 const PORT = process.env.PORT || 5000;
 
