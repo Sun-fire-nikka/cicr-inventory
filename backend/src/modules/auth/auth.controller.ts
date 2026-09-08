@@ -10,6 +10,7 @@ import {
   SUPER_ADMIN_EMAILS,
   isSuperAdminEmail,
   isManagedUser,
+  unpurgeEmail,
   getUserApproval,
   setUserApproval,
   setUserRole,
@@ -37,13 +38,8 @@ export const register = async (req: Request, res: Response) => {
 
     const normEmail = email.trim().toLowerCase();
 
-    const { data: existingUser } = await dbRead
-      .from('users')
-      .select('id')
-      .eq('email', normEmail)
-      .single();
-
-    if (existingUser) {
+    // If email is currently active/managed, prevent duplicate
+    if (isManagedUser(normEmail)) {
       return res.status(400).json({ status: 'error', message: 'Email already registered.' });
     }
 
@@ -54,13 +50,25 @@ export const register = async (req: Request, res: Response) => {
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
-    const { data: newUser, error } = await supabase
+    unpurgeEmail(normEmail);
+
+    let newUser: any = {
+      name: name.trim(),
+      email: normEmail,
+      roll_number: roll_number || null,
+      role: userRole,
+      created_at: new Date().toISOString()
+    };
+
+    const { data: insertedUser } = await supabase
       .from('users')
       .insert([{ name: name.trim(), email: normEmail, password_hash, roll_number: roll_number || null, role: userRole }])
       .select('id, name, email, roll_number, role, created_at')
       .single();
 
-    if (error) throw error;
+    if (insertedUser) {
+      newUser = insertedUser;
+    }
 
     // Track approval status
     setUserApproval(normEmail, initialStatus, isMasterAdmin ? 'SYSTEM' : undefined);
@@ -109,12 +117,16 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials. User not found.' });
     }
 
+    const isMasterAdmin = isSuperAdminEmail(user.email);
+    if (!isMasterAdmin && !isManagedUser(user.email)) {
+      return res.status(401).json({ status: 'error', message: 'Invalid credentials. Account not found or has been removed.' });
+    }
+
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials. Incorrect password.' });
     }
 
-    const isMasterAdmin = isSuperAdminEmail(user.email);
     const approval = isMasterAdmin
       ? { status: 'APPROVED' as const, role: 'ADMIN' as const }
       : getUserApproval(user.email, user.role);

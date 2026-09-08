@@ -1,9 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
-export const MASTER_ADMIN_EMAIL = 'vardaansaxena096@gmail.com';
+export const MASTER_ADMIN_EMAIL = 'cicrinventory@gmail.com';
 export const SUPER_ADMIN_EMAILS = [
-  'vardaansaxena096@gmail.com',
   'cicrinventory@gmail.com'
 ];
 
@@ -63,7 +62,12 @@ export const isManagedUser = (email: string): boolean => {
   const normEmail = email.trim().toLowerCase();
   if (isSuperAdminEmail(normEmail)) return true;
   if (purgedEmails.has(normEmail)) return false;
-  return true;
+  return Boolean(approvalState[normEmail]);
+};
+
+export const unpurgeEmail = (email: string) => {
+  purgedEmails.delete(email.trim().toLowerCase());
+  saveState();
 };
 
 export const getUserApproval = (email: string, initialRole: 'ADMIN' | 'MEMBER' = 'MEMBER'): UserApprovalRecord => {
