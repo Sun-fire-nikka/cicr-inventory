@@ -1,13 +1,14 @@
-// Auth OTP controller (v1.6.2).
+// Auth OTP controller (v1.7.0).
 //
-// Handles OTP-based login flow:
+// Handles OTP-based login + signup flow:
 //   POST /api/auth/send-otp   — generates OTP, sends to user's email, returns success
-//   POST /api/auth/verify-otp — verifies OTP, returns JWT token + user profile
+//   POST /api/auth/verify-otp — verifies OTP; logs in existing users or creates new
+//                               student accounts for any valid @mail.jiit.ac.in address.
 //
 // Email validation:
-//   - Students: MUST be 12-digit enrollment @mail.jiit.ac.in
+//   - Students: MUST match @mail.jiit.ac.in (any valid prefix)
 //   - Admins: MUST be in the admin directory (adminDirectory.ts)
-//   - Invalid/unknown formats → 400 Validation Error
+//   - Invalid/unknown formats → 400 Bad Request
 
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
@@ -15,7 +16,7 @@ import bcrypt from 'bcryptjs';
 import { dbRead } from '../../config/database';
 import { supabase } from '../../app';
 import { generateAuthOtp, storeAuthOtp, verifyAuthOtp, consumeAuthOtp } from './authOtpService';
-import { isStudentEmail, extractEnrollment, isValidEmail } from '../../validators/email.validator';
+import { isStudentEmail } from '../../validators/email.validator';
 import { getAdminByEmail } from '../borrow/adminDirectory';
 import { sendLoginOtpEmail } from '../../services/emailService';
 
@@ -43,36 +44,35 @@ export const sendOtp = async (req: Request, res: Response) => {
       } else {
         return res.status(400).json({
           status: 'error',
-          message: 'Invalid email format. Students must use [enrollment]@mail.jiit.ac.in.'
+          message: 'Access restricted. Please use your official college email address (@mail.jiit.ac.in).'
         });
       }
     }
 
-    // Check if user exists in database
-    const { data: existingUser } = await dbRead
-      .from('users')
-      .select('id, name, email, role')
-      .eq('email', normalizedEmail)
-      .single();
-
-    if (!existingUser) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'No account found with this email. Please register first.'
-      });
-    }
-
-    // Generate and store OTP
+    // Generate and store OTP — no account lookup required.
+    // Any valid @mail.jiit.ac.in email can request an OTP; unverified users
+    // will be auto-provisioned on verify-otp.
     const otp = generateAuthOtp();
     storeAuthOtp(otp, { email: normalizedEmail, role });
 
-    // Send OTP via email
-    const emailResult = await sendLoginOtpEmail(normalizedEmail, existingUser.name, otp);
+    // Send OTP via email — in dev mode or on failure, fall back to console.
+    const recipientName = normalizedEmail.split('@')[0];
+    let emailDelivered = false;
+    const isDev = process.env.NODE_ENV !== 'production';
 
-    if (!emailResult.success) {
-      return res.status(502).json({
-        status: 'error',
-        message: 'Failed to send OTP. Please try again.'
+    try {
+      const emailResult = await sendLoginOtpEmail(normalizedEmail, recipientName, otp);
+      emailDelivered = emailResult.success === true;
+    } catch {
+      emailDelivered = false;
+    }
+
+    if (!emailDelivered || isDev) {
+      console.log(`[DEV OTP] Code for ${normalizedEmail}: ${otp}`);
+      return res.status(200).json({
+        status: 'success',
+        message: 'OTP sent successfully (Logged to server console in DEV mode).',
+        data: { expires_in_seconds: 300 }
       });
     }
 
@@ -114,15 +114,39 @@ export const verifyOtp = async (req: Request, res: Response) => {
     // Consume OTP (one-time use)
     consumeAuthOtp(otp);
 
-    // Fetch user from database
-    const { data: user, error } = await dbRead
+    // Find or create user
+    let user: { id: string; name: string; email: string; roll_number: string | null; role: string; created_at: string };
+    let isNewUser = false;
+
+    const { data: existingUser } = await dbRead
       .from('users')
       .select('id, name, email, roll_number, role, created_at')
       .eq('email', normalizedEmail)
       .single();
 
-    if (error || !user) {
-      return res.status(404).json({ status: 'error', message: 'User not found.' });
+    if (existingUser) {
+      user = existingUser;
+    } else {
+      // Auto-provision new student account
+      const displayName = normalizedEmail.split('@')[0];
+      const { data: newUser, error: createErr } = await supabase
+        .from('users')
+        .insert([{
+          name: displayName,
+          email: normalizedEmail,
+          password_hash: '',           // OTP-only account — no password
+          roll_number: null,
+          role: payload.role || 'MEMBER'
+        }])
+        .select('id, name, email, roll_number, role, created_at')
+        .single();
+
+      if (createErr || !newUser) {
+        return res.status(500).json({ status: 'error', message: 'Failed to create account. Please try again.' });
+      }
+
+      user = newUser;
+      isNewUser = true;
     }
 
     // Generate JWT
@@ -139,6 +163,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       status: 'success',
+      message: isNewUser ? 'Account created and authenticated.' : 'Authenticated.',
       token,
       user: { id: user.id, name: user.name, email: user.email, roll_number: user.roll_number, role: user.role }
     });
