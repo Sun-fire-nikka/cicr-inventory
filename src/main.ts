@@ -556,6 +556,7 @@ class DashboardManager {
     public init() {
         this.renderStats();
         this.renderInventory();
+        AuthManager.updateAdminVisibility();
         if (!this.listenersInitialized) {
             this.setupEventListeners();
             this.listenersInitialized = true;
@@ -2164,9 +2165,10 @@ class AuthManager {
         }
     }
 
-    private static updateAdminVisibility(role?: string) {
+    public static updateAdminVisibility(role?: string) {
         const sideAdminLink = document.getElementById('side-nav-admin');
         const dashAdminCard = document.getElementById('dash-card-admin');
+        const adminViewSection = document.getElementById('admin-view');
         const isAdmin = ModalManager.getCurrentRole() === 'ADMIN' || role === 'ADMIN';
 
         if (isAdmin) {
@@ -2176,6 +2178,10 @@ class AuthManager {
         } else {
             if (sideAdminLink) sideAdminLink.style.display = 'none';
             if (dashAdminCard) dashAdminCard.style.display = 'none';
+            if (adminViewSection) {
+                adminViewSection.style.display = 'none';
+                adminViewSection.classList.remove('active');
+            }
         }
     }
 
@@ -2234,9 +2240,12 @@ class AuthManager {
 
     private static handleLogout() {
         localStorage.removeItem('cicr_auth');
+        localStorage.removeItem('cicr_role');
         localStorage.removeItem('cicr_token');
         localStorage.removeItem('cicr_user');
         
+        this.updateAdminVisibility('MEMBER');
+
         this.appContainer.style.display = 'none';
         this.globalNavbar.style.display = 'none';
         
