@@ -39,51 +39,45 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 
 ## 📌 Version History
 
-| Version | Status | Highlights |
-|---------|--------|-----------|
-| **v1.0.0** | ✅ Released | Major MVP baseline. Initial frontend (Vite + Three.js + TypeScript) and Express server foundation. |
-| **v1.1.0** | ✅ Released | Supabase database & core APIs. Supabase schema integration, JWT auth, and core inventory routes. |
-| **v1.2.1** | ✅ Released | Feature additions, bug fixes & connections. Frontend-backend integration, borrow/return logic refinements, and route bug fixes. |
-| **v1.3.2** | ✅ Released | Base email service setup & route fixes. Nodemailer transport integration, SMTP configuration, and transactional email base. |
-| **v1.4.3** | ⚠️ Pre-release | Admin OTP approval workflow & BOTE analysis. Admin selection (currently Admin **KUSH**), test student accounts (`kush` / `kushgdhi@gmail.com` + four `@jiit.ac.in` students), **1–30 day rental cap**, 6-digit cryptographic OTP verification via `POST /api/borrow/request-otp` and `POST /api/borrow/verify-otp`, automated **Day N-1 return reminders**, and BOTE deliverability + third-party rate-limit analysis. |
-| **v1.4.4** | ✅ Released | Email deliverability patch. Custom `Message-ID` generation, X-Header + priority headers (OTP = high), **plain-text fallback on every HTML template**, full SMTP `response`/`accepted`/`rejected` logging, and a `test/test-email.cjs` diagnostic probe for the **Institutional Email Sinkhole** issue (see below). |
-| **v1.4.5** | ⚠️ Pre-release | Full frontend–backend integration & release docs. Frontend `API_BASE` now points **directly at the backend on port 5000** (`http://localhost:5000/api`) so `/api/borrow/request-otp`, `/api/borrow/verify-otp`, and `/api/items` hit the local API in one click. Confirmation email dispatch on OTP verification verified end-to-end, and the complete connected borrow flow is documented below. |
-| **v1.4.6** | ⚠️ Pre-release | **Test OTP mail routing on verified personal Gmail.** Sender pinned to **`CICR Inventory Admin <kushagragargdelhi@gmail.com>`**; default OTP test recipient is **`kush` (`kushgdhi@gmail.com`)**. `emailService.ts` now returns the full SMTP delivery envelope (`envelope`, `response`, `accepted`, `rejected`, `messageId`) on OTP sends, `test/test-email.cjs` probes `kushagragargdelhi@gmail.com → kushgdhi@gmail.com`, and new `migrations/002_seed_test_users.sql` keeps `kush` active as a `MEMBER` student. |
-| **v1.4.7** | ⚠️ Pre-release | **Institutional Email Support for `@mail.jiit.ac.in`.** Sender renamed to **`CICR Inventory Support <kushagragargdelhi@gmail.com>`** with **`Reply-To: kushagragargdelhi@gmail.com`**; dynamic **RFC 2822 Message-ID** derived from the sending SMTP domain; high-priority X-headers; plain-text fallback on every HTML template. New `validators/email.validator.ts` accepts 12-digit numeric student IDs (`^[0-9]{12}@mail\.jiit\.ac\.in$`) so institutional registrations never fail validation. `test/test-email.cjs` now dispatches the live OTP probe to **`992501030406@mail.jiit.ac.in`** and logs full SMTP response codes + sent headers. Seed adds numeric ID **`992501030395@mail.jiit.ac.in`**. |
-| **v1.5.0** | ✅ Released | **Redis sessions, DB read/write splitting, hardened auth.** Redis-backed `express-session` cookie store via `connect-redis` (in-memory fallback when `REDIS_URL` unset). API response caching (`GET /api/items` — 30s TTL) with automatic invalidation on borrow/return. Master-slave DB split: `dbRead` routes SELECTs to a read replica (falls back to primary on free tier), `dbWrite` handles mutations. BullMQ async email queue (Redis-only, 5 concurrency, exponential backoff). Hardened JWT auth: strict claim validation, optional `JWT_ISSUER`/`JWT_AUDIENCE`, role-restricted parsing. RBAC middleware (`requireRole`) for fine-grained access. Cache invalidation on `finalizeBorrow()` and `returnItem()`. `dotenv.config()` in all config modules for reliable env loading. |
-| **v1.6.0** | ✅ Released | **Frontend-Backend Initial Integration Phase.** Friend's frontend UI merged: neon-glass dark theme, 3D Three.js particle background (cyberpunk/sakura/matrix/midnight/light/avengers themes), sidebar navigation with Dashboard/Projects/Meetings/Events/Inventory sections, live clock, theme switcher, modal system (item detail, add item, borrow/request form, activity logs drawer, about/community). `API_BASE` now reads `import.meta.env.VITE_API_BASE_URL` (defaults to `http://localhost:5000/api`). Backend CORS updated to dynamic origin from `CLIENT_URL` env var with `credentials: true`. Added `public/backgrounds/` theme assets, `src/types.ts` with `BorrowRecord`/`RequestRecord`, and root `.env.example`. Build compiles cleanly (`tsc && vite build`). |
-| **v1.6.1** | ✅ Released | **Security audit & database reset tooling.** Removed all hardcoded mock admin credentials (`SRVKILLER09` / `IAMTHEBEST`) from frontend — app now defaults to unauthenticated `MEMBER` role requiring real login. Added `backend/src/scripts/reset-db.ts` database reset script that clears `audit_logs`, `borrow_records`, `auth_otps`, and `items` tables via Supabase client. Reset script ran successfully (8 audit_log rows cleared). Build verified clean. |
-| **v1.6.2** | ✅ Released | **Auth & Role Validation Phase.** Complete OTP-based login flow: `POST /api/auth/send-otp` and `POST /api/auth/verify-otp` endpoints added to auth module. Frontend rewritten for email+OTP two-step login (replaces username/password). Strict email domain validation enforced: students MUST use `[enrollment]@mail.jiit.ac.in` (12-digit), admins MUST be in admin directory — invalid formats trigger 400 validation error. New `authOtpService.ts` (5-min TTL, Redis-backed), `authOtpController.ts`, and `sendLoginOtpEmail()` email template. Frontend registers via backend API. JWT token + role stored in localStorage. Build verified clean. |
-| **v1.6.4** | ✅ Released (current) | **Inventory CRUD & Borrow Flow Phase.** Admin item management fully wired: `handleAddItemSubmit()` now calls `POST /api/items` with JWT auth — admins can create inventory items (e.g., Arduino Uno) via the modal. Student borrow flow connected: `handleBorrowSubmit()` calls `POST /api/borrow/request-otp` for member requests or `POST /api/borrow` for admin direct borrows, both with JWT auth. Return flow wired to `POST /api/borrow/return`. `loadInventory()` now includes JWT token in requests. All local localStorage write operations replaced with backend API calls. Build verified clean. |
+| Version | Status | Changes |
+|---------|--------|---------|
+| **v1.0.0** | ✅ Released | Initial frontend (Vite + Three.js) and Express server. |
+| **v1.1.0** | ✅ Released | Supabase schema, JWT auth, core inventory routes. |
+| **v1.2.1** | ✅ Released | Frontend-backend integration, borrow/return logic, route fixes. |
+| **v1.3.2** | ✅ Released | Nodemailer transport, SMTP config, transactional email base. |
+| **v1.4.3** | ⚠️ Pre-release | Admin OTP approval (`request-otp` / `verify-otp`), 1–30 day rental cap, Day N-1 return reminders. |
+| **v1.4.4** | ✅ Released | Custom Message-ID, X-headers, plain-text fallback, SMTP response logging. |
+| **v1.4.5** | ⚠️ Pre-release | Frontend `API_BASE` points at local backend on port 5000. End-to-end OTP borrow verified. |
+| **v1.4.6** | ⚠️ Pre-release | Sender pinned to verified Gmail, `test-email.cjs` probe, `002_seed_test_users.sql`. |
+| **v1.4.7** | ⚠️ Pre-release | RFC 2822 dynamic Message-ID, `validators/email.validator.ts` for 12-digit `@mail.jiit.ac.in` IDs. |
+| **v1.5.0** | ✅ Released | Redis sessions, `dbRead`/`dbWrite` split, BullMQ email queue, RBAC middleware, API response cache (30s TTL). |
+| **v1.6.0** | ✅ Released | Frontend UI merge (dark theme, Three.js backgrounds, sidebar, modals). CORS updated to `CLIENT_URL`. |
+| **v1.6.1** | ✅ Released | Removed hardcoded mock credentials, added `reset-db.ts` script. |
+| **v1.6.2** | ✅ Released | OTP-based login (`send-otp` / `verify-otp`), strict email domain validation. |
+| **v1.6.4** | ✅ Released | Inventory CRUD + borrow flow wired end-to-end via authenticated API calls. |
+| **v1.7.0** | ✅ Released | **Backend hardening.** Removed hardcoded JWT fallback (`super_secret_cicr_key`) — server now refuses to start without `JWT_SECRET`. Atomic SQL guards on `available_quantity` (`.gte('available_quantity', quantity)`) prevent concurrent borrow over-allocation. `000_create_tables.sql` migration added with full DDL + indexes. Deleted 7 dead files (`config/supabase.ts`, empty route/controller/service stubs). Standardized fire-and-forget email dispatch via `dispatchBackground()`. `.env.example` updated with all 14 environment variables. SMTP fallbacks standardized to `smtp.gmail.com` in both `emailService.ts` and `emailQueue.ts`. |
 
-> The current release is **v1.6.4 — Inventory CRUD & Borrow Flow**. Admins can create/update items via the backend API, students can view inventory and submit borrow requests. All mutations are persisted to Supabase via authenticated API calls. A full backend handoff guide lives in [`docs/BACKEND_HANDOFF.md`](./docs/BACKEND_HANDOFF.md).
+> The current release is **v1.7.0 — Backend Hardening**. The backend is stable with atomic concurrency guards, proper error handling, and a complete database migration. See the commit history for details.
 
 ### 🏷️ Version Registry (Git Tags)
 
-Complete tag set for the project history (all tags created/synced on branch `kush-backend`):
-
-| Version | Git Tag | Tag target (commit) | Status |
-|---------|---------|---------------------|--------|
-| **v1.0.0** | `v1.0.0` | `342740a` (annotated tag `ea55187`) | ✅ Released |
-| **v1.1.0** | `v1.1.0` | `c06c929` | ✅ Released |
-| **v1.2.1** | `v1.2.1` | `6d123e3` | ✅ Released |
-| **v1.3.2** | `v1.3.2` | `0fa3390` | ✅ Released |
-| **v1.4.3** | `v1.4.3` | `3e85811` (annotated tag `7d9eb5b`) | ⚠️ Pre-release |
-| **v1.4.4** | `v1.4.4` | `38b3d68` | ✅ Released |
-| **v1.4.5** | `v1.4.5` | `07aaf0a` | ⚠️ Pre-release |
-| **v1.4.6** | `v1.4.6` | `aaa64c5` | ⚠️ Pre-release |
-| **v1.4.7** | `v1.4.7` | `9cf2e80` | ⚠️ Pre-release |
-| **v1.5.0** | `v1.5.0` | `d7b610c` | ✅ Released |
-| **v1.6.0** | `v1.6.0` | `0d6e2c3` | ✅ Released |
-| **v1.6.1** | `v1.6.1` | `633fc06` | ✅ Released |
-| **v1.6.2** | `v1.6.2` | `f2139d7` | ✅ Released |
-| **v1.6.4** | `v1.6.4` | *(pending)* | ✅ Released (current) |
-
-`v1.0.0`, `v1.4.3`, `v1.4.4`, `v1.4.5` were retained from the existing history; `v1.1.0`, `v1.2.1`, `v1.3.2` were added to close the registry gaps; `v1.5.0` is the current release:
-
-- `v1.1.0 → c06c929` — **Supabase database & core APIs**: schema alignment, JWT auth, and the integration test suite.
-- `v1.2.1 → 6d123e3` — **frontend–backend connection**: feature additions, bug fixes & connections (frontend wired to the live backend).
-- `v1.3.2 → 0fa3390` — **base email service**: Nodemailer transport, SMTP configuration, and the transactional email base (due-date tracking + email receipts).
+| Version | Git Tag | Status |
+|---------|---------|--------|
+| **v1.0.0** | `v1.0.0` | ✅ Released |
+| **v1.1.0** | `v1.1.0` | ✅ Released |
+| **v1.2.1** | `v1.2.1` | ✅ Released |
+| **v1.3.2** | `v1.3.2` | ✅ Released |
+| **v1.4.3** | `v1.4.3` | ⚠️ Pre-release |
+| **v1.4.4** | `v1.4.4` | ✅ Released |
+| **v1.4.5** | `v1.4.5` | ⚠️ Pre-release |
+| **v1.4.6** | `v1.4.6` | ⚠️ Pre-release |
+| **v1.4.7** | `v1.4.7` | ⚠️ Pre-release |
+| **v1.5.0** | `v1.5.0` | ✅ Released |
+| **v1.6.0** | `v1.6.0` | ✅ Released |
+| **v1.6.1** | `v1.6.1` | ✅ Released |
+| **v1.6.2** | `v1.6.2` | ✅ Released |
+| **v1.6.4** | `v1.6.4` | ✅ Released |
+| **v1.7.0** | `v1.7.0` | ✅ Released |
 
 ---
 
@@ -156,15 +150,15 @@ CICR_Inventory/
 │   │   ├── server.ts             # Entry point (HTTP listen + reminder scheduler)
 │   │   ├── app.ts                # Express app + Redis session store + route mounting
 │   │   ├── config/
-│   │   │   ├── database.ts       # dbRead / dbWrite (master-slave read/write splitting)
+│   │   │   ├── database.ts       # dbRead / dbWrite (read replica + primary)
 │   │   │   ├── redis.ts          # Redis client + in-memory fallback + cache helpers
 │   │   │   └── emailQueue.ts     # BullMQ async email queue (Redis-only)
 │   │   ├── modules/
-│   │   │   ├── auth/             # register, login, profile (+ routes)
+│   │   │   ├── auth/             # register, login, OTP login, profile (+ routes)
 │   │   │   ├── inventory/        # items CRUD + Redis cache (+ routes)
 │   │   │   ├── borrow/           # borrow, return, OTP approval, history (+ routes)
 │   │   │   ├── dashboard/        # stats + audit log (+ routes)
-│   │   │   └── system/           # BOTE metrics + scale simulation (+ routes)
+│   │   │   └── system/           # BOTE metrics + scale simulation (+ controller)
 │   │   ├── middleware/
 │   │   │   └── auth.middleware.ts# JWT verify + session fallback + RBAC
 │   │   ├── validators/
@@ -174,6 +168,7 @@ CICR_Inventory/
 │   │       ├── reminderService.ts# node-cron due/overdue reminder job
 │   │       └── boteService.ts    # BOTE capacity/latency math
 │   ├── migrations/
+│   │   ├── 000_create_tables.sql # Base DDL (users, inventory, borrow_records, audit_logs)
 │   │   ├── 001_add_due_date_to_borrow_records.sql
 │   │   └── 002_seed_test_users.sql
 │   ├── test/                     # auth.middleware + API integration tests (.cjs)
@@ -683,6 +678,8 @@ audit_logs                         │                     ├─ returned_at TI
 
 ### DDL — run in the Supabase SQL Editor
 
+The full schema lives in `backend/migrations/000_create_tables.sql`. Run it first, then apply `001_add_due_date_to_borrow_records.sql` and `002_seed_test_users.sql`.
+
 ```sql
 -- ============ users ============
 CREATE TABLE IF NOT EXISTS public.users (
@@ -786,7 +783,6 @@ Audit notes:
 
 - **Rental cap** is enforced in `modules/borrow/borrow.controller.ts` via `parseRentalDays` — `duration_days` must be an integer in **[1, 30]**, defaulting to **5**.
 - **Admin OTP directory** is restricted to a single entry in `modules/borrow/adminDirectory.ts`: Admin **KUSH** (`kushagragargdelhi@gmail.com`).
-- **Stale / unreferenced files** (legacy stubs, safe to ignore or remove): `src/routes/borrow.routes.ts` (empty), `src/routes/inventory.routes.ts` (empty), `src/controllers/inventory.controller.ts` (empty), `src/services/app.ts`, `src/services/borrow.service.ts`, `src/services/inventory.service.ts` — none are imported by any active module.
 - **Mounting quirk:** `/api/system` is mounted in `server.ts` (the listen entry point), **not** in `app.ts` — so unit/integration tests that import the bare `app` must mount `systemRoutes` themselves (the health-check script below does this).
 
 ### Health-check script
@@ -907,26 +903,27 @@ The built frontend reads `API_BASE` from `src/main.ts:11` — v1.5.0 defaults to
 
 ## ⚠️ Known Issues & Roadmap
 
-**Known issues (v1.5.0):**
+**Known issues (v1.7.0):**
 
 - `register` accepts `role: 'ADMIN'` from the client (role spoofing).
 - `createItem` accepts negative `quantity`.
 - `GET /api/stats` is public; `GET /api/audit` is visible to any authenticated member.
 - Real email delivery requires a valid Gmail App Password; placeholders produce `535 BadCredentials`.
-- The frontend's login/signup UI is still localStorage-based — the borrow OTP flow is driven via the API; wiring the in-UI OTP entry (request → admin shares → enter code) is the next UI milestone.
 
 **Roadmap:**
 
 - [x] Role-based access (admin vs. member) — v1.5.0 (JWT + RBAC middleware)
-- [x] Overdue-loan notifications — v0.0.2 (node-cron reminders)
+- [x] Overdue-loan notifications — v1.4.3 (node-cron reminders)
 - [x] Admin OTP approval workflow — v1.4.3 (`request-otp` / `verify-otp`)
 - [x] Redis session store + API caching — v1.5.0 (`connect-redis`, `cacheGetJSON`)
 - [x] DB read/write splitting — v1.5.0 (`dbRead` / `dbWrite`)
 - [x] BullMQ async email queue — v1.5.0 (Redis-backed, 5 concurrency)
+- [x] Atomic SQL guards for concurrency — v1.7.0 (`finalizeBorrow`, `returnItem`)
+- [x] Hardened JWT config (no fallback secret) — v1.7.0
+- [x] Base migration (`000_create_tables.sql`) — v1.7.0
 - [ ] Frontend session-aware fetch wrapper + OTP entry UI
 - [ ] QR-code component tagging for instant lookup
 - [ ] Export vault data (CSV / PDF reports)
-- [ ] Frontend-backed borrow UI (submit/return from the dashboard, including the OTP approval step)
 
 ---
 
