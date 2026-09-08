@@ -14,11 +14,18 @@ node_modules/
 dist/
 dist-ssr/
 build/
+out/
+backend/dist/
 
 # Environment Files & Secrets (NEVER COMMIT THESE)
 .env
 .env.*
+*.env
+backend/.env
 !.env.example
+*.pem
+*.key
+*.cert
 
 # Temporary Test Files (OpenCode & Nodemailer tests)
 _mailtest.cjs
