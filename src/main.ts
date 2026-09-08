@@ -2037,8 +2037,7 @@ class AuthManager {
         const norm = email.trim().toLowerCase();
         const currentAdmins = [
             'vardaansaxena096@gmail.com',
-            'cicrinventory@gmail.com',
-            'kushagragargdelhi@gmail.com'
+            'cicrinventory@gmail.com'
         ];
         if (currentAdmins.includes(norm)) return true;
         // JIIT student email with enrollment number or institutional domain

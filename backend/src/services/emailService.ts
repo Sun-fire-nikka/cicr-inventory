@@ -16,17 +16,41 @@ export const SUPER_ADMIN_EMAILS = [
 ];
 
 
-export const getFromAddress = () =>
-  process.env.SMTP_FROM || `"${SENDER_NAME}" <${DEFAULT_SENDER_EMAIL}>`;
+export const getFromAddress = () => {
+  const envFrom = process.env.SMTP_FROM;
+  if (envFrom && !envFrom.toLowerCase().includes('kushagra')) {
+    return envFrom;
+  }
+  return `"${SENDER_NAME}" <cicrinventory@gmail.com>`;
+};
 
-export const getReplyToAddress = () =>
-  process.env.SMTP_REPLY_TO || NO_REPLY_HEADER;
+export const getReplyToAddress = () => {
+  const envReply = process.env.SMTP_REPLY_TO;
+  if (envReply && !envReply.toLowerCase().includes('kushagra')) {
+    return envReply;
+  }
+  return NO_REPLY_HEADER;
+};
 
 export const DEFAULT_SMTP_USER = 'cicrinventory@gmail.com';
 export const DEFAULT_SMTP_PASS = 'qbgfgbldvvxxubjx';
 
-export const getSmtpUser = (): string => process.env.SMTP_USER || DEFAULT_SMTP_USER;
-export const getSmtpPass = (): string => process.env.SMTP_PASS || DEFAULT_SMTP_PASS;
+export const getSmtpUser = (): string => {
+  const envUser = process.env.SMTP_USER;
+  if (envUser && !envUser.toLowerCase().includes('kushagra')) {
+    return envUser;
+  }
+  return DEFAULT_SMTP_USER;
+};
+
+export const getSmtpPass = (): string => {
+  const envUser = process.env.SMTP_USER;
+  if (envUser && envUser.toLowerCase().includes('kushagra')) {
+    return DEFAULT_SMTP_PASS;
+  }
+  return process.env.SMTP_PASS || DEFAULT_SMTP_PASS;
+};
+
 export const isSmtpConfigured = (): boolean => Boolean(getSmtpUser() && getSmtpPass());
 
 // Configure transport using environment variables or verified credentials

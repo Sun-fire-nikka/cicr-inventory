@@ -8,8 +8,7 @@
 
 export const CURRENT_ADMIN_EMAILS = [
   'vardaansaxena096@gmail.com',
-  'cicrinventory@gmail.com',
-  'kushagragargdelhi@gmail.com'
+  'cicrinventory@gmail.com'
 ];
 
 export const isCurrentAdminEmail = (email: string): boolean => {
