@@ -73,13 +73,13 @@ const generateMessageId = (): string => {
 
 // Shared delivery headers for no-reply authentic system appearance
 const buildHeaders = (kind: string, priority: 'high' | 'normal' = 'normal') => ({
-  'X-CICR-Mailer': `CICR-Inventory/v2.0-Live`,
+  'X-CICR-Mailer': 'CICR-Inventory/v2.0-Core',
   'X-Mailer-Type': kind,
   'X-Priority': priority === 'high' ? '1 (Highest)' : '3 (Normal)',
   'Importance': priority === 'high' ? 'High' : 'Normal',
   'X-Auto-Response-Suppress': 'All',
   'Auto-Submitted': 'auto-generated',
-  'List-Unsubscribe': `<mailto:noreply.cicrinventory@gmail.com?subject=unsubscribe>`,
+  'List-Unsubscribe': '<mailto:noreply.cicrinventory@gmail.com?subject=unsubscribe>',
 });
 
 const logDelivery = (kind: string, info: any): void => {
@@ -90,23 +90,145 @@ const logDelivery = (kind: string, info: any): void => {
   );
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// AESTHETIC CYBER DARK EMAIL TEMPLATE ENGINE (ZERO EMOJIS)
+// ──────────────────────────────────────────────────────────────────────────────
+
+interface CyberEmailOptions {
+  badgeText: string;
+  badgeType?: 'primary' | 'success' | 'warning' | 'danger' | 'info';
+  title: string;
+  subtitle?: string;
+  contentHtml: string;
+  actionButton?: {
+    text: string;
+    url: string;
+  };
+}
+
+const renderCyberEmail = (options: CyberEmailOptions): string => {
+  const badgeColors: Record<string, { bg: string; text: string; border: string }> = {
+    primary: { bg: 'rgba(0, 240, 255, 0.08)', text: '#00f0ff', border: 'rgba(0, 240, 255, 0.25)' },
+    success: { bg: 'rgba(57, 255, 20, 0.08)', text: '#39ff14', border: 'rgba(57, 255, 20, 0.25)' },
+    warning: { bg: 'rgba(250, 204, 21, 0.08)', text: '#facc15', border: 'rgba(250, 204, 21, 0.25)' },
+    danger: { bg: 'rgba(239, 68, 68, 0.08)', text: '#ef4444', border: 'rgba(239, 68, 68, 0.25)' },
+    info: { bg: 'rgba(168, 85, 247, 0.08)', text: '#c084fc', border: 'rgba(168, 85, 247, 0.25)' }
+  };
+
+  const badge = badgeColors[options.badgeType || 'primary'];
+  const btnHtml = options.actionButton
+    ? `
+      <div style="text-align: center; margin: 28px 0 6px 0;">
+        <a href="${options.actionButton.url}" style="display: inline-block; background: #00f0ff; color: #080b11; text-decoration: none; font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; padding: 12px 28px; border-radius: 4px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;">
+          ${options.actionButton.text}
+        </a>
+      </div>
+    `
+    : '';
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin:0;padding:0;background-color:#07090e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;-webkit-font-smoothing:antialiased;">
+      <div style="background-color:#07090e;padding:36px 12px;">
+        <div style="max-width:560px;margin:0 auto;background:#0d111a;border:1px solid #1e293b;border-radius:6px;overflow:hidden;">
+          
+          <!-- System Header -->
+          <div style="padding:22px 28px;border-bottom:1px solid #1e293b;background:#0f1422;">
+            <div style="font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:15px;font-weight:700;color:#f8fafc;letter-spacing:1.5px;">
+              CICR <span style="color:#00f0ff;">//</span> INVENTORY
+            </div>
+            <div style="font-size:11px;color:#64748b;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;letter-spacing:0.5px;margin-top:2px;">
+              CENTRE FOR INNOVATION, CONTROL & ROBOTICS
+            </div>
+          </div>
+
+          <!-- Body Content -->
+          <div style="padding:28px;">
+            
+            <!-- Category Badge -->
+            <div style="margin-bottom:16px;">
+              <span style="display:inline-block;padding:4px 10px;font-size:10px;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-radius:3px;background:${badge.bg};color:${badge.text};border:1px solid ${badge.border};">
+                ${options.badgeText}
+              </span>
+            </div>
+
+            <!-- Title -->
+            <h1 style="margin:0 0 8px 0;font-size:19px;font-weight:600;color:#ffffff;line-height:1.3;">
+              ${options.title}
+            </h1>
+            ${options.subtitle ? `<p style="margin:0 0 20px 0;font-size:13px;color:#94a3b8;line-height:1.5;">${options.subtitle}</p>` : '<div style="margin-bottom:18px;"></div>'}
+
+            <!-- Main Content -->
+            ${options.contentHtml}
+
+            <!-- Action Button -->
+            ${btnHtml}
+
+          </div>
+
+          <!-- Authentic System Footer -->
+          <div style="padding:18px 28px;background:#080b12;border-top:1px solid #1e293b;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:10px;color:#64748b;line-height:1.6;">
+            <div style="color:#94a3b8;font-weight:600;margin-bottom:2px;letter-spacing:0.5px;">
+              AUTOMATED TRANSMISSION // NO-REPLY
+            </div>
+            <div>
+              Centre for Innovation, Control & Robotics (CICR) &bull; JIIT Sector 128
+            </div>
+            <div style="color:#475569;margin-top:4px;">
+              This is an authenticated system transmission. Do not reply to this email address.
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
 const buildHoldersTable = (holders: HolderSummary[]): string => {
   if (!holders.length) {
-    return '<p style="color:#666;">You are the only one currently holding this item.</p>';
+    return '<p style="color:#64748b;font-size:12px;margin:8px 0 0 0;font-family:\'SFMono-Regular\',Consolas,monospace;">Active holders: None (Sole Holder)</p>';
   }
   const rows = holders
     .map((h) => {
       const who = `${h.borrower_name}${h.roll_number ? ` (${h.roll_number})` : ''}`;
-      const when = h.borrowed_at ? new Date(h.borrowed_at).toLocaleDateString('en-GB') : '—';
-      return `<tr><td style="padding:6px 10px;border:1px solid #ddd;">${who}</td><td style="padding:6px 10px;border:1px solid #ddd;">${h.quantity}</td><td style="padding:6px 10px;border:1px solid #ddd;">${when}</td></tr>`;
+      const when = h.borrowed_at ? new Date(h.borrowed_at).toLocaleDateString('en-GB') : 'N/A';
+      return `
+        <tr>
+          <td style="padding:8px 12px;border:1px solid #1e293b;color:#e2e8f0;">${who}</td>
+          <td style="padding:8px 12px;border:1px solid #1e293b;color:#00f0ff;text-align:center;font-family:'SFMono-Regular',Consolas,monospace;">${h.quantity}</td>
+          <td style="padding:8px 12px;border:1px solid #1e293b;color:#94a3b8;font-family:'SFMono-Regular',Consolas,monospace;">${when}</td>
+        </tr>
+      `;
     })
     .join('');
   return `
-    <table style="border-collapse:collapse;font-size:14px;">
-      <tr><th style="padding:6px 10px;border:1px solid #ddd;text-align:left;">Borrower</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left;">Units</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left;">Borrowed On</th></tr>
-      ${rows}
-    </table>`;
+    <div style="margin-top:16px;">
+      <div style="font-family:'SFMono-Regular',Consolas,monospace;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Current Item Holders</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;background:#090c13;">
+        <thead>
+          <tr style="background:#0f1422;">
+            <th style="padding:8px 12px;border:1px solid #1e293b;text-align:left;color:#94a3b8;font-weight:600;">Borrower</th>
+            <th style="padding:8px 12px;border:1px solid #1e293b;text-align:center;color:#94a3b8;font-weight:600;">Units</th>
+            <th style="padding:8px 12px;border:1px solid #1e293b;text-align:left;color:#94a3b8;font-weight:600;">Issue Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>`;
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 1. BORROW CONFIRMATION EMAIL (STUDENT)
+// ──────────────────────────────────────────────────────────────────────────────
 
 export const sendBorrowConfirmation = async (
   recipientEmail: string,
@@ -116,53 +238,69 @@ export const sendBorrowConfirmation = async (
   try {
     const formattedDueDate = formatDueDate(context.dueDate);
     const holdersTable = buildHoldersTable(context.holders);
-    const categoryLine = context.category ? ` (${context.category})` : '';
+    const categoryLine = context.category ? ` [${context.category}]` : '';
+
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:130px;font-family:'SFMono-Regular',Consolas,monospace;">ITEM:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${context.itemName}${categoryLine}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">QUANTITY:</td>
+            <td style="padding:6px 0;color:#00f0ff;font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">${context.quantity} unit(s)</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">DUE DATE:</td>
+            <td style="padding:6px 0;color:#facc15;font-weight:600;">${formattedDueDate} (${context.durationDays} days)</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">LAB STOCK LEFT:</td>
+            <td style="padding:6px 0;color:#39ff14;font-family:'SFMono-Regular',Consolas,monospace;">${context.remainingStock} units</td>
+          </tr>
+        </table>
+      </div>
+      ${holdersTable}
+      <div style="background:rgba(250,204,21,0.05);border-left:3px solid #facc15;padding:12px;border-radius:2px;font-size:12px;color:#cbd5e1;margin-top:18px;line-height:1.5;">
+        <strong style="color:#facc15;">Return Policy:</strong> Please return all components on or before <strong>${formattedDueDate}</strong> to maintain lab eligibility.
+      </div>
+    `;
+
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
       to: recipientEmail,
-      subject: `[CICR Inventory] Borrow Confirmation: ${context.itemName}`,
+      subject: `[CICR Inventory] Hardware Issue Confirmation: ${context.itemName}`,
       messageId: generateMessageId(),
       headers: buildHeaders('borrow-confirmation'),
       priority: 'normal' as const,
       text: [
+        `CICR INVENTORY // HARDWARE ISSUE CONFIRMATION`,
+        `================================================`,
         `Hello ${borrowerName},`,
-        '',
-        `You have successfully borrowed ${context.quantity}x ${context.itemName}${categoryLine}.`,
-        '',
-        `Remaining available stock: ${context.remainingStock}`,
-        '',
-        `Borrow duration: ${context.durationDays} day(s)`,
-        `Due date: ${formattedDueDate}`,
-        '',
-        `Current holders of ${context.itemName}:`,
-        ...context.holders.map((h) => `  - ${h.borrower_name}${h.roll_number ? ` (${h.roll_number})` : ''}: ${h.quantity} unit(s)`),
-        ...(context.holders.length ? [] : ['  - You are the only one currently holding this item.']),
-        '',
-        'IMPORTANT: Please return the item on or before the due date (5-day policy).',
-        'Regards,',
-        'CICR Management Team'
+        ``,
+        `You have checked out ${context.quantity} unit(s) of ${context.itemName}${categoryLine}.`,
+        ``,
+        `Due Date: ${formattedDueDate} (${context.durationDays} day(s))`,
+        `Remaining Available Stock: ${context.remainingStock}`,
+        ``,
+        `Return Policy: Please return all components on or before the due date.`,
+        ``,
+        `Regards,`,
+        `CICR Inventory Team`
       ].join('\n'),
-      html: `
-        <h3>CICR Inventory - Borrow Confirmation</h3>
-        <p>Hello <strong>${borrowerName}</strong>,</p>
-        <p>You have successfully borrowed <strong>${context.quantity}x ${context.itemName}</strong>${categoryLine}.</p>
-        <p><strong>Remaining available stock:</strong> ${context.remainingStock}</p>
-        <p><strong>Borrow duration:</strong> ${context.durationDays} day(s)</p>
-        <p><strong>Due date:</strong> ${formattedDueDate}</p>
-        <h4>Current holders of ${context.itemName}</h4>
-        ${holdersTable}
-        <p style="background:#fff3cd;border-left:4px solid #ffc107;padding:10px;">
-          <strong>Reminder:</strong> Please return the item on or before <strong>${formattedDueDate}</strong>.
-          A strict 5-day return policy applies.
-        </p>
-        <br/>
-        <p><em>CICR Management Team</em></p>
-      `,
+      html: renderCyberEmail({
+        badgeText: 'TRANSACTION // HARDWARE ISSUED',
+        badgeType: 'primary',
+        title: `Hardware Issued: ${context.itemName}`,
+        subtitle: `Hello ${borrowerName}, your component checkout request has been registered.`,
+        contentHtml
+      })
     };
 
     if (!process.env.SMTP_USER) {
-      console.log(`[MOCK EMAIL SERVICE] Borrow email dispatched to ${recipientEmail} for '${context.itemName}' (Qty: ${context.quantity}, Remaining: ${context.remainingStock}, Due: ${formattedDueDate})`);
+      console.log(`[MOCK EMAIL SERVICE] Borrow confirmation dispatched to ${recipientEmail}`);
       return { success: true, mocked: true };
     }
 
@@ -171,14 +309,17 @@ export const sendBorrowConfirmation = async (
     }
 
     const info = await transporter.sendMail(mailOptions);
-    logDelivery('Borrow email', info);
+    logDelivery('Borrow confirmation email', info);
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send borrow email to ${recipientEmail}: ${formatSmtpError(error)}`);
-    // Graceful failover so email failures don't crash the borrow HTTP response
     return { success: false, error: formatSmtpError(error) };
   }
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 2. ADMIN BORROW APPROVAL OTP EMAIL
+// ──────────────────────────────────────────────────────────────────────────────
 
 export const sendOtpEmail = async (
   adminEmail: string,
@@ -189,44 +330,66 @@ export const sendOtpEmail = async (
   durationDays: number
 ) => {
   try {
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:20px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:120px;font-family:'SFMono-Regular',Consolas,monospace;">REQUESTER:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${studentName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">ITEM:</td>
+            <td style="padding:6px 0;color:#00f0ff;font-weight:600;">${itemName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">DURATION:</td>
+            <td style="padding:6px 0;color:#e2e8f0;font-family:'SFMono-Regular',Consolas,monospace;">${durationDays} day(s)</td>
+          </tr>
+        </table>
+      </div>
+      <div style="text-align:center;margin:24px 0;">
+        <div style="font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:8px;color:#00f0ff;background:#030712;padding:16px 24px;border:1px solid #1e293b;border-radius:4px;display:inline-block;">
+          ${otp}
+        </div>
+      </div>
+      <p style="font-size:12px;color:#94a3b8;line-height:1.5;margin:0;text-align:center;">
+        This single-use OTP expires in <strong>10 minutes</strong>. Provide this code to the student to authorize checkout.
+      </p>
+    `;
+
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
       to: adminEmail,
-      subject: `[CICR Inventory] Borrow Approval OTP: ${otp}`,
+      subject: `[CICR Inventory] Authorization OTP: ${otp}`,
       messageId: generateMessageId(),
       headers: buildHeaders('borrow-otp', 'high'),
       priority: 'high' as const,
       text: [
+        `CICR INVENTORY // AUTHORIZATION OTP`,
+        `================================================`,
         `Hello ${adminName},`,
-        '',
-        `${studentName} has requested approval to borrow:`,
-        `  Item: ${itemName}`,
-        `  Duration: ${durationDays} day(s)`,
-        '',
-        `Approval OTP: ${otp}`,
-        '',
-        'This OTP is valid for 10 minutes. Share it with the student only after verifying the request.',
-        'Regards,',
-        'CICR Inventory Team'
+        ``,
+        `${studentName} has requested authorization to borrow: ${itemName} (${durationDays} days).`,
+        ``,
+        `APPROVAL OTP: ${otp}`,
+        ``,
+        `Valid for 10 minutes. Share only after verifying the request.`,
+        ``,
+        `Regards,`,
+        `CICR Inventory Team`
       ].join('\n'),
-      html: `
-        <h3>CICR Inventory - Borrow Approval Request</h3>
-        <p>Hello <strong>${adminName}</strong>,</p>
-        <p><strong>${studentName}</strong> has requested approval to borrow:</p>
-        <ul>
-          <li><strong>Item:</strong> ${itemName}</li>
-          <li><strong>Duration:</strong> ${durationDays} day(s)</li>
-        </ul>
-        <p style="font-size:28px;font-weight:bold;letter-spacing:4px;background:#f0f4ff;padding:10px;border-radius:6px;">${otp}</p>
-        <p>This OTP is <strong>valid for 10 minutes</strong>. Share it with the student only after verifying the request.</p>
-        <br/>
-        <p><em>CICR Inventory Team</em></p>
-      `,
+      html: renderCyberEmail({
+        badgeText: 'SECURITY // APPROVAL AUTHORIZATION',
+        badgeType: 'warning',
+        title: 'Borrow Approval Request',
+        subtitle: `Hello ${adminName}, an issuance verification code has been generated.`,
+        contentHtml
+      })
     };
 
     if (!process.env.SMTP_USER) {
-      console.log(`[MOCK EMAIL SERVICE] OTP dispatched to admin ${adminEmail} for '${itemName}' (OTP: ${otp}, Expires: 10m)`);
+      console.log(`[MOCK EMAIL SERVICE] OTP dispatched to admin ${adminEmail}`);
       return { success: true, mocked: true, otp };
     }
 
@@ -256,210 +419,9 @@ export const sendOtpEmail = async (
   }
 };
 
-export const sendUpcomingReminder = async (
-  recipientEmail: string,
-  borrowerName: string,
-  itemName: string,
-  dueDate: Date | string
-) => {
-  try {
-    const formattedDueDate = formatDueDate(dueDate);
-    const mailOptions = {
-      from: getFromAddress(),
-      replyTo: getReplyToAddress(),
-      to: recipientEmail,
-      subject: `[CICR Inventory] Return Due Tomorrow: ${itemName}`,
-      messageId: generateMessageId(),
-      headers: buildHeaders('upcoming-reminder'),
-      priority: 'normal' as const,
-      text: [
-        `Hello ${borrowerName},`,
-        '',
-        `Reminder: your borrowed item "${itemName}" is due TOMORROW (${formattedDueDate}).`,
-        '',
-        'Please return it to the lab on or before the due date.',
-        'Regards,',
-        'CICR Inventory Team'
-      ].join('\n'),
-      html: `
-        <h3>CICR Inventory - Return Due Tomorrow</h3>
-        <p>Hello <strong>${borrowerName}</strong>,</p>
-        <p><strong>Reminder:</strong> your borrowed item <strong>"${itemName}"</strong> is due <strong>tomorrow</strong> (${formattedDueDate}).</p>
-        <p>Please return it to the lab on or before the due date.</p>
-        <br/>
-        <p><em>CICR Inventory Team</em></p>
-      `,
-    };
-
-    if (!process.env.SMTP_USER) {
-      console.log(`[MOCK EMAIL SERVICE] Upcoming-due reminder dispatched to ${recipientEmail} for '${itemName}' (Due: ${formattedDueDate})`);
-      return { success: true, mocked: true };
-    }
-
-    if (await enqueueEmail('upcoming-reminder', mailOptions)) {
-      return { success: true, queued: true };
-    }
-
-    const info = await transporter.sendMail(mailOptions);
-    logDelivery('Upcoming-due reminder', info);
-    return { success: true, messageId: info.messageId };
-  } catch (error: any) {
-    console.error(`[EMAIL SERVICE ERROR] Failed to send upcoming-due reminder to ${recipientEmail}: ${formatSmtpError(error)}`);
-    return { success: false, error: formatSmtpError(error) };
-  }
-};
-
-export const sendReturnReminder = async (
-  recipientEmail: string,
-  borrowerName: string,
-  itemName: string,
-  dueDate: Date | string,
-  daysOverdue: number
-) => {
-  try {
-    const formattedDueDate = formatDueDate(dueDate);
-    const overdueNotice = daysOverdue > 0
-      ? `Your return is ${daysOverdue} day(s) overdue.`
-      : 'Your item is due today.';
-    const mailOptions = {
-      from: getFromAddress(),
-      replyTo: getReplyToAddress(),
-      to: recipientEmail,
-      subject: daysOverdue > 0
-        ? `[CICR Inventory] OVERDUE Return: ${itemName}`
-        : `[CICR Inventory] Return Due Today: ${itemName}`,
-      messageId: generateMessageId(),
-      headers: buildHeaders('return-reminder'),
-      priority: 'normal' as const,
-      text: [
-        `Hello ${borrowerName},`,
-        '',
-        `${overdueNotice}`,
-        `Item: ${itemName}`,
-        `Due date: ${formattedDueDate}`,
-        '',
-        'Please return it to the lab at your earliest convenience.',
-        'Regards,',
-        'CICR Inventory Team'
-      ].join('\n'),
-      html: `
-        <h3>CICR Inventory - Return Reminder</h3>
-        <p>Hello <strong>${borrowerName}</strong>,</p>
-        <p><strong>${overdueNotice}</strong></p>
-        <p><strong>Item:</strong> ${itemName}</p>
-        <p><strong>Due date:</strong> ${formattedDueDate}</p>
-        <p>Please return it to the lab at your earliest convenience.</p>
-        <br/>
-        <p><em>CICR Inventory Team</em></p>
-      `,
-    };
-
-    if (!process.env.SMTP_USER) {
-      console.log(`[MOCK EMAIL SERVICE] Return reminder dispatched to ${recipientEmail} for '${itemName}' (Due: ${formattedDueDate}, Overdue: ${daysOverdue}d)`);
-      return { success: true, mocked: true };
-    }
-
-    if (await enqueueEmail('return-reminder', mailOptions)) {
-      return { success: true, queued: true };
-    }
-
-    const info = await transporter.sendMail(mailOptions);
-    logDelivery('Return reminder', info);
-    return { success: true, messageId: info.messageId };
-  } catch (error: any) {
-    console.error(`[EMAIL SERVICE ERROR] Failed to send return reminder to ${recipientEmail}: ${formatSmtpError(error)}`);
-    return { success: false, error: formatSmtpError(error) };
-  }
-};
-
-export const sendDueReminder = async (
-  recipientEmail: string,
-  borrowerName: string,
-  itemName: string,
-  quantity: number,
-  dueDate: Date | string,
-  dueWindowLabel: string
-) => {
-  try {
-    const formattedDueDate = formatDueDate(dueDate);
-    const isOverdue = dueWindowLabel.startsWith('overdue');
-    const headline = isOverdue ? 'Overdue Item' : 'Return Reminder';
-    const mailOptions = {
-      from: getFromAddress(),
-      replyTo: getReplyToAddress(),
-      to: recipientEmail,
-      subject: `[CICR Inventory] ${isOverdue ? 'OVERDUE' : 'Return Reminder'}: ${itemName}`,
-      text: `Hello ${borrowerName},\n\nThis is a reminder that ${quantity}x ${itemName} is ${dueWindowLabel}.\n\nDue Date: ${formattedDueDate}\n\nPlease return it to the CICR lab${isOverdue ? ' as soon as possible' : ' on or before the due date'}.\n\nRegards,\nCICR Inventory Team`,
-      html: `
-        <h3>CICR Inventory - ${headline}</h3>
-        <p>Hello <strong>${borrowerName}</strong>,</p>
-        <p>This is a reminder that <strong>${quantity}x ${itemName}</strong> is <strong>${dueWindowLabel}</strong>.</p>
-        <p><strong>Due Date:</strong> ${formattedDueDate}</p>
-        <p>Please return it to the CICR lab${isOverdue ? ' as soon as possible' : ' on or before the due date'}.</p>
-        <br/>
-        <p><em>CICR Inventory Team</em></p>
-      `,
-    };
-
-    if (!process.env.SMTP_USER) {
-      console.log(`[MOCK EMAIL SERVICE] Reminder dispatched to ${recipientEmail} for item '${itemName}' (Qty: ${quantity}, ${dueWindowLabel}, Due: ${formattedDueDate})`);
-      return { success: true, mocked: true };
-    }
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL SERVICE] Reminder email sent successfully: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
-  } catch (error: any) {
-    console.error(`[EMAIL SERVICE ERROR] Failed to send reminder email to ${recipientEmail}:`, error.message);
-    return { success: false, error: error.message };
-  }
-};
-
-export const sendReturnConfirmation = async (
-  recipientEmail: string,
-  borrowerName: string,
-  itemName: string,
-  returnedAt: Date
-) => {
-  try {
-    const formattedReturnedAt = returnedAt.toISOString();
-    const mailOptions = {
-      from: getFromAddress(),
-      replyTo: getReplyToAddress(),
-      to: recipientEmail,
-      subject: `[CICR Inventory] Return Confirmation: ${itemName}`,
-      messageId: generateMessageId(),
-      headers: buildHeaders('return-confirmation'),
-      priority: 'normal' as const,
-      text: `Hello ${borrowerName},\n\nThank you! Your borrowed item ${itemName} has been successfully returned.\n\nReturned At: ${formattedReturnedAt}\n\nNo further reminders will be sent for this borrow.\n\nRegards,\nCICR Inventory Team`,
-      html: `
-        <h3>CICR Inventory - Return Confirmation</h3>
-        <p>Hello <strong>${borrowerName}</strong>,</p>
-        <p>Thank you! Your borrowed item <strong>${itemName}</strong> has been successfully returned.</p>
-        <p><strong>Returned At:</strong> ${formattedReturnedAt}</p>
-        <p>No further reminders will be sent for this borrow.</p>
-        <br/>
-        <p><em>CICR Inventory Team</em></p>
-      `,
-    };
-
-    if (!process.env.SMTP_USER) {
-      console.log(`[MOCK EMAIL SERVICE] Return email dispatched to ${recipientEmail} for item '${itemName}' (Returned At: ${formattedReturnedAt})`);
-      return { success: true, mocked: true };
-    }
-
-    if (await enqueueEmail('return-confirmation', mailOptions)) {
-      return { success: true, queued: true };
-    }
-
-    const info = await transporter.sendMail(mailOptions);
-    logDelivery('Return email', info);
-    return { success: true, messageId: info.messageId };
-  } catch (error: any) {
-    console.error(`[EMAIL SERVICE ERROR] Failed to send return email to ${recipientEmail}: ${formatSmtpError(error)}`);
-    return { success: false, error: formatSmtpError(error) };
-  }
-};
+// ──────────────────────────────────────────────────────────────────────────────
+// 3. LOGIN OTP EMAIL
+// ──────────────────────────────────────────────────────────────────────────────
 
 export const sendLoginOtpEmail = async (
   recipientEmail: string,
@@ -467,39 +429,48 @@ export const sendLoginOtpEmail = async (
   otp: string
 ) => {
   try {
+    const contentHtml = `
+      <div style="text-align:center;margin:24px 0;">
+        <div style="font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:8px;color:#00f0ff;background:#030712;padding:16px 24px;border:1px solid #1e293b;border-radius:4px;display:inline-block;">
+          ${otp}
+        </div>
+      </div>
+      <p style="font-size:12px;color:#94a3b8;line-height:1.5;margin:0;text-align:center;">
+        This verification code is valid for <strong>5 minutes</strong>. If you did not initiate this login attempt, please disregard this transmission.
+      </p>
+    `;
+
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
       to: recipientEmail,
-      subject: `[CICR Inventory] Login OTP: ${otp}`,
+      subject: `[CICR Inventory] Login Verification: ${otp}`,
       messageId: generateMessageId(),
       headers: buildHeaders('login-otp', 'high'),
       priority: 'high' as const,
       text: [
+        `CICR INVENTORY // PORTAL ACCESS VERIFICATION`,
+        `================================================`,
         `Hello ${recipientName},`,
-        '',
-        `Your CICR Inventory login OTP is: ${otp}`,
-        '',
-        'This OTP is valid for 5 minutes.',
-        'If you did not request this, please ignore this email.',
-        '',
-        'Regards,',
-        'CICR Inventory Team'
+        ``,
+        `Your login verification OTP is: ${otp}`,
+        ``,
+        `Valid for 5 minutes. Do not share this code.`,
+        ``,
+        `Regards,`,
+        `CICR Inventory Team`
       ].join('\n'),
-      html: `
-        <h3>CICR Inventory - Login OTP</h3>
-        <p>Hello <strong>${recipientName}</strong>,</p>
-        <p>Your login OTP is:</p>
-        <p style="font-size:28px;font-weight:bold;letter-spacing:4px;background:#f0f4ff;padding:10px;border-radius:6px;">${otp}</p>
-        <p>This OTP is <strong>valid for 5 minutes</strong>.</p>
-        <p>If you did not request this, please ignore this email.</p>
-        <br/>
-        <p><em>CICR Inventory Team</em></p>
-      `,
+      html: renderCyberEmail({
+        badgeText: 'SECURITY // AUTHENTICATION',
+        badgeType: 'primary',
+        title: 'Portal Access Verification',
+        subtitle: `Hello ${recipientName}, use the single-use code below to complete your sign-in.`,
+        contentHtml
+      })
     };
 
     if (!process.env.SMTP_USER) {
-      console.log(`[MOCK EMAIL SERVICE] Login OTP dispatched to ${recipientEmail} (OTP: ${otp}, Expires: 5m)`);
+      console.log(`[MOCK EMAIL SERVICE] Login OTP dispatched to ${recipientEmail}`);
       return { success: true, mocked: true, otp };
     }
 
@@ -517,7 +488,90 @@ export const sendLoginOtpEmail = async (
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
-// ADMIN USER REGISTRATION ALERT EMAIL
+// 4. RETURN CONFIRMATION EMAIL (STUDENT)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const sendReturnConfirmation = async (
+  recipientEmail: string,
+  borrowerName: string,
+  itemName: string,
+  returnedAt: Date
+) => {
+  try {
+    const formattedReturnedAt = returnedAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:120px;font-family:'SFMono-Regular',Consolas,monospace;">ITEM:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${itemName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">RESTOCKED AT:</td>
+            <td style="padding:6px 0;color:#39ff14;font-family:'SFMono-Regular',Consolas,monospace;">${formattedReturnedAt} IST</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">STATUS:</td>
+            <td style="padding:6px 0;color:#39ff14;font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">VERIFIED & CLOSED</td>
+          </tr>
+        </table>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        Thank you for returning the hardware on schedule. Your account loan record has been updated and cleared.
+      </p>
+    `;
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: recipientEmail,
+      subject: `[CICR Inventory] Return Receipt: ${itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('return-confirmation'),
+      priority: 'normal' as const,
+      text: [
+        `CICR INVENTORY // RETURN RECEIPT`,
+        `================================================`,
+        `Hello ${borrowerName},`,
+        ``,
+        `Your borrowed item "${itemName}" has been successfully returned and restocked in the lab.`,
+        ``,
+        `Timestamp: ${formattedReturnedAt} IST`,
+        `Status: VERIFIED & CLOSED`,
+        ``,
+        `Regards,`,
+        `CICR Inventory Team`
+      ].join('\n'),
+      html: renderCyberEmail({
+        badgeText: 'TRANSACTION // RESTOCKED & CLEARED',
+        badgeType: 'success',
+        title: `Hardware Returned: ${itemName}`,
+        subtitle: `Hello ${borrowerName}, your hardware return has been logged successfully.`,
+        contentHtml
+      })
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Return email dispatched to ${recipientEmail}`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('return-confirmation', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Return email', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send return email to ${recipientEmail}: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 5. ADMIN REGISTRATION REQUEST ALERT
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface NewUserAlertContext {
@@ -538,79 +592,69 @@ export const sendAdminNewUserRegistrationAlert = async (
       ? new Date(userContext.registeredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
       : new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
 
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:120px;font-family:'SFMono-Regular',Consolas,monospace;">NAME:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${userContext.userName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">EMAIL:</td>
+            <td style="padding:6px 0;color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;">${userContext.userEmail}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">ROLL NUMBER:</td>
+            <td style="padding:6px 0;color:#e2e8f0;font-family:'SFMono-Regular',Consolas,monospace;">${userContext.rollNumber || 'N/A'}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">REGISTERED:</td>
+            <td style="padding:6px 0;color:#94a3b8;font-family:'SFMono-Regular',Consolas,monospace;">${regTime} IST</td>
+          </tr>
+        </table>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        This account is pending review in the Admin Portal and cannot checkout hardware until approved.
+      </p>
+    `;
+
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
       to: adminEmails.join(', '),
-      subject: `[CICR Admin Alert] 🔔 New Account Access Request: ${userContext.userName}`,
+      subject: `[CICR Admin] Account Access Request: ${userContext.userName}`,
       messageId: generateMessageId(),
       headers: buildHeaders('admin-registration-alert', 'high'),
       priority: 'high' as const,
       text: [
-        `CICR ADMIN NOTIFICATION`,
-        `==================================`,
-        `A new user has registered on the CICR Inventory Portal and is requesting member access:`,
-        ``,
+        `CICR ADMIN // NEW ACCOUNT REQUEST`,
+        `================================================`,
         `Name: ${userContext.userName}`,
         `Email: ${userContext.userEmail}`,
         `Roll Number: ${userContext.rollNumber || 'Not Specified'}`,
-        `Registered At: ${regTime} IST`,
-        `Status: PENDING ADMIN APPROVAL`,
+        `Timestamp: ${regTime} IST`,
+        `Status: PENDING ADMIN REVIEW`,
         ``,
         `Please log in to the CICR Admin Portal to approve or reject this request.`,
         ``,
         `Regards,`,
         `CICR Automated Security Service`
       ].join('\n'),
-      html: `
-        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(0,240,255,0.2);">
-          <div style="text-align:center;margin-bottom:24px;">
-            <h2 style="color:#00f0ff;margin:0 0 6px 0;letter-spacing:1px;font-size:22px;">⚡ CICR INVENTORY</h2>
-            <p style="color:#94a3b8;font-size:13px;margin:0;text-transform:uppercase;letter-spacing:1.5px;">Admin Member Approval Queue</p>
-          </div>
-          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:20px;margin-bottom:24px;">
-            <div style="display:inline-block;background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.3);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:bold;margin-bottom:14px;">
-              ⏳ PENDING APPROVAL
-            </div>
-            <h3 style="color:#ffffff;margin:0 0 12px 0;font-size:16px;">New Account Registration Request</h3>
-            <table style="width:100%;border-collapse:collapse;font-size:14px;">
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;width:110px;">Name:</td>
-                <td style="padding:6px 0;color:#ffffff;font-weight:bold;">${userContext.userName}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Email:</td>
-                <td style="padding:6px 0;color:#00f0ff;">${userContext.userEmail}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Roll Number:</td>
-                <td style="padding:6px 0;color:#e2e8f0;">${userContext.rollNumber || 'N/A'}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Registered:</td>
-                <td style="padding:6px 0;color:#e2e8f0;">${regTime} IST</td>
-              </tr>
-            </table>
-          </div>
-          <div style="text-align:center;padding:12px 0 6px 0;">
-            <p style="color:#cbd5e1;font-size:13px;margin:0 0 16px 0;">
-              This user cannot access hardware inventory or checkout items until approved in the Admin Portal.
-            </p>
-            <a href="https://cicr-inventory.vercel.app/" style="display:inline-block;background:linear-gradient(135deg,#00f0ff,#a855f7);color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 28px;border-radius:6px;font-size:14px;box-shadow:0 4px 14px rgba(0,240,255,0.3);">
-              Open Admin Portal to Review
-            </a>
-          </div>
-          <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:28px;padding-top:16px;text-align:center;">
-            <p style="color:#64748b;font-size:11px;margin:0;">
-              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
-            </p>
-          </div>
-        </div>
-      `,
+      html: renderCyberEmail({
+        badgeText: 'QUEUE // APPROVAL PENDING',
+        badgeType: 'warning',
+        title: 'New Member Registration Request',
+        subtitle: 'A student has registered on the portal and requires access approval.',
+        contentHtml,
+        actionButton: {
+          text: 'Review in Admin Portal',
+          url: 'https://cicr-inventory.vercel.app/'
+        }
+      })
     };
 
     if (!process.env.SMTP_USER) {
-      console.log(`[MOCK EMAIL SERVICE] Admin registration alert sent to ${adminEmails.join(', ')} for ${userContext.userName} (${userContext.userEmail})`);
+      console.log(`[MOCK EMAIL SERVICE] Admin registration alert sent to ${adminEmails.join(', ')}`);
       return { success: true, mocked: true };
     }
 
@@ -628,7 +672,7 @@ export const sendAdminNewUserRegistrationAlert = async (
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
-// USER APPROVAL CONFIRMATION EMAIL
+// 6. USER APPROVAL CONFIRMATION EMAIL
 // ──────────────────────────────────────────────────────────────────────────────
 
 export const sendUserApprovalSuccessEmail = async (
@@ -636,60 +680,54 @@ export const sendUserApprovalSuccessEmail = async (
   recipientName: string
 ) => {
   try {
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <p style="color:#ffffff;font-size:14px;line-height:1.6;margin:0 0 12px 0;">
+          Your account request has been verified and <strong style="color:#39ff14;">APPROVED</strong> by the CICR Admin Team.
+        </p>
+        <div style="font-size:12px;color:#94a3b8;font-family:'SFMono-Regular',Consolas,monospace;line-height:1.6;">
+          &bull; Full access to lab hardware catalog<br/>
+          &bull; Borrow microcontrollers, sensors, and robotics modules<br/>
+          &bull; Live loan tracking and return scheduling
+        </div>
+      </div>
+    `;
+
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
       to: recipientEmail,
-      subject: `[CICR Inventory] 🎉 Access Approved! Welcome to CICR Portal`,
+      subject: `[CICR Inventory] Access Approved: Welcome to CICR Portal`,
       messageId: generateMessageId(),
       headers: buildHeaders('user-approval-success', 'normal'),
       priority: 'normal' as const,
       text: [
+        `CICR INVENTORY // ACCESS APPROVED`,
+        `================================================`,
         `Hello ${recipientName},`,
         ``,
-        `Great news! Your account registration for the CICR Robotics Inventory Portal has been APPROVED by the Admin team.`,
+        `Your account registration for the CICR Robotics Inventory Portal has been APPROVED by the Admin team.`,
         ``,
-        `You now have full access to:`,
-        `- Browse available microcontrollers, sensors, motors, and robotics equipment.`,
-        `- Borrow hardware components for your robotics projects and hackathons.`,
-        `- Track your loans, due dates, and return statuses.`,
-        ``,
-        `Log in now at: https://cicr-inventory.vercel.app/`,
+        `Log in at: https://cicr-inventory.vercel.app/`,
         ``,
         `Best regards,`,
         `CICR Inventory Team`
       ].join('\n'),
-      html: `
-        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(16,185,129,0.3);">
-          <div style="text-align:center;margin-bottom:24px;">
-            <h2 style="color:#10b981;margin:0 0 6px 0;font-size:24px;">🎉 Account Approved!</h2>
-            <p style="color:#94a3b8;font-size:13px;margin:0;">Welcome to CICR Hardware & Robotics Vault</p>
-          </div>
-          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:20px;margin-bottom:24px;">
-            <p style="color:#ffffff;font-size:15px;margin:0 0 12px 0;">Hello <strong>${recipientName}</strong>,</p>
-            <p style="color:#cbd5e1;font-size:14px;line-height:1.6;margin:0 0 16px 0;">
-              Your account request has been verified and <strong style="color:#10b981;">APPROVED</strong> by the CICR Admin Team. You can now access the portal and issue hardware components for your robotics projects.
-            </p>
-            <div style="background:rgba(16,185,129,0.08);border-left:4px solid #10b981;padding:12px;border-radius:4px;font-size:13px;color:#e2e8f0;">
-              ✅ <strong>Hardware Access Granted:</strong> Microcontrollers, sensors, actuators, and power modules are now available for borrowing.
-            </div>
-          </div>
-          <div style="text-align:center;padding:8px 0;">
-            <a href="https://cicr-inventory.vercel.app/" style="display:inline-block;background:linear-gradient(135deg,#10b981,#00f0ff);color:#0d0f17;text-decoration:none;font-weight:bold;padding:12px 30px;border-radius:6px;font-size:14px;box-shadow:0 4px 14px rgba(16,185,129,0.3);">
-              Log In to CICR Portal
-            </a>
-          </div>
-          <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:28px;padding-top:16px;text-align:center;">
-            <p style="color:#64748b;font-size:11px;margin:0;">
-              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
-            </p>
-          </div>
-        </div>
-      `,
+      html: renderCyberEmail({
+        badgeText: 'STATUS // ACCESS GRANTED',
+        badgeType: 'success',
+        title: 'Account Approved',
+        subtitle: `Hello ${recipientName}, you now have full access to the CICR Hardware Vault.`,
+        contentHtml,
+        actionButton: {
+          text: 'Log In to Portal',
+          url: 'https://cicr-inventory.vercel.app/'
+        }
+      })
     };
 
     if (!process.env.SMTP_USER) {
-      console.log(`[MOCK EMAIL SERVICE] User approval email dispatched to ${recipientEmail} for ${recipientName}`);
+      console.log(`[MOCK EMAIL SERVICE] User approval email dispatched to ${recipientEmail}`);
       return { success: true, mocked: true };
     }
 
@@ -707,7 +745,7 @@ export const sendUserApprovalSuccessEmail = async (
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
-// USER REJECTION NOTIFICATION EMAIL
+// 7. USER REJECTION NOTIFICATION EMAIL
 // ──────────────────────────────────────────────────────────────────────────────
 
 export const sendUserRejectionNotificationEmail = async (
@@ -715,6 +753,17 @@ export const sendUserRejectionNotificationEmail = async (
   recipientName: string
 ) => {
   try {
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <p style="color:#e2e8f0;font-size:13px;line-height:1.6;margin:0;">
+          Your account access request for the CICR Robotics Inventory Portal was reviewed by the Admin team and could not be approved at this time.
+        </p>
+      </div>
+      <p style="font-size:12px;color:#64748b;line-height:1.6;margin:0;">
+        If you require access for an active JIIT-128 robotics project or competition, please reach out directly to the CICR Lead Admin at <span style="color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;">vardaansaxena096@gmail.com</span>.
+      </p>
+    `;
+
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
@@ -724,37 +773,24 @@ export const sendUserRejectionNotificationEmail = async (
       headers: buildHeaders('user-rejection', 'normal'),
       priority: 'normal' as const,
       text: [
+        `CICR INVENTORY // REGISTRATION STATUS UPDATE`,
+        `================================================`,
         `Hello ${recipientName},`,
         ``,
-        `Your account registration request for the CICR Robotics Inventory Portal was reviewed by the Admin team and could not be approved at this time.`,
+        `Your account registration request for the CICR Robotics Inventory Portal could not be approved at this time.`,
         ``,
-        `If you believe this was done in error or you need access for an active college robotics project, please contact the CICR Admin directly at vardaansaxena096@gmail.com or cicrinventory@gmail.com.`,
+        `Contact Admin: vardaansaxena096@gmail.com / cicrinventory@gmail.com`,
         ``,
         `Regards,`,
         `CICR Inventory Team`
       ].join('\n'),
-      html: `
-        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(239,68,68,0.3);">
-          <div style="text-align:center;margin-bottom:24px;">
-            <h2 style="color:#ef4444;margin:0 0 6px 0;font-size:22px;">Registration Status Update</h2>
-            <p style="color:#94a3b8;font-size:13px;margin:0;">CICR Robotics Inventory Portal</p>
-          </div>
-          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:20px;margin-bottom:20px;">
-            <p style="color:#ffffff;font-size:15px;margin:0 0 12px 0;">Hello <strong>${recipientName}</strong>,</p>
-            <p style="color:#cbd5e1;font-size:14px;line-height:1.6;margin:0 0 14px 0;">
-              Your account access request was reviewed by the CICR Admin and could not be approved at this time.
-            </p>
-            <p style="color:#94a3b8;font-size:13px;margin:0;">
-              If you require access for an active JIIT-128 robotics project or competition, please reach out directly to CICR Admins at <a href="mailto:vardaansaxena096@gmail.com" style="color:#00f0ff;">vardaansaxena096@gmail.com</a> / <a href="mailto:cicrinventory@gmail.com" style="color:#00f0ff;">cicrinventory@gmail.com</a>.
-            </p>
-          </div>
-          <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:24px;padding-top:16px;text-align:center;">
-            <p style="color:#64748b;font-size:11px;margin:0;">
-              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
-            </p>
-          </div>
-        </div>
-      `,
+      html: renderCyberEmail({
+        badgeText: 'STATUS // REQUEST NOT APPROVED',
+        badgeType: 'danger',
+        title: 'Registration Status Update',
+        subtitle: `Hello ${recipientName}, an update regarding your access request.`,
+        contentHtml
+      })
     };
 
     if (!process.env.SMTP_USER) {
@@ -776,7 +812,7 @@ export const sendUserRejectionNotificationEmail = async (
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
-// REAL-TIME ADMIN AUDIT & TRANSACTION NOTIFICATIONS
+// 8. REAL-TIME ADMIN AUDIT & TRANSACTION NOTIFICATIONS
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface AdminBorrowAlertContext {
@@ -801,76 +837,66 @@ export const sendAdminBorrowNotification = async (
     const formattedDueDate = formatDueDate(context.dueDate);
     const categoryLine = context.category ? ` [${context.category}]` : '';
 
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:130px;font-family:'SFMono-Regular',Consolas,monospace;">BORROWER:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${context.borrowerName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">EMAIL:</td>
+            <td style="padding:6px 0;color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;">${context.borrowerEmail}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">ROLL NUMBER:</td>
+            <td style="padding:6px 0;color:#e2e8f0;font-family:'SFMono-Regular',Consolas,monospace;">${context.rollNumber || 'N/A'}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">PURPOSE:</td>
+            <td style="padding:6px 0;color:#cbd5e1;">${context.purpose}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">RETURN DUE:</td>
+            <td style="padding:6px 0;color:#facc15;font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">${formattedDueDate} (${context.durationDays} days)</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">REMAINING STOCK:</td>
+            <td style="padding:6px 0;color:#39ff14;font-family:'SFMono-Regular',Consolas,monospace;">${context.remainingStock} units</td>
+          </tr>
+        </table>
+      </div>
+    `;
+
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
       to: adminEmails.join(', '),
-      subject: `[CICR Admin Alert] 📦 Component Borrowed: ${context.itemName} (${context.quantity}x)`,
+      subject: `[CICR Admin Alert] Hardware Issued: ${context.itemName} (${context.quantity}x)`,
       messageId: generateMessageId(),
       headers: buildHeaders('admin-borrow-alert', 'high'),
       priority: 'high' as const,
       text: [
-        `CICR ADMIN HARDWARE AUDIT LOG`,
-        `==================================`,
-        `A hardware item has been issued from the inventory:`,
-        ``,
+        `CICR ADMIN // LIVE HARDWARE ISSUANCE TELEMETRY`,
+        `================================================`,
         `Item: ${context.itemName}${categoryLine}`,
         `Quantity Borrowed: ${context.quantity}`,
-        `Remaining Available Stock: ${context.remainingStock}`,
+        `Remaining Stock: ${context.remainingStock}`,
         `Borrower: ${context.borrowerName} (${context.borrowerEmail})`,
         `Roll Number: ${context.rollNumber || 'N/A'}`,
         `Purpose: ${context.purpose}`,
         `Due Date: ${formattedDueDate} (${context.durationDays} days)`,
         ``,
-        `This is an automated real-time notification sent to all CICR Admins.`,
         `Regards,`,
         `CICR Automated Inventory System`
       ].join('\n'),
-      html: `
-        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(0,240,255,0.25);">
-          <div style="text-align:center;margin-bottom:20px;">
-            <h2 style="color:#00f0ff;margin:0 0 4px 0;letter-spacing:1px;font-size:22px;">⚡ CICR INVENTORY</h2>
-            <p style="color:#94a3b8;font-size:12px;margin:0;text-transform:uppercase;letter-spacing:1.5px;">Live Hardware Issuance Telemetry</p>
-          </div>
-          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(0,240,255,0.2);border-radius:8px;padding:20px;margin-bottom:20px;">
-            <div style="display:inline-block;background:rgba(0,240,255,0.15);color:#00f0ff;border:1px solid rgba(0,240,255,0.3);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:bold;margin-bottom:14px;">
-              📦 COMPONENT ISSUED
-            </div>
-            <h3 style="color:#ffffff;margin:0 0 14px 0;font-size:17px;">${context.quantity}x ${context.itemName} ${categoryLine}</h3>
-            <table style="width:100%;border-collapse:collapse;font-size:14px;">
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;width:120px;">Borrower:</td>
-                <td style="padding:6px 0;color:#ffffff;font-weight:bold;">${context.borrowerName}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Email:</td>
-                <td style="padding:6px 0;color:#00f0ff;">${context.borrowerEmail}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Roll Number:</td>
-                <td style="padding:6px 0;color:#e2e8f0;">${context.rollNumber || 'N/A'}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Purpose:</td>
-                <td style="padding:6px 0;color:#e2e8f0;">${context.purpose}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Return Deadline:</td>
-                <td style="padding:6px 0;color:#facc15;font-weight:bold;">${formattedDueDate} (${context.durationDays} days)</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Stock Left:</td>
-                <td style="padding:6px 0;color:#10b981;font-weight:bold;">${context.remainingStock} units</td>
-              </tr>
-            </table>
-          </div>
-          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:14px;text-align:center;">
-            <p style="color:#64748b;font-size:11px;margin:0;">
-              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
-            </p>
-          </div>
-        </div>
-      `
+      html: renderCyberEmail({
+        badgeText: 'TELEMETRY // HARDWARE ISSUED',
+        badgeType: 'primary',
+        title: `${context.quantity}x ${context.itemName}${categoryLine}`,
+        subtitle: `Hardware component issued to ${context.borrowerName}.`,
+        contentHtml
+      })
     };
 
     if (!process.env.SMTP_USER) {
@@ -907,60 +933,55 @@ export const sendAdminReturnNotification = async (
     if (!adminEmails || !adminEmails.length) return { success: false, message: 'No admin recipients' };
     const retTime = new Date(context.returnedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
 
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:120px;font-family:'SFMono-Regular',Consolas,monospace;">RETURNED BY:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${context.borrowerName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">EMAIL:</td>
+            <td style="padding:6px 0;color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;">${context.borrowerEmail || 'N/A'}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">TIMESTAMP:</td>
+            <td style="padding:6px 0;color:#39ff14;font-family:'SFMono-Regular',Consolas,monospace;">${retTime} IST</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">STATUS:</td>
+            <td style="padding:6px 0;color:#39ff14;font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">RESTOCKED & VERIFIED</td>
+          </tr>
+        </table>
+      </div>
+    `;
+
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
       to: adminEmails.join(', '),
-      subject: `[CICR Admin Alert] 🔄 Item Restocked / Returned: ${context.itemName}`,
+      subject: `[CICR Admin Alert] Item Restocked: ${context.itemName}`,
       messageId: generateMessageId(),
       headers: buildHeaders('admin-return-alert', 'normal'),
       priority: 'normal' as const,
       text: [
-        `CICR ADMIN HARDWARE AUDIT LOG`,
-        `==================================`,
-        `An item has been returned and restocked in the inventory:`,
-        ``,
+        `CICR ADMIN // HARDWARE RETURN TELEMETRY`,
+        `================================================`,
         `Item: ${context.itemName}`,
         `Borrower: ${context.borrowerName} (${context.borrowerEmail || 'N/A'})`,
-        `Returned At: ${retTime} IST`,
+        `Restocked At: ${retTime} IST`,
         `Status: RESTOCKED & VERIFIED`,
         ``,
         `Regards,`,
         `CICR Automated Inventory System`
       ].join('\n'),
-      html: `
-        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(16,185,129,0.25);">
-          <div style="text-align:center;margin-bottom:20px;">
-            <h2 style="color:#10b981;margin:0 0 4px 0;letter-spacing:1px;font-size:22px;">⚡ CICR INVENTORY</h2>
-            <p style="color:#94a3b8;font-size:12px;margin:0;text-transform:uppercase;letter-spacing:1.5px;">Live Hardware Return Telemetry</p>
-          </div>
-          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:20px;margin-bottom:20px;">
-            <div style="display:inline-block;background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:bold;margin-bottom:14px;">
-              🔄 COMPONENT RESTOCKED
-            </div>
-            <h3 style="color:#ffffff;margin:0 0 14px 0;font-size:17px;">${context.itemName}</h3>
-            <table style="width:100%;border-collapse:collapse;font-size:14px;">
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;width:120px;">Returned By:</td>
-                <td style="padding:6px 0;color:#ffffff;font-weight:bold;">${context.borrowerName}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Email:</td>
-                <td style="padding:6px 0;color:#00f0ff;">${context.borrowerEmail || 'N/A'}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Restocked At:</td>
-                <td style="padding:6px 0;color:#10b981;font-weight:bold;">${retTime} IST</td>
-              </tr>
-            </table>
-          </div>
-          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:14px;text-align:center;">
-            <p style="color:#64748b;font-size:11px;margin:0;">
-              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
-            </p>
-          </div>
-        </div>
-      `
+      html: renderCyberEmail({
+        badgeText: 'TELEMETRY // ITEM RESTOCKED',
+        badgeType: 'success',
+        title: `Component Restocked: ${context.itemName}`,
+        subtitle: `Hardware returned by ${context.borrowerName}.`,
+        contentHtml
+      })
     };
 
     if (!process.env.SMTP_USER) {
@@ -991,8 +1012,34 @@ export const sendAdminUserStatusAlert = async (
   try {
     if (!adminEmails || !adminEmails.length) return { success: false, message: 'No admin recipients' };
     const isApproved = status === 'APPROVED';
-    const actionColor = isApproved ? '#10b981' : '#ef4444';
     const nowTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:120px;font-family:'SFMono-Regular',Consolas,monospace;">USER:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${userName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">EMAIL:</td>
+            <td style="padding:6px 0;color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;">${userEmail}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">ACTION:</td>
+            <td style="padding:6px 0;color:${isApproved ? '#39ff14' : '#ef4444'};font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">${status}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">PROCESSED BY:</td>
+            <td style="padding:6px 0;color:#e2e8f0;font-weight:600;">${performedBy}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">TIMESTAMP:</td>
+            <td style="padding:6px 0;color:#94a3b8;font-family:'SFMono-Regular',Consolas,monospace;">${nowTime} IST</td>
+          </tr>
+        </table>
+      </div>
+    `;
 
     const mailOptions = {
       from: getFromAddress(),
@@ -1003,51 +1050,23 @@ export const sendAdminUserStatusAlert = async (
       headers: buildHeaders('admin-user-status-log', 'normal'),
       priority: 'normal' as const,
       text: [
-        `CICR ADMIN ACCESS LOG`,
-        `==================================`,
-        `Member access request has been processed:`,
-        ``,
+        `CICR ADMIN // ACCESS AUDIT LOG`,
+        `================================================`,
         `User: ${userName} (${userEmail})`,
         `Action: ${status}`,
-        `Performed By: ${performedBy}`,
-        `Time: ${nowTime} IST`,
+        `Processed By: ${performedBy}`,
+        `Timestamp: ${nowTime} IST`,
         ``,
         `Regards,`,
         `CICR Automated Inventory System`
       ].join('\n'),
-      html: `
-        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid ${actionColor}40;">
-          <div style="text-align:center;margin-bottom:20px;">
-            <h2 style="color:${actionColor};margin:0 0 4px 0;letter-spacing:1px;font-size:22px;">⚡ CICR INVENTORY</h2>
-            <p style="color:#94a3b8;font-size:12px;margin:0;text-transform:uppercase;letter-spacing:1.5px;">Admin Security Audit Log</p>
-          </div>
-          <div style="background:rgba(255,255,255,0.04);border:1px solid ${actionColor}40;border-radius:8px;padding:20px;margin-bottom:20px;">
-            <div style="display:inline-block;background:${actionColor}20;color:${actionColor};border:1px solid ${actionColor}50;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:bold;margin-bottom:14px;">
-              ${status === 'APPROVED' ? '✅ MEMBER APPROVED' : '❌ REQUEST REJECTED'}
-            </div>
-            <h3 style="color:#ffffff;margin:0 0 14px 0;font-size:17px;">${userName} (${userEmail})</h3>
-            <table style="width:100%;border-collapse:collapse;font-size:14px;">
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;width:120px;">Status:</td>
-                <td style="padding:6px 0;color:${actionColor};font-weight:bold;">${status}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Processed By:</td>
-                <td style="padding:6px 0;color:#ffffff;font-weight:bold;">${performedBy}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#94a3b8;">Timestamp:</td>
-                <td style="padding:6px 0;color:#e2e8f0;">${nowTime} IST</td>
-              </tr>
-            </table>
-          </div>
-          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:14px;text-align:center;">
-            <p style="color:#64748b;font-size:11px;margin:0;">
-              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
-            </p>
-          </div>
-        </div>
-      `
+      html: renderCyberEmail({
+        badgeText: `AUDIT // MEMBER ${status}`,
+        badgeType: isApproved ? 'success' : 'danger',
+        title: `Member Request ${status}`,
+        subtitle: `Access permission processed by ${performedBy}.`,
+        contentHtml
+      })
     };
 
     if (!process.env.SMTP_USER) {
@@ -1068,3 +1087,242 @@ export const sendAdminUserStatusAlert = async (
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// 9. UPCOMING & DUE REMINDERS
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const sendUpcomingReminder = async (
+  recipientEmail: string,
+  borrowerName: string,
+  itemName: string,
+  dueDate: Date | string
+) => {
+  try {
+    const formattedDueDate = formatDueDate(dueDate);
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:120px;font-family:'SFMono-Regular',Consolas,monospace;">ITEM:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${itemName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">DUE DATE:</td>
+            <td style="padding:6px 0;color:#facc15;font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">TOMORROW (${formattedDueDate})</td>
+          </tr>
+        </table>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        Please return the item to the CICR lab tomorrow on or before the due date to avoid overdue penalties.
+      </p>
+    `;
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: recipientEmail,
+      subject: `[CICR Inventory] Return Due Tomorrow: ${itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('upcoming-reminder'),
+      priority: 'normal' as const,
+      text: [
+        `CICR INVENTORY // RETURN REMINDER`,
+        `================================================`,
+        `Hello ${borrowerName},`,
+        ``,
+        `Your borrowed item "${itemName}" is due TOMORROW (${formattedDueDate}).`,
+        ``,
+        `Please return it to the lab on or before the due date.`,
+        ``,
+        `Regards,`,
+        `CICR Inventory Team`
+      ].join('\n'),
+      html: renderCyberEmail({
+        badgeText: 'SCHEDULE // DUE TOMORROW',
+        badgeType: 'warning',
+        title: `Return Deadline Tomorrow: ${itemName}`,
+        subtitle: `Hello ${borrowerName}, this is an automated schedule reminder.`,
+        contentHtml
+      })
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Upcoming reminder dispatched to ${recipientEmail}`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('upcoming-reminder', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Upcoming reminder', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send upcoming reminder: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+export const sendReturnReminder = async (
+  recipientEmail: string,
+  borrowerName: string,
+  itemName: string,
+  dueDate: Date | string,
+  daysOverdue: number
+) => {
+  try {
+    const formattedDueDate = formatDueDate(dueDate);
+    const overdueNotice = daysOverdue > 0
+      ? `This return is ${daysOverdue} day(s) OVERDUE.`
+      : 'This item is due TODAY.';
+
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:120px;font-family:'SFMono-Regular',Consolas,monospace;">ITEM:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${itemName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">ORIGINAL DUE:</td>
+            <td style="padding:6px 0;color:#e2e8f0;font-family:'SFMono-Regular',Consolas,monospace;">${formattedDueDate}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">OVERDUE STATUS:</td>
+            <td style="padding:6px 0;color:#ef4444;font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">${daysOverdue > 0 ? `${daysOverdue} DAYS OVERDUE` : 'DUE TODAY'}</td>
+          </tr>
+        </table>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        Please return the component to the lab immediately to prevent account suspension.
+      </p>
+    `;
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: recipientEmail,
+      subject: daysOverdue > 0
+        ? `[CICR Inventory] OVERDUE Notice: ${itemName}`
+        : `[CICR Inventory] Return Due Today: ${itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('return-reminder', 'high'),
+      priority: 'high' as const,
+      text: [
+        `CICR INVENTORY // OVERDUE RETURN NOTICE`,
+        `================================================`,
+        `Hello ${borrowerName},`,
+        ``,
+        `${overdueNotice}`,
+        `Item: ${itemName}`,
+        `Due Date: ${formattedDueDate}`,
+        ``,
+        `Please return it to the lab at your earliest convenience.`,
+        ``,
+        `Regards,`,
+        `CICR Inventory Team`
+      ].join('\n'),
+      html: renderCyberEmail({
+        badgeText: daysOverdue > 0 ? 'ALERT // OVERDUE NOTICE' : 'SCHEDULE // DUE TODAY',
+        badgeType: 'danger',
+        title: daysOverdue > 0 ? `Overdue Return Notice: ${itemName}` : `Return Due Today: ${itemName}`,
+        subtitle: `Hello ${borrowerName}, urgent return notice for checked-out hardware.`,
+        contentHtml
+      })
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Return reminder dispatched to ${recipientEmail}`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('return-reminder', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Return reminder', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send return reminder: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+export const sendDueReminder = async (
+  recipientEmail: string,
+  borrowerName: string,
+  itemName: string,
+  quantity: number,
+  dueDate: Date | string,
+  dueWindowLabel: string
+) => {
+  try {
+    const formattedDueDate = formatDueDate(dueDate);
+    const isOverdue = dueWindowLabel.startsWith('overdue');
+
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:120px;font-family:'SFMono-Regular',Consolas,monospace;">ITEM:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${quantity}x ${itemName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">SCHEDULE:</td>
+            <td style="padding:6px 0;color:${isOverdue ? '#ef4444' : '#facc15'};font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">${dueWindowLabel.toUpperCase()}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">DUE DATE:</td>
+            <td style="padding:6px 0;color:#e2e8f0;font-family:'SFMono-Regular',Consolas,monospace;">${formattedDueDate}</td>
+          </tr>
+        </table>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        Please return the component to the CICR lab${isOverdue ? ' as soon as possible' : ' on or before the due date'}.
+      </p>
+    `;
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: recipientEmail,
+      subject: `[CICR Inventory] ${isOverdue ? 'OVERDUE' : 'Return Reminder'}: ${itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('due-reminder'),
+      priority: isOverdue ? ('high' as const) : ('normal' as const),
+      text: [
+        `CICR INVENTORY // RETURN NOTICE`,
+        `================================================`,
+        `Hello ${borrowerName},`,
+        ``,
+        `${quantity}x ${itemName} is ${dueWindowLabel}.`,
+        `Due Date: ${formattedDueDate}`,
+        ``,
+        `Please return it to the lab on or before the due date.`,
+        ``,
+        `Regards,`,
+        `CICR Inventory Team`
+      ].join('\n'),
+      html: renderCyberEmail({
+        badgeText: isOverdue ? 'ALERT // OVERDUE NOTICE' : 'SCHEDULE // RETURN REMINDER',
+        badgeType: isOverdue ? 'danger' : 'warning',
+        title: isOverdue ? `Overdue Return: ${itemName}` : `Return Reminder: ${itemName}`,
+        subtitle: `Hello ${borrowerName}, please review your component return timeline.`,
+        contentHtml
+      })
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Reminder dispatched to ${recipientEmail}`);
+      return { success: true, mocked: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send reminder:`, error.message);
+    return { success: false, error: error.message };
+  }
+};
