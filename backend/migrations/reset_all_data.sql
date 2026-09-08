@@ -1,23 +1,12 @@
 -- ============================================================
 -- CICR Inventory - COMPLETE SUPABASE DATA RESET
--- Run this in your Supabase SQL Editor to wipe all data clean
+-- Run this in your Supabase SQL Editor
 -- ============================================================
 
--- Disable triggers temporarily to avoid foreign key conflicts
-SET session_replication_role = 'replica';
+-- 1. Truncate all tables clean with CASCADE
+TRUNCATE TABLE public.audit_logs, public.borrow_records, public.inventory, public.users CASCADE;
 
--- 1. Truncate all application data tables
-TRUNCATE TABLE IF EXISTS public.audit_logs CASCADE;
-TRUNCATE TABLE IF EXISTS public.borrow_records CASCADE;
-TRUNCATE TABLE IF EXISTS public.auth_otps CASCADE;
-TRUNCATE TABLE IF EXISTS public.inventory CASCADE;
-TRUNCATE TABLE IF EXISTS public.items CASCADE;
-TRUNCATE TABLE IF EXISTS public.users CASCADE;
-
--- Re-enable normal trigger execution
-SET session_replication_role = 'origin';
-
--- 2. Insert the fresh Master Admin account (cicrinventory@gmail.com / VardaanSaxena@0009)
+-- 2. Insert only the single Master Admin account (cicrinventory@gmail.com / VardaanSaxena@0009)
 INSERT INTO public.users (name, email, password_hash, role)
 VALUES (
   'CICR Admin',
@@ -26,5 +15,5 @@ VALUES (
   'ADMIN'
 );
 
--- 3. Verify clean state
+-- 3. Confirm clean state
 SELECT id, name, email, role, created_at FROM public.users;
