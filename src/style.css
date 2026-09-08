@@ -6893,4 +6893,183 @@ body.theme-light .devs-clean-divider {
     }
 }
 
+/* ==========================================================================
+   Cyber Floating Toast Notifications & Notification Badges
+   ========================================================================== */
+
+#toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+    max-width: 380px;
+    width: calc(100vw - 48px);
+}
+
+.cyber-toast {
+    pointer-events: auto;
+    background: rgba(13, 15, 23, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: 12px;
+    padding: 14px 18px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 240, 255, 0.15);
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.cyber-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.cyber-toast.hide {
+    transform: translateX(120%);
+    opacity: 0;
+}
+
+.cyber-toast::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: #00f0ff;
+    box-shadow: 0 0 10px #00f0ff;
+}
+
+.cyber-toast.toast-success::before {
+    background: #10b981;
+    box-shadow: 0 0 10px #10b981;
+}
+.cyber-toast.toast-success {
+    border-color: rgba(16, 185, 129, 0.35);
+}
+
+.cyber-toast.toast-warning::before {
+    background: #f59e0b;
+    box-shadow: 0 0 10px #f59e0b;
+}
+.cyber-toast.toast-warning {
+    border-color: rgba(245, 158, 11, 0.35);
+}
+
+.cyber-toast.toast-error::before {
+    background: #ef4444;
+    box-shadow: 0 0 10px #ef4444;
+}
+.cyber-toast.toast-error {
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.toast-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+    color: #00f0ff;
+}
+.cyber-toast.toast-success .toast-icon-wrap { color: #10b981; }
+.cyber-toast.toast-warning .toast-icon-wrap { color: #f59e0b; }
+.cyber-toast.toast-error .toast-icon-wrap { color: #ef4444; }
+
+.toast-content-wrap {
+    flex: 1;
+}
+
+.toast-title {
+    font-family: 'Orbitron', 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.5px;
+}
+
+.toast-desc {
+    font-size: 12px;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.toast-close-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+.toast-close-btn:hover {
+    color: #ffffff;
+}
+
+/* Dynamic Notification Badge Glow */
+.notification-badge,
+#sidebar-notif-badge {
+    background: linear-gradient(135deg, #00f0ff, #bd00ff);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
+    transition: all 0.3s ease;
+}
+
+.notification-badge.pulse,
+#sidebar-notif-badge.pulse {
+    animation: badge-pulse 2s infinite ease-in-out;
+}
+
+@keyframes badge-pulse {
+    0% {
+        box-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 16px rgba(189, 0, 255, 0.8), 0 0 24px rgba(0, 240, 255, 0.6);
+        transform: scale(1.08);
+    }
+    100% {
+        box-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+        transform: scale(1);
+    }
+}
+
+.drawer-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #94a3b8;
+    margin: 18px 0 10px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+
 

@@ -24,6 +24,70 @@ let requests: RequestRecord[] = [];
 let selectedItem: InventoryItem | null = null;
 
 // ==========================================
+// 1.5. Real-Time Floating Cyber Toast Notifications
+// ==========================================
+class ToastManager {
+    private static container: HTMLElement | null = null;
+
+    static init() {
+        if (!this.container) {
+            this.container = document.getElementById('toast-container');
+            if (!this.container) {
+                this.container = document.createElement('div');
+                this.container.id = 'toast-container';
+                document.body.appendChild(this.container);
+            }
+        }
+    }
+
+    static show(title: string, desc: string, type: 'success' | 'info' | 'warning' | 'error' = 'info') {
+        this.init();
+        if (!this.container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `cyber-toast toast-${type}`;
+
+        const iconName = type === 'success' ? 'check-circle'
+            : type === 'warning' ? 'alert-triangle'
+            : type === 'error' ? 'alert-octagon' : 'bell';
+
+        toast.innerHTML = `
+            <div class="toast-icon-wrap">
+                <i data-lucide="${iconName}"></i>
+            </div>
+            <div class="toast-content-wrap">
+                <h4 class="toast-title">${title}</h4>
+                <p class="toast-desc">${desc}</p>
+            </div>
+            <button class="toast-close-btn" title="Dismiss">
+                <i data-lucide="x" style="width:14px;height:14px;"></i>
+            </button>
+        `;
+
+        toast.querySelector('.toast-close-btn')!.addEventListener('click', () => {
+            toast.classList.remove('show');
+            toast.classList.add('hide');
+            setTimeout(() => toast.remove(), 350);
+        });
+
+        this.container.appendChild(toast);
+        lucide.createIcons();
+
+        requestAnimationFrame(() => {
+            setTimeout(() => toast.classList.add('show'), 20);
+        });
+
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 350);
+            }
+        }, 4200);
+    }
+}
+
+// ==========================================
 // 2. Three.js 3D Background Engine
 // ==========================================
 class Background3D {
@@ -380,6 +444,61 @@ class DatabaseManager {
         localStorage.setItem('cicr_inventory', JSON.stringify(inventory));
         localStorage.setItem('cicr_logs', JSON.stringify(logs));
         localStorage.setItem('cicr_requests', JSON.stringify(requests));
+        this.updateNotificationBadges();
+    }
+
+    static updateNotificationBadges() {
+        const todayStr = new Date().toISOString().split('T')[0];
+        let overdueCount = 0;
+        let activeLoansCount = 0;
+        let lowStockCount = 0;
+
+        inventory.forEach((item) => {
+            const available = typeof item.availableQuantity === 'number'
+                ? item.availableQuantity
+                : item.quantity;
+            if (available <= 2) lowStockCount++;
+
+            (item.borrowedBy || []).forEach((rec) => {
+                if (rec.returned) return;
+                activeLoansCount++;
+
+                let due = rec.dueDate;
+                if (!due && rec.date) {
+                    const bTime = new Date(rec.date).getTime();
+                    if (!isNaN(bTime)) {
+                        due = new Date(bTime + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    }
+                }
+                if (due && due < todayStr) {
+                    overdueCount++;
+                }
+            });
+        });
+
+        const pendingReqs = requests.filter(r => r.status === 'PENDING').length;
+        const totalAlerts = overdueCount + activeLoansCount + lowStockCount + pendingReqs;
+
+        const sidebarBadge = document.getElementById('sidebar-notif-badge');
+        if (sidebarBadge) {
+            sidebarBadge.innerText = String(totalAlerts);
+            sidebarBadge.style.display = totalAlerts > 0 ? 'inline-flex' : 'none';
+            sidebarBadge.classList.toggle('pulse', totalAlerts > 0);
+        }
+
+        const navBadge = document.getElementById('nav-bell-badge');
+        if (navBadge) {
+            navBadge.innerText = String(totalAlerts);
+            navBadge.style.display = totalAlerts > 0 ? 'inline-flex' : 'none';
+            navBadge.classList.toggle('pulse', totalAlerts > 0);
+        }
+    }
+
+    static startAutoSync(intervalMs = 15000) {
+        if ((window as any)._cicrAutoSyncTimer) return;
+        (window as any)._cicrAutoSyncTimer = setInterval(() => {
+            this.syncFromBackend();
+        }, intervalMs);
     }
 
     static addLog(type: ActivityLog['type'], text: string) {
@@ -1305,11 +1424,19 @@ class ModalManager {
         const logsList = document.getElementById('logs-list')!;
         logsList.innerHTML = '';
 
-        // 1. Scan for active unreturned loans that have passed their due date (OVERDUE - Red)
         const todayStr = new Date().toISOString().split('T')[0];
         const activeOverdueList: { item: InventoryItem; rec: BorrowRecord; due: string }[] = [];
+        const activeLoansList: { item: InventoryItem; rec: BorrowRecord; due: string }[] = [];
+        const lowStockList: InventoryItem[] = [];
 
         inventory.forEach((item) => {
+            const available = typeof item.availableQuantity === 'number'
+                ? item.availableQuantity
+                : item.quantity;
+            if (available <= 2 && available > 0) {
+                lowStockList.push(item);
+            }
+
             (item.borrowedBy || []).forEach((rec) => {
                 if (rec.returned) return;
 
@@ -1323,17 +1450,19 @@ class ModalManager {
 
                 if (due && due < todayStr) {
                     activeOverdueList.push({ item, rec, due });
+                } else {
+                    activeLoansList.push({ item, rec, due: due || 'Standard (7d)' });
                 }
             });
         });
 
-        const hasOverdue = activeOverdueList.length > 0;
-        const hasLogs = logs.length > 0;
+        // 1. High-Priority Overdue Alerts
+        if (activeOverdueList.length > 0) {
+            const heading = document.createElement('div');
+            heading.className = 'drawer-section-heading';
+            heading.innerHTML = `<span><i data-lucide="alert-triangle" style="width:13px;height:13px;color:#ef4444;vertical-align:middle;"></i> Overdue Returns (${activeOverdueList.length})</span>`;
+            logsList.appendChild(heading);
 
-        if (!hasOverdue && !hasLogs) {
-            logsList.innerHTML = '<div class="request-empty-state">No logs logged.</div>';
-        } else {
-            // Render active Overdue alerts first (Red status, only when an active borrowed item has passed its due date)
             activeOverdueList.forEach(({ item, rec, due }) => {
                 const logEl = document.createElement('div');
                 logEl.className = 'log-item log-action-overdue';
@@ -1342,12 +1471,66 @@ class ModalManager {
                         <span class="log-type-tag"><i data-lucide="clock-alert"></i> OVERDUE</span>
                         <span>Due: ${due}</span>
                     </div>
-                    <div class="log-text-content"><span>${rec.name}</span> (${rec.roll}) has not returned <span>${rec.qty}x ${item.name}</span>. Loan was due on <span>${due}</span>.</div>
+                    <div class="log-text-content"><span>${rec.name}</span> (${rec.roll || 'Student'}) has not returned <span>${rec.qty}x ${item.name}</span>. Loan was due on <span>${due}</span>.</div>
                 `;
                 logsList.appendChild(logEl);
             });
+        }
 
-            // Render all historical transaction logs with their corresponding status colors
+        // 2. Active Loans & Borrow Schedules
+        if (activeLoansList.length > 0) {
+            const heading = document.createElement('div');
+            heading.className = 'drawer-section-heading';
+            heading.innerHTML = `<span><i data-lucide="shopping-cart" style="width:13px;height:13px;color:#00f0ff;vertical-align:middle;"></i> Active Loans (${activeLoansList.length})</span>`;
+            logsList.appendChild(heading);
+
+            activeLoansList.forEach(({ item, rec, due }) => {
+                const logEl = document.createElement('div');
+                logEl.className = 'log-item log-action-borrow';
+                logEl.innerHTML = `
+                    <div class="log-meta">
+                        <span class="log-type-tag"><i data-lucide="shopping-cart"></i> ACTIVE LOAN</span>
+                        <span>Due: ${due}</span>
+                    </div>
+                    <div class="log-text-content"><span>${rec.name}</span> (${rec.roll || 'ID'}) borrowed <span>${rec.qty}x ${item.name}</span> for '${rec.purpose}'.</div>
+                `;
+                logsList.appendChild(logEl);
+            });
+        }
+
+        // 3. Low Stock Reserve Alerts
+        if (lowStockList.length > 0) {
+            const heading = document.createElement('div');
+            heading.className = 'drawer-section-heading';
+            heading.innerHTML = `<span><i data-lucide="alert-circle" style="width:13px;height:13px;color:#f59e0b;vertical-align:middle;"></i> Low Reserves (${lowStockList.length})</span>`;
+            logsList.appendChild(heading);
+
+            lowStockList.forEach((item) => {
+                const logEl = document.createElement('div');
+                logEl.className = 'log-item log-action-low_stock';
+                logEl.innerHTML = `
+                    <div class="log-meta">
+                        <span class="log-type-tag"><i data-lucide="alert-circle"></i> LOW STOCK</span>
+                        <span>${item.location}</span>
+                    </div>
+                    <div class="log-text-content">Component <span>${item.name}</span> is low on reserves (<strong>${item.availableQuantity}</strong> units left).</div>
+                `;
+                logsList.appendChild(logEl);
+            });
+        }
+
+        // 4. Live Activity & Audit Transaction History
+        const heading = document.createElement('div');
+        heading.className = 'drawer-section-heading';
+        heading.innerHTML = `<span><i data-lucide="activity" style="width:13px;height:13px;color:#a855f7;vertical-align:middle;"></i> Activity History & Audit Logs (${logs.length})</span>`;
+        logsList.appendChild(heading);
+
+        if (logs.length === 0) {
+            const emptyEl = document.createElement('div');
+            emptyEl.className = 'request-empty-state';
+            emptyEl.innerText = 'No transaction logs recorded yet.';
+            logsList.appendChild(emptyEl);
+        } else {
             logs.forEach(log => {
                 const logEl = document.createElement('div');
                 logEl.className = `log-item log-action-${log.type}`;
@@ -1437,14 +1620,17 @@ class ModalManager {
             if (res.ok) {
                 (document.getElementById('add-item-form') as HTMLFormElement).reset();
                 this.close('add-item-modal');
+                ToastManager.show('Component Registered', `Added ${qty}x ${name} to ${location}`, 'success');
+                DatabaseManager.addLog('add', `Registered new component <span>${name}</span> (Qty: ${qty}) at <span>${location}</span>.`);
                 await DatabaseManager.syncFromBackend();
                 return;
             } else {
                 const errJson = await res.json();
-                alert(errJson.message || 'Failed to add item to database.');
+                ToastManager.show('Action Failed', errJson.message || 'Failed to add item to database.', 'error');
             }
         } catch (e) {
             console.error('Failed to create item in backend:', e);
+            ToastManager.show('Connection Error', 'Failed to reach database backend.', 'error');
         }
 
         // Fallback local addition if offline
@@ -1462,6 +1648,7 @@ class ModalManager {
         DatabaseManager.addLog('add', `Registered new component <span>${name}</span> (Qty: ${qty}) at <span>${location}</span>.`);
         (document.getElementById('add-item-form') as HTMLFormElement).reset();
         this.close('add-item-modal');
+        ToastManager.show('Component Saved', `Stored ${qty}x ${name} locally`, 'info');
         window.dashboard!.init();
     }
 
@@ -1473,11 +1660,13 @@ class ModalManager {
         const qty = parseInt((document.getElementById('borrow-qty') as HTMLInputElement).value);
         const purpose = (document.getElementById('borrow-purpose') as HTMLInputElement).value.trim();
 
-        const borrowedSum = selectedItem.borrowedBy.reduce((sum, rec) => sum + rec.qty, 0);
-        const available = selectedItem.quantity - borrowedSum;
+        const borrowedSum = (selectedItem.borrowedBy || []).reduce((sum, rec) => sum + rec.qty, 0);
+        const available = typeof selectedItem.availableQuantity === 'number'
+            ? selectedItem.availableQuantity
+            : Math.max(0, selectedItem.quantity - borrowedSum);
 
         if (qty > available || qty <= 0 || isNaN(qty) || !borrowerName || !rollNum || !purpose) {
-            alert("Please enter a valid borrow quantity within limits.");
+            ToastManager.show('Invalid Input', 'Please enter a valid borrow quantity within available limits.', 'warning');
             return;
         }
 
@@ -1504,11 +1693,17 @@ class ModalManager {
             if (res.ok) {
                 (document.getElementById('borrow-form') as HTMLFormElement).reset();
                 this.close('borrow-form-modal');
+                ToastManager.show('Component Issued', `Checked out ${qty}x ${selectedItem.name} for '${purpose}'`, 'success');
+                DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> (Due: ${dueDate}) for '${purpose}'.`);
                 await DatabaseManager.syncFromBackend();
                 return;
+            } else {
+                const errJson = await res.json();
+                ToastManager.show('Borrow Error', errJson.message || 'Unable to issue component.', 'error');
             }
         } catch (e) {
             console.error('Borrow API error:', e);
+            ToastManager.show('Network Error', 'Could not reach server to complete borrow.', 'error');
         }
 
         // Local fallback
@@ -1525,6 +1720,7 @@ class ModalManager {
         (document.getElementById('borrow-form') as HTMLFormElement).reset();
         DatabaseManager.save();
         this.close('borrow-form-modal');
+        ToastManager.show('Item Issued', `Recorded ${qty}x ${selectedItem.name}`, 'info');
         window.dashboard!.init();
     }
 
@@ -1549,20 +1745,27 @@ class ModalManager {
                 });
 
                 if (res.ok) {
+                    ToastManager.show('Component Returned', `Successfully returned ${rec.qty}x ${selectedItem.name} to vault`, 'success');
+                    DatabaseManager.addLog('return', `<span>${rec.name}</span> returned ${rec.qty}x <span>${selectedItem.name}</span>.`);
                     await DatabaseManager.syncFromBackend();
                     const refreshed = inventory.find(i => i.id === selectedItem?.id);
                     if (refreshed) this.openDetailModal(refreshed);
                     return;
+                } else {
+                    const errJson = await res.json();
+                    ToastManager.show('Return Error', errJson.message || 'Failed to process return.', 'error');
                 }
             }
         } catch (e) {
             console.error('Return API error:', e);
+            ToastManager.show('Network Error', 'Failed to reach server.', 'error');
         }
 
         selectedItem.borrowedBy.splice(idx, 1);
         DatabaseManager.addLog('return', `<span>${rec.name}</span> returned ${rec.qty}x <span>${selectedItem.name}</span>.`);
         DatabaseManager.save();
         this.openDetailModal(selectedItem);
+        ToastManager.show('Item Returned', `Restored ${rec.qty}x ${selectedItem.name}`, 'info');
         window.dashboard!.init();
     }
 }
@@ -2152,10 +2355,18 @@ class AdminManager {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
+                const data = await res.json();
+                ToastManager.show('User Approved', `Member ${data.user?.name || id} has been granted access.`, 'success');
+                DatabaseManager.addLog('system', `Admin approved membership for ${data.user?.name || id} (${data.user?.email || ''})`);
                 await this.loadUsers();
+                DatabaseManager.updateNotificationBadges();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                ToastManager.show('Approval Failed', err.message || 'Could not approve member', 'error');
             }
         } catch (e) {
             console.error('Error approving user:', e);
+            ToastManager.show('Network Error', 'Failed to communicate with server', 'error');
         }
     }
 
@@ -2167,10 +2378,17 @@ class AdminManager {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
+                ToastManager.show('User Rejected', 'Membership request was rejected.', 'warning');
+                DatabaseManager.addLog('system', `Admin rejected membership request for user ID ${id}`);
                 await this.loadUsers();
+                DatabaseManager.updateNotificationBadges();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                ToastManager.show('Rejection Failed', err.message || 'Could not reject member', 'error');
             }
         } catch (e) {
             console.error('Error rejecting user:', e);
+            ToastManager.show('Network Error', 'Failed to communicate with server', 'error');
         }
     }
 
@@ -2186,10 +2404,16 @@ class AdminManager {
                 body: JSON.stringify({ role })
             });
             if (res.ok) {
+                ToastManager.show('Role Updated', `User permissions changed to ${role}.`, 'info');
+                DatabaseManager.addLog('system', `User ${id} role updated to ${role}`);
                 await this.loadUsers();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                ToastManager.show('Update Failed', err.message || 'Could not update user role', 'error');
             }
         } catch (e) {
             console.error('Error changing role:', e);
+            ToastManager.show('Network Error', 'Failed to update user role', 'error');
         }
     }
 
@@ -2202,10 +2426,17 @@ class AdminManager {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
+                ToastManager.show('User Deleted', `User ${name} has been removed.`, 'warning');
+                DatabaseManager.addLog('system', `Admin deleted user profile "${name}" (${id})`);
                 await this.loadUsers();
+                DatabaseManager.updateNotificationBadges();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                ToastManager.show('Delete Failed', err.message || 'Could not delete user', 'error');
             }
         } catch (e) {
             console.error('Error deleting user:', e);
+            ToastManager.show('Network Error', 'Failed to delete user', 'error');
         }
     }
 }
