@@ -52,7 +52,11 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 
   if (token) {
     try {
-      const secret = process.env.JWT_SECRET || 'super_secret_cicr_key';
+      const secret = process.env.JWT_SECRET;
+      if (!secret) {
+        console.error('FATAL: JWT_SECRET environment variable is not set.');
+        return res.status(500).json({ status: 'error', message: 'Server misconfiguration.' });
+      }
       const options: jwt.VerifyOptions = {};
       if (process.env.JWT_ISSUER) options.issuer = process.env.JWT_ISSUER;
       if (process.env.JWT_AUDIENCE) options.audience = process.env.JWT_AUDIENCE;

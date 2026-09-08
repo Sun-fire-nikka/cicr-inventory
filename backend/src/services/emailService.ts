@@ -16,7 +16,7 @@ export const DEFAULT_SENDER_EMAIL = 'kushagragargdelhi@gmail.com';
 
 // Configure transport using environment variables or a fallback test account
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: Number(process.env.SMTP_PORT) || 587,
   auth: {
     user: process.env.SMTP_USER || '',

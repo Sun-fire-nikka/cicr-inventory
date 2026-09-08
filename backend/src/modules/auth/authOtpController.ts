@@ -126,7 +126,11 @@ export const verifyOtp = async (req: Request, res: Response) => {
     }
 
     // Generate JWT
-    const secret = process.env.JWT_SECRET || 'super_secret_cicr_key';
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      console.error('FATAL: JWT_SECRET environment variable is not set.');
+      return res.status(500).json({ status: 'error', message: 'Server misconfiguration.' });
+    }
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email, role: user.role },
       secret,

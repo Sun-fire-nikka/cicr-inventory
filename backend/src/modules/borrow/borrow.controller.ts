@@ -14,6 +14,11 @@ export const MIN_RENTAL_DAYS = 1;
 export const MAX_RENTAL_DAYS = 30;
 export const DEFAULT_RENTAL_DAYS = 5;
 
+// Fire-and-forget wrapper: catches and logs errors without blocking the response.
+function dispatchBackground(label: string, promise: Promise<unknown>): void {
+  promise.catch((err) => console.error(`[BACKGROUND] ${label} failed:`, err));
+}
+
 // Helper function to insert into audit_logs
 async function logAudit(action: string, userId: string | undefined, itemId: string | null, description: string) {
   try {
@@ -39,6 +44,7 @@ const finalizeBorrow = async (
 ) => {
   const { userId, userName, itemId, quantity, purpose, durationDays } = payload;
 
+  // 1. Fetch item details (name, category, etc.) for the response and audit log.
   const { data: item, error: itemErr } = await dbRead
     .from('inventory')
     .select('*')
@@ -49,15 +55,40 @@ const finalizeBorrow = async (
     return { error: { status: 404, message: 'Item not found.' } };
   }
 
-  if (item.available_quantity < quantity) {
+  // 2. Atomic decrement: only succeed if sufficient stock exists.
+  //    This WHERE clause prevents concurrent borrows from over-allocating.
+  const { data: updatedRows, error: updateErr } = await supabase
+    .from('inventory')
+    .update({
+      available_quantity: item.available_quantity - quantity,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', itemId)
+    .gte('available_quantity', quantity)
+    .select('available_quantity');
+
+  if (updateErr) return { error: { status: 500, message: updateErr.message } };
+
+  // If no rows were updated, the WHERE condition failed (insufficient stock).
+  if (!updatedRows || updatedRows.length === 0) {
+    // Re-read the current stock to give an accurate error message.
+    const { data: fresh } = await dbRead
+      .from('inventory')
+      .select('available_quantity')
+      .eq('id', itemId)
+      .single();
+    const currentStock = fresh?.available_quantity ?? 0;
     return {
       error: {
         status: 400,
-        message: `Requested quantity (${quantity}) exceeds available stock (${item.available_quantity}).`
+        message: `Requested quantity (${quantity}) exceeds available stock (${currentStock}).`
       }
     };
   }
 
+  const newAvailableQty = updatedRows[0].available_quantity;
+
+  // 3. Create the borrow record.
   const borrowedAt = new Date();
   const dueDate = new Date(borrowedAt);
   dueDate.setDate(dueDate.getDate() + durationDays);
@@ -80,14 +111,6 @@ const finalizeBorrow = async (
     .single();
 
   if (borrowErr) return { error: { status: 500, message: borrowErr.message } };
-
-  const newAvailableQty = item.available_quantity - quantity;
-  const { error: updateErr } = await supabase
-    .from('inventory')
-    .update({ available_quantity: newAvailableQty, updated_at: new Date().toISOString() })
-    .eq('id', itemId);
-
-  if (updateErr) return { error: { status: 500, message: updateErr.message } };
 
   await invalidateItemsCache(itemId);
 
@@ -151,7 +174,7 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
         .eq('status', 'BORROWED')
         .neq('id', borrowRecord.id);
 
-      sendBorrowConfirmation(userEmail, userName, {
+      dispatchBackground('borrow-confirmation', sendBorrowConfirmation(userEmail, userName, {
         itemName: item.name,
         category: item.category,
         quantity: qty,
@@ -159,8 +182,7 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
         holders: activeHolders || [],
         durationDays: days,
         dueDate
-      })
-        .catch((err) => console.error('Failed to dispatch borrow email:', err.message));
+      }));
     }
 
     return res.status(201).json({
@@ -298,7 +320,7 @@ export const verifyOtp = async (req: AuthRequest, res: Response) => {
         .eq('status', 'BORROWED')
         .neq('id', borrowRecord.id);
 
-      sendBorrowConfirmation(userEmail, userName, {
+      dispatchBackground('borrow-confirmation', sendBorrowConfirmation(userEmail, userName, {
         itemName: item.name,
         category: item.category,
         quantity: payload.quantity,
@@ -306,8 +328,7 @@ export const verifyOtp = async (req: AuthRequest, res: Response) => {
         holders: activeHolders || [],
         durationDays: payload.durationDays,
         dueDate
-      })
-        .catch((err) => console.error('Failed to dispatch borrow email:', err.message));
+      }));
     }
 
     return res.status(201).json({
@@ -350,7 +371,8 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
 
     const returnTimestamp = new Date();
 
-    // 2. Update borrow record status and returned_at timestamp
+    // 2. Atomic status flip: only transition BORROWED -> RETURNED.
+    //    If another concurrent request already flipped it, this affects 0 rows.
     const { data: updatedRecord, error: updateRecordErr } = await supabase
       .from('borrow_records')
       .update({
@@ -358,19 +380,32 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
         returned_at: returnTimestamp.toISOString()
       })
       .eq('id', borrow_id)
+      .eq('status', 'BORROWED')   // atomic guard: only if still BORROWED
       .select()
       .single();
 
     if (updateRecordErr) throw updateRecordErr;
 
-    // 3. Restore available_quantity in inventory
-    const { data: item } = await dbRead.from('inventory').select('available_quantity').eq('id', record.inventory_id).single();
-    const restoredQty = (item?.available_quantity || 0) + record.quantity;
+    // If no row was updated, a concurrent request already returned this record.
+    if (!updatedRecord) {
+      return res.status(400).json({ status: 'error', message: 'Item has already been returned.' });
+    }
 
-    await supabase
+    // 3. Restore available_quantity — read then write is safe here because
+    //    only one request can win the BORROWED -> RETURNED flip above.
+    const { data: currentItem } = await dbRead
+      .from('inventory')
+      .select('available_quantity')
+      .eq('id', record.inventory_id)
+      .single();
+    const restoredQty = (currentItem?.available_quantity || 0) + record.quantity;
+
+    const { error: restoreErr } = await supabase
       .from('inventory')
       .update({ available_quantity: restoredQty, updated_at: new Date().toISOString() })
       .eq('id', record.inventory_id);
+
+    if (restoreErr) throw restoreErr;
 
     await invalidateItemsCache(record.inventory_id);
 
@@ -382,8 +417,7 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
     const userEmail = req.user?.email;
     const userName = req.user?.name || 'Borrower';
     if (userEmail) {
-      sendReturnConfirmation(userEmail, userName, itemName, returnTimestamp)
-        .catch((err) => console.error('Failed to dispatch return email:', err.message));
+      dispatchBackground('return-confirmation', sendReturnConfirmation(userEmail, userName, itemName, returnTimestamp));
     }
 
     return res.status(200).json({
