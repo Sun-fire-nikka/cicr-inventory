@@ -312,22 +312,28 @@ class DatabaseManager {
                     else if (cat.includes('tool')) cat = 'tools';
 
                     const itemBorrows = liveBorrows
-                        .filter((b: any) => b.item_id === item.id && b.status === 'BORROWED')
+                        .filter((b: any) => (b.inventory_id === item.id || b.item_id === item.id) && b.status === 'BORROWED')
                         .map((b: any) => ({
                             id: b.id,
                             name: b.users?.name || b.borrower_name || 'Student',
                             roll: b.users?.roll_number || b.roll_number || 'ID',
-                            qty: b.quantity || 1,
+                            qty: Number(b.quantity) || 1,
                             purpose: b.purpose || 'Robotics Project',
                             date: b.borrowed_at ? b.borrowed_at.split('T')[0] : new Date().toISOString().split('T')[0],
                             dueDate: b.due_date ? b.due_date.split('T')[0] : ''
                         }));
 
+                    const borrowedSum = itemBorrows.reduce((sum: number, rec: any) => sum + rec.qty, 0);
+                    const availableQty = (item.available_quantity !== undefined && item.available_quantity !== null)
+                        ? Number(item.available_quantity)
+                        : Math.max(0, Number(item.quantity) - borrowedSum);
+
                     return {
-                        id: item.id,
+                        id: String(item.id),
                         name: item.name,
                         category: cat || 'microcontrollers',
-                        quantity: item.quantity,
+                        quantity: Number(item.quantity) || 0,
+                        availableQuantity: availableQty,
                         location: item.location || 'Lab Shelf',
                         specs: item.description || 'No specifications provided.',
                         image: item.image || (cat === 'sensors' ? 'drone.jpg' : cat === 'actuators' || cat === 'power' ? 'rover.jpg' : 'microchip.jpg'),
@@ -807,9 +813,13 @@ class DashboardManager {
             totalQty += item.quantity;
 
             const borrowedSum = (item.borrowedBy || []).reduce((sum, rec) => sum + rec.qty, 0);
-            checkedOutQty += borrowedSum;
+            const currentAvailable = typeof item.availableQuantity === 'number'
+                ? item.availableQuantity
+                : Math.max(0, item.quantity - borrowedSum);
 
-            const currentAvailable = item.quantity - borrowedSum;
+            const activeLoans = borrowedSum > 0 ? borrowedSum : Math.max(0, item.quantity - currentAvailable);
+            checkedOutQty += activeLoans;
+
             if (currentAvailable <= 0) {
                 outOfStockCount++;
             } else if (currentAvailable <= 2) {
@@ -859,37 +869,7 @@ class DashboardManager {
     }
 
     private async loadInventory() {
-        try {
-            const token = localStorage.getItem('cicr_token');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const res = await fetch(`${API_BASE}/items`, { headers });
-            if (res.ok) {
-                const result = await res.json();
-                const fetchedItems = result.data || [];
-
-                if (Array.isArray(fetchedItems) && fetchedItems.length > 0) {
-                    inventory = fetchedItems.map((item: any) => ({
-                        id: String(item.id),
-                        name: item.name,
-                        category: (item.category || 'tools').toLowerCase(),
-                        quantity: Number(item.quantity) || 0,
-                        availableQuantity: Number(item.available_quantity ?? item.quantity) || 0,
-                        location: item.location || 'Robotics Lab',
-                        specs: item.description || item.specs || 'Lab inventory component',
-                        image: item.image || (item.category === 'sensors' ? 'drone.jpg' : item.category === 'actuators' ? 'rover.jpg' : 'microchip.jpg'),
-                        status: (item.available_quantity ?? item.quantity) > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
-                        tags: item.tags || [],
-                        borrowedBy: item.borrowedBy || []
-                    }));
-                    DatabaseManager.save();
-                }
-            }
-        } catch (err) {
-            console.warn('Backend items endpoint offline, using cached/sample vault catalog:', err);
-        }
-
+        await DatabaseManager.syncFromBackend();
         this.renderInventory();
         this.renderStats();
     }
@@ -901,8 +881,10 @@ class DashboardManager {
         const borrowedSum = (item.borrowedBy || []).reduce(
             (sum: number, rec: any) => sum + rec.qty,
             0
-    );
-        const available = item.quantity - borrowedSum;
+        );
+        const available = typeof item.availableQuantity === 'number'
+            ? item.availableQuantity
+            : Math.max(0, item.quantity - borrowedSum);
 
         let statusText = 'Available';
         let statusClass = 'status-available';
@@ -913,7 +895,7 @@ class DashboardManager {
         } else if (available <= 2) {
             statusText = 'Low Stock';
             statusClass = 'status-low';
-        } else if (borrowedSum > 0) {
+        } else if (borrowedSum > 0 || available < item.quantity) {
             statusText = 'Borrowed';
             statusClass = 'status-borrowed';
         }
@@ -1186,8 +1168,10 @@ class ModalManager {
     static openDetailModal(item: InventoryItem) {
         selectedItem = item;
         
-        const borrowedSum = item.borrowedBy.reduce((sum, rec) => sum + rec.qty, 0);
-        const available = item.quantity - borrowedSum;
+        const borrowedSum = (item.borrowedBy || []).reduce((sum, rec) => sum + rec.qty, 0);
+        const available = typeof item.availableQuantity === 'number'
+            ? item.availableQuantity
+            : Math.max(0, item.quantity - borrowedSum);
 
         document.getElementById('detail-name')!.innerText = item.name;
         document.getElementById('detail-location')!.innerText = item.location;
@@ -1292,8 +1276,10 @@ class ModalManager {
     static openBorrowFormModal() {
         if (!selectedItem) return;
         
-        const borrowedSum = selectedItem.borrowedBy.reduce((sum, rec) => sum + rec.qty, 0);
-        const available = selectedItem.quantity - borrowedSum;
+        const borrowedSum = (selectedItem.borrowedBy || []).reduce((sum, rec) => sum + rec.qty, 0);
+        const available = typeof selectedItem.availableQuantity === 'number'
+            ? selectedItem.availableQuantity
+            : Math.max(0, selectedItem.quantity - borrowedSum);
 
         this.setBorrowModalMode(this.isAdmin() ? 'borrow' : 'request', selectedItem.name, available);
 
