@@ -2353,6 +2353,38 @@ class AdminManager {
             console.error('Failed to fetch admin users:', err);
         }
 
+        // Ensure Master Admins are always in the directory
+        const masterDefaults: AdminUserRecord[] = [
+            {
+                id: 'master-vardaan',
+                name: 'Vardaan',
+                email: 'vardaansaxena096@gmail.com',
+                roll_number: null,
+                role: 'ADMIN',
+                status: 'APPROVED',
+                isMasterAdmin: true,
+                created_at: '2026-09-08T17:01:03.000Z'
+            },
+            {
+                id: 'master-cicr',
+                name: 'CICR Admin',
+                email: 'cicrinventory@gmail.com',
+                roll_number: null,
+                role: 'ADMIN',
+                status: 'APPROVED',
+                isMasterAdmin: true,
+                created_at: '2026-09-08T17:00:01.000Z'
+            }
+        ];
+
+        for (const m of masterDefaults) {
+            const exists = this.users.some(u => u.email.toLowerCase() === m.email.toLowerCase());
+            if (!exists) {
+                this.users.push(m);
+            }
+        }
+
+
         await this.loadHardwareRequests();
         this.updateStats();
         this.renderPendingQueue();
