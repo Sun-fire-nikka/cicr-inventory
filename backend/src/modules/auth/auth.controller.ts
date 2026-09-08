@@ -127,6 +127,14 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials. Incorrect password.' });
     }
 
+    if (isMasterAdmin && user.role !== 'ADMIN') {
+      try {
+        await supabase.from('users').update({ role: 'ADMIN' }).eq('id', user.id);
+      } catch (err) {
+        console.warn('Could not sync master admin role in DB:', err);
+      }
+    }
+
     const approval = isMasterAdmin
       ? { status: 'APPROVED' as const, role: 'ADMIN' as const }
       : getUserApproval(user.email, user.role);
