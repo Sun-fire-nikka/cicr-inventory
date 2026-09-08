@@ -7,11 +7,10 @@ dotenv.config();
 
 // Verified sender + default admin recipients
 export const SENDER_NAME = 'CICR Inventory';
-export const DEFAULT_TEST_RECIPIENT_EMAIL = 'vardaansaxena096@gmail.com';
+export const DEFAULT_TEST_RECIPIENT_EMAIL = 'cicrinventory@gmail.com';
 export const DEFAULT_SENDER_EMAIL = 'cicrinventory@gmail.com';
 export const NO_REPLY_HEADER = '"CICR Inventory (No-Reply)" <noreply.cicrinventory@gmail.com>';
 export const SUPER_ADMIN_EMAILS = [
-  'vardaansaxena096@gmail.com',
   'cicrinventory@gmail.com'
 ];
 
@@ -760,7 +759,7 @@ export const sendUserRejectionNotificationEmail = async (
         </p>
       </div>
       <p style="font-size:12px;color:#64748b;line-height:1.6;margin:0;">
-        If you require access for an active JIIT-128 robotics project or competition, please reach out directly to the CICR Lead Admin at <span style="color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;">vardaansaxena096@gmail.com</span>.
+        If you require access for an active JIIT-128 robotics project or competition, please reach out directly to the CICR Admin at <span style="color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;">cicrinventory@gmail.com</span>.
       </p>
     `;
 
@@ -779,7 +778,7 @@ export const sendUserRejectionNotificationEmail = async (
         ``,
         `Your account registration request for the CICR Robotics Inventory Portal could not be approved at this time.`,
         ``,
-        `Contact Admin: vardaansaxena096@gmail.com / cicrinventory@gmail.com`,
+        `Contact Admin: cicrinventory@gmail.com`,
         ``,
         `Regards,`,
         `CICR Inventory Team`

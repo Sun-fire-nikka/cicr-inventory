@@ -1132,7 +1132,6 @@ class ModalManager {
                 const user = JSON.parse(userStr);
                 const email = (user.email || '').toLowerCase().trim();
                 if (
-                    email === 'vardaansaxena096@gmail.com' ||
                     email === 'cicrinventory@gmail.com' ||
                     user.role === 'ADMIN'
                 ) {
@@ -2066,15 +2065,13 @@ class AuthManager {
         let effectiveRole = role;
         if (_userObj?.email) {
             const normEmail = _userObj.email.toLowerCase().trim();
-            if (normEmail === 'vardaansaxena096@gmail.com' || normEmail === 'cicrinventory@gmail.com') {
+            if (normEmail === 'cicrinventory@gmail.com') {
                 effectiveRole = 'ADMIN';
             }
         }
         const normName = username.toLowerCase().trim();
         if (
-            normName === 'vardaan' ||
-            normName === 'srvkiller09' ||
-            normName.includes('vardaan') ||
+            normName === 'cicr admin' ||
             normName.includes('cicrinventory')
         ) {
             effectiveRole = 'ADMIN';
@@ -2586,7 +2583,7 @@ class AdminManager {
 
         tbody.innerHTML = usersList.map(u => {
             const statusClass = u.status === 'APPROVED' ? 'approved' : u.status === 'PENDING' ? 'pending' : 'rejected';
-            const isMaster = u.isMasterAdmin || u.email.toLowerCase() === 'vardaansaxena096@gmail.com' || u.email.toLowerCase() === 'cicrinventory@gmail.com';
+            const isMaster = u.isMasterAdmin || u.email.toLowerCase() === 'cicrinventory@gmail.com';
             const roleBadge = isMaster
                 ? `<span class="badge-role master"><i data-lucide="crown" style="width:10px;height:10px;"></i> MASTER ADMIN</span>`
                 : u.role === 'ADMIN'
