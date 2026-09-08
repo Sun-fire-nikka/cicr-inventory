@@ -10,6 +10,7 @@ import {
   SUPER_ADMIN_EMAILS,
   isSuperAdminEmail,
   isManagedUser,
+  isPurgedUser,
   unpurgeEmail,
   getUserApproval,
   setUserApproval,
@@ -42,9 +43,15 @@ export const register = async (req: Request, res: Response) => {
 
     const normEmail = email.trim().toLowerCase();
 
-    // If email is currently active/managed, prevent duplicate
-    if (isManagedUser(normEmail)) {
-      return res.status(400).json({ status: 'error', message: 'Email already registered.' });
+    // Check if email already registered in DB or managed approval state
+    const { data: existingUser } = await dbRead
+      .from('users')
+      .select('id')
+      .eq('email', normEmail)
+      .maybeSingle();
+
+    if (existingUser || isManagedUser(normEmail)) {
+      return res.status(400).json({ status: 'error', message: 'Email already registered. Please log in.' });
     }
 
     const isMasterAdmin = isSuperAdminEmail(normEmail);
@@ -73,17 +80,20 @@ export const register = async (req: Request, res: Response) => {
       created_at: new Date().toISOString()
     };
 
-    const { data: insertedUser } = await supabase
+    const { data: insertedUser, error: insertError } = await supabase
       .from('users')
-      .insert([{ name: name.trim(), email: normEmail, password_hash, roll_number: roll_number || null, role: userRole }])
+      .insert([{ name: name.trim(), email: normEmail, password_hash, roll_number: userRoll, role: userRole }])
       .select('id, name, email, roll_number, role, created_at')
       .single();
 
-    if (insertedUser) {
-      newUser = insertedUser;
+    if (insertError || !insertedUser) {
+      console.error('[AUTH REGISTER ERROR] Supabase insert failed:', insertError);
+      return res.status(500).json({ status: 'error', message: 'Failed to create user account. Please try again.' });
     }
 
-    // Track approval status
+    newUser = insertedUser;
+
+    // Track approval status: all students and non-admins strictly set to PENDING
     setUserApproval(normEmail, initialStatus, isMasterAdmin ? 'SYSTEM' : undefined);
 
     // Send instant email notification to Admins if non-master-admin registers
@@ -91,14 +101,14 @@ export const register = async (req: Request, res: Response) => {
       sendAdminNewUserRegistrationAlert(SUPER_ADMIN_EMAILS, {
         userName: name.trim(),
         userEmail: normEmail,
-        rollNumber: roll_number || null,
+        rollNumber: userRoll,
         registeredAt: newUser.created_at || new Date().toISOString()
       }).catch((e) => console.error('[EMAIL ERROR] Failed to send admin registration alert:', e));
     }
 
     const message = isMasterAdmin
       ? 'Admin registered and approved successfully!'
-      : 'Account registration submitted! Your request is pending CICR Admin approval.';
+      : 'Account registration submitted! Your request has been sent to CICR Admins for approval.';
 
     return res.status(201).json({
       status: 'success',
@@ -145,7 +155,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const isMasterAdmin = isSuperAdminEmail(user.email);
-    if (!isMasterAdmin && !isManagedUser(user.email)) {
+    if (!isMasterAdmin && isPurgedUser(user.email)) {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials. Account not found or has been removed.' });
     }
 
@@ -186,7 +196,11 @@ export const login = async (req: Request, res: Response) => {
       return res.status(500).json({ status: 'error', message: 'Server misconfiguration.' });
     }
 
-    const effectiveRole = approval.role;
+    // Strict enforcement: Official JIIT student accounts are strictly MEMBER role
+    const effectiveRole = isMasterAdmin
+      ? 'ADMIN'
+      : (user.email.endsWith('@mail.jiit.ac.in') || user.email.endsWith('@jiit.ac.in') ? 'MEMBER' : approval.role);
+
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email, role: effectiveRole },
       secret,
@@ -304,7 +318,12 @@ export const approveUser = async (req: AuthRequest, res: Response) => {
       console.error('[EMAIL ERROR] Failed to send admin status alert:', e)
     );
 
-    return res.status(200).json({ status: 'success', message: `User ${user.name} approved successfully.`, data: updated });
+    return res.status(200).json({
+      status: 'success',
+      message: `User ${user.name} approved successfully.`,
+      data: updated,
+      user: { id: user.id, name: user.name, email: user.email }
+    });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
   }

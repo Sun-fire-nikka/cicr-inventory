@@ -66,6 +66,12 @@ export const isManagedUser = (email: string): boolean => {
   return Boolean(approvalState[normEmail]);
 };
 
+export const isPurgedUser = (email: string): boolean => {
+  const normEmail = email.trim().toLowerCase();
+  if (isSuperAdminEmail(normEmail)) return false;
+  return purgedEmails.has(normEmail);
+};
+
 export const unpurgeEmail = (email: string) => {
   purgedEmails.delete(email.trim().toLowerCase());
   saveState();
@@ -84,9 +90,10 @@ export const getUserApproval = (email: string, initialRole: 'ADMIN' | 'MEMBER' =
   }
 
   if (!approvalState[normEmail]) {
+    const isStudent = normEmail.endsWith('@mail.jiit.ac.in') || normEmail.endsWith('@jiit.ac.in');
     approvalState[normEmail] = {
       status: 'PENDING',
-      role: initialRole === 'ADMIN' ? 'ADMIN' : 'MEMBER'
+      role: isStudent ? 'MEMBER' : (initialRole === 'ADMIN' ? 'ADMIN' : 'MEMBER')
     };
     saveState();
   }

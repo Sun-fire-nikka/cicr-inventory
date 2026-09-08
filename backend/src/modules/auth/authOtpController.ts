@@ -18,7 +18,13 @@ import { supabase } from '../../app';
 import { generateAuthOtp, storeAuthOtp, verifyAuthOtp, consumeAuthOtp } from './authOtpService';
 import { isStudentEmail } from '../../validators/email.validator';
 import { getAdminByEmail } from '../borrow/adminDirectory';
-import { sendLoginOtpEmail } from '../../services/emailService';
+import { sendLoginOtpEmail, sendAdminNewUserRegistrationAlert } from '../../services/emailService';
+import {
+  SUPER_ADMIN_EMAILS,
+  isSuperAdminEmail,
+  getUserApproval,
+  setUserApproval
+} from './userApprovalService';
 
 // POST /api/auth/send-otp
 export const sendOtp = async (req: Request, res: Response) => {
@@ -129,14 +135,20 @@ export const verifyOtp = async (req: Request, res: Response) => {
     } else {
       // Auto-provision new student account
       const displayName = normalizedEmail.split('@')[0];
+      const match = normalizedEmail.match(/^(\d+)@mail\.jiit\.ac\.in$/i);
+      const userRoll = match ? match[1] : null;
+      const isSuperAdmin = isSuperAdminEmail(normalizedEmail);
+      const userRole = isSuperAdmin ? 'ADMIN' : 'MEMBER';
+      const initialStatus = isSuperAdmin ? 'APPROVED' : 'PENDING';
+
       const { data: newUser, error: createErr } = await supabase
         .from('users')
         .insert([{
           name: displayName,
           email: normalizedEmail,
           password_hash: '',           // OTP-only account — no password
-          roll_number: null,
-          role: payload.role || 'MEMBER'
+          roll_number: userRoll,
+          role: userRole
         }])
         .select('id, name, email, roll_number, role, created_at')
         .single();
@@ -147,6 +159,43 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
       user = newUser;
       isNewUser = true;
+
+      // Track approval status
+      setUserApproval(normalizedEmail, initialStatus, isSuperAdmin ? 'SYSTEM' : undefined);
+
+      if (!isSuperAdmin) {
+        sendAdminNewUserRegistrationAlert(SUPER_ADMIN_EMAILS, {
+          userName: displayName,
+          userEmail: normalizedEmail,
+          rollNumber: userRoll,
+          registeredAt: user.created_at || new Date().toISOString()
+        }).catch((e) => console.error('[EMAIL ERROR] Failed to send admin registration alert for OTP signup:', e));
+
+        return res.status(200).json({
+          status: 'pending_approval',
+          message: 'Account registered successfully! Your access request has been sent to the CICR Admin for approval.',
+          user: { id: user.id, name: user.name, email: user.email, roll_number: user.roll_number, role: 'MEMBER', status: 'PENDING' }
+        });
+      }
+    }
+
+    const isSuperAdmin = isSuperAdminEmail(user.email);
+    const approval = isSuperAdmin
+      ? { status: 'APPROVED' as const, role: 'ADMIN' as const }
+      : getUserApproval(user.email, (user.role as any) || 'MEMBER');
+
+    if (approval.status === 'PENDING') {
+      return res.status(403).json({
+        status: 'pending_approval',
+        message: 'Your account is pending admin approval. You will receive access once approved by CICR Admin.'
+      });
+    }
+
+    if (approval.status === 'REJECTED') {
+      return res.status(403).json({
+        status: 'rejected',
+        message: 'Your access request was rejected by the CICR Admin.'
+      });
     }
 
     // Generate JWT
@@ -155,8 +204,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
       console.error('FATAL: JWT_SECRET environment variable is not set.');
       return res.status(500).json({ status: 'error', message: 'Server misconfiguration.' });
     }
+
+    // Official JIIT student accounts are strictly MEMBER role
+    const effectiveRole = isSuperAdmin
+      ? 'ADMIN'
+      : (user.email.endsWith('@mail.jiit.ac.in') || user.email.endsWith('@jiit.ac.in') ? 'MEMBER' : approval.role);
+
     const token = jwt.sign(
-      { id: user.id, name: user.name, email: user.email, role: user.role },
+      { id: user.id, name: user.name, email: user.email, role: effectiveRole },
       secret,
       { expiresIn: '7d' }
     );
@@ -165,7 +220,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
       status: 'success',
       message: isNewUser ? 'Account created and authenticated.' : 'Authenticated.',
       token,
-      user: { id: user.id, name: user.name, email: user.email, roll_number: user.roll_number, role: user.role }
+      user: { id: user.id, name: user.name, email: user.email, roll_number: user.roll_number, role: effectiveRole, status: approval.status }
     });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });

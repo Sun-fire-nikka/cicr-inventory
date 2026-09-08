@@ -556,7 +556,7 @@ class DashboardManager {
     public init() {
         this.renderStats();
         this.renderInventory();
-        AuthManager.updateAdminVisibility();
+        AuthManager.updateAdminVisibility(ModalManager.getCurrentRole());
         if (!this.listenersInitialized) {
             this.setupEventListeners();
             this.listenersInitialized = true;
@@ -1147,29 +1147,38 @@ class ModalManager {
             try {
                 const user = JSON.parse(userStr);
                 const email = (user.email || '').toLowerCase().trim();
-                if (
-                    email === 'vardaansaxena096@gmail.com' ||
-                    email === 'cicrinventory@gmail.com' ||
-                    user.role === 'ADMIN'
-                ) {
+
+                // Master Admin accounts
+                if (email === 'vardaansaxena096@gmail.com' || email === 'cicrinventory@gmail.com') {
                     return 'ADMIN';
                 }
+
+                // Official JIIT student accounts are NEVER Admins
+                if (email.endsWith('@mail.jiit.ac.in') || email.endsWith('@jiit.ac.in')) {
+                    return 'MEMBER';
+                }
+
+                // Verified DB admin role
+                if (user.role === 'ADMIN') {
+                    return 'ADMIN';
+                }
+
+                return 'MEMBER';
             } catch {}
         }
 
         const storedRole = localStorage.getItem('cicr_role');
-        if (storedRole === 'ADMIN') return 'ADMIN';
-
         const authName = (localStorage.getItem('cicr_auth') || '').toLowerCase().trim();
-        if (
-            authName === 'vardaan' ||
-            authName === 'srvkiller09' ||
-            authName === 'cicrinventory' ||
-            authName.includes('vardaan') ||
-            authName.includes('cicrinventory') ||
-            authName === ADMIN_USERNAME.toLowerCase()
-        ) {
-            return 'ADMIN';
+
+        if (storedRole === 'ADMIN') {
+            if (
+                authName === 'vardaansaxena096@gmail.com' ||
+                authName === 'cicrinventory@gmail.com' ||
+                authName === 'srvkiller09' ||
+                authName === ADMIN_USERNAME.toLowerCase()
+            ) {
+                return 'ADMIN';
+            }
         }
 
         return 'MEMBER';
@@ -1914,6 +1923,7 @@ class AuthManager {
             });
         }
 
+        this.updateAdminVisibility('MEMBER');
         this.setupEventListeners();
         this.checkAuth();
     }
@@ -2020,6 +2030,7 @@ class AuthManager {
         this.authOverlay.classList.remove('hidden');
         this.authOverlay.style.display = 'flex';
         this.appContainer.style.display = 'none';
+        this.updateAdminVisibility('MEMBER');
     }
 
     private static isAllowedEmail(email: string): boolean {
@@ -2092,19 +2103,17 @@ class AuthManager {
     }
 
     private static loginSuccess(username: string, role: string = 'MEMBER', _userObj?: any) {
-        let effectiveRole = role;
-        if (_userObj?.email) {
-            const normEmail = _userObj.email.toLowerCase().trim();
-            if (normEmail === 'vardaansaxena096@gmail.com' || normEmail === 'cicrinventory@gmail.com') {
-                effectiveRole = 'ADMIN';
-            }
-        }
-        const normName = username.toLowerCase().trim();
-        if (
-            normName === 'cicr admin' ||
-            normName.includes('cicrinventory')
-        ) {
+        let effectiveRole: 'ADMIN' | 'MEMBER' = 'MEMBER';
+        const normEmail = (_userObj?.email || '').toLowerCase().trim();
+
+        if (normEmail === 'vardaansaxena096@gmail.com' || normEmail === 'cicrinventory@gmail.com') {
             effectiveRole = 'ADMIN';
+        } else if (normEmail.endsWith('@mail.jiit.ac.in') || normEmail.endsWith('@jiit.ac.in')) {
+            effectiveRole = 'MEMBER';
+        } else if (role === 'ADMIN') {
+            effectiveRole = 'ADMIN';
+        } else {
+            effectiveRole = 'MEMBER';
         }
 
         localStorage.setItem('cicr_auth', username);
@@ -2140,7 +2149,7 @@ class AuthManager {
         this.authOverlay.style.display = 'none';
         this.appContainer.style.display = 'grid';
 
-        // Show/Hide Admin Portal navigation & cards based on role
+        // Show/Hide Admin Portal navigation & cards based strictly on role
         this.updateAdminVisibility(effectiveRole);
 
         // Select Dashboard link in the left sidebar by default
@@ -2197,19 +2206,41 @@ class AuthManager {
         const dashAdminCard = document.getElementById('dash-card-admin');
         const adminViewSection = document.getElementById('admin-view');
         const btnInventoryAdd = document.getElementById('btn-inventory-add-item');
-        const isAdmin = ModalManager.getCurrentRole() === 'ADMIN' || role === 'ADMIN';
+        
+        const activeRole = role !== undefined ? role : ModalManager.getCurrentRole();
+        const isAdmin = activeRole === 'ADMIN';
+
+        const roleSubtitleEl = document.getElementById('dashboard-subtitle-role');
+        if (roleSubtitleEl) {
+            roleSubtitleEl.innerText = isAdmin ? 'ADMIN DASHBOARD' : 'MEMBER DASHBOARD';
+        }
 
         if (isAdmin) {
-            if (sideAdminLink) sideAdminLink.style.display = 'flex';
-            if (dashAdminCard) dashAdminCard.style.display = 'flex';
-            if (btnInventoryAdd) btnInventoryAdd.style.display = 'inline-flex';
+            if (sideAdminLink) {
+                sideAdminLink.style.removeProperty('display');
+                sideAdminLink.style.setProperty('display', 'flex', 'important');
+            }
+            if (dashAdminCard) {
+                dashAdminCard.style.removeProperty('display');
+                dashAdminCard.style.setProperty('display', 'flex', 'important');
+            }
+            if (btnInventoryAdd) {
+                btnInventoryAdd.style.removeProperty('display');
+                btnInventoryAdd.style.setProperty('display', 'inline-flex', 'important');
+            }
             AdminManager.init();
         } else {
-            if (sideAdminLink) sideAdminLink.style.display = 'none';
-            if (dashAdminCard) dashAdminCard.style.display = 'none';
-            if (btnInventoryAdd) btnInventoryAdd.style.display = 'none';
+            if (sideAdminLink) {
+                sideAdminLink.style.setProperty('display', 'none', 'important');
+            }
+            if (dashAdminCard) {
+                dashAdminCard.style.setProperty('display', 'none', 'important');
+            }
+            if (btnInventoryAdd) {
+                btnInventoryAdd.style.setProperty('display', 'none', 'important');
+            }
             if (adminViewSection) {
-                adminViewSection.style.display = 'none';
+                adminViewSection.style.setProperty('display', 'none', 'important');
                 adminViewSection.classList.remove('active');
             }
         }
