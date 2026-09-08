@@ -662,46 +662,49 @@
                                 </div>
                             </div>
 
-                            <!-- Hardware Issue Requests Queue -->
-                            <div class="admin-block-card glass" id="admin-hardware-requests-block">
-                                <div class="admin-block-header">
-                                    <div class="admin-block-title-wrap">
-                                        <i data-lucide="cpu" class="text-cyan"></i>
-                                        <h3>Hardware Issue Requests Queue</h3>
-                                        <span class="admin-badge-count count-cyan" id="admin-hw-count-tag">0 PENDING</span>
+                            <!-- Queues Dual Column Grid -->
+                            <div class="admin-queues-split-grid">
+                                <!-- Hardware Issue Requests Queue -->
+                                <div class="admin-block-card glass" id="admin-hardware-requests-block">
+                                    <div class="admin-block-header">
+                                        <div class="admin-block-title-wrap">
+                                            <i data-lucide="cpu" class="text-cyan"></i>
+                                            <h3>Hardware Issue Requests</h3>
+                                            <span class="admin-badge-count count-cyan" id="admin-hw-count-tag">0 PENDING</span>
+                                        </div>
+                                        <button class="btn btn-secondary btn-sm admin-btn-action" id="admin-hw-refresh-btn" title="Refresh Requests">
+                                            <i data-lucide="refresh-cw"></i> Refresh
+                                        </button>
                                     </div>
-                                    <button class="btn btn-secondary btn-sm" id="admin-hw-refresh-btn" title="Refresh Requests">
-                                        <i data-lucide="refresh-cw"></i> Refresh
-                                    </button>
+
+                                    <div class="admin-queue-list hardware-requests-grid" id="admin-hardware-list">
+                                        <!-- Dynamic hardware requests injected here -->
+                                        <div class="admin-empty-state">
+                                            <i data-lucide="package-check"></i>
+                                            <p>No pending component requests in queue. Vault operations nominal.</p>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div class="admin-queue-list hardware-requests-grid" id="admin-hardware-list">
-                                    <!-- Dynamic hardware requests injected here -->
-                                    <div class="admin-empty-state">
-                                        <i data-lucide="package-check"></i>
-                                        <p>No pending component requests in queue. Vault operations nominal.</p>
+                                <!-- Pending Member Approvals Section -->
+                                <div class="admin-block-card glass">
+                                    <div class="admin-block-header">
+                                        <div class="admin-block-title-wrap">
+                                            <i data-lucide="user-check" class="text-pink"></i>
+                                            <h3>Member Registrations</h3>
+                                            <span class="admin-badge-count" id="admin-pending-count-tag">0 PENDING</span>
+                                        </div>
+                                        <button class="btn btn-secondary btn-sm admin-btn-action" id="admin-refresh-btn" title="Refresh User List">
+                                            <i data-lucide="refresh-cw"></i> Refresh
+                                        </button>
                                     </div>
-                                </div>
-                            </div>
 
-                            <!-- Pending Member Approvals Section -->
-                            <div class="admin-block-card glass">
-                                <div class="admin-block-header">
-                                    <div class="admin-block-title-wrap">
-                                        <i data-lucide="user-check" class="text-pink"></i>
-                                        <h3>Pending Member Registration Queue</h3>
-                                        <span class="admin-badge-count" id="admin-pending-count-tag">0 PENDING</span>
-                                    </div>
-                                    <button class="btn btn-secondary btn-sm" id="admin-refresh-btn" title="Refresh User List">
-                                        <i data-lucide="refresh-cw"></i> Refresh
-                                    </button>
-                                </div>
-
-                                <div class="admin-queue-list" id="admin-pending-list">
-                                    <!-- Dynamic pending items injected here -->
-                                    <div class="admin-empty-state">
-                                        <i data-lucide="check-circle-2"></i>
-                                        <p>No pending registration requests. All members reviewed!</p>
+                                    <div class="admin-queue-list" id="admin-pending-list">
+                                        <!-- Dynamic pending items injected here -->
+                                        <div class="admin-empty-state">
+                                            <i data-lucide="check-circle-2"></i>
+                                            <p>No pending registration requests. All members reviewed!</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
