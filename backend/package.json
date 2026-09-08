@@ -11,6 +11,14 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.21",
+    "@types/express-session": "^1.19.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.11.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^8.0.1",
     "bcryptjs": "^3.0.3",
     "bullmq": "^6.1.0",
     "connect-redis": "^10.0.0",
@@ -21,19 +29,11 @@
     "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^3.0.3",
-    "nodemailer": "^9.0.5"
+    "nodemailer": "^9.0.5",
+    "typescript": "^5.3.3"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^4.17.21",
-    "@types/express-session": "^1.19.0",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^20.11.0",
-    "@types/node-cron": "^3.0.11",
-    "@types/nodemailer": "^8.0.1",
     "nodemon": "^3.1.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "ts-node": "^10.9.2"
   }
 }

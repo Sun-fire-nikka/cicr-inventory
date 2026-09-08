@@ -11,9 +11,11 @@ lerna-debug.log*
 node_modules/
 
 # Build & Dist Outputs
-dist/
+/dist/
 dist-ssr/
 build/
+!backend/dist/
+!backend/dist/**
 
 # Environment Files & Secrets (NEVER COMMIT THESE)
 .env

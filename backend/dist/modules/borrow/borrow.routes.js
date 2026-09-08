@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const borrow_controller_1 = require("./borrow.controller");
+const auth_middleware_1 = require("../../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.get('/admins', borrow_controller_1.getAdmins);
+router.post('/', auth_middleware_1.authenticateToken, borrow_controller_1.borrowItem);
+router.post('/request', auth_middleware_1.authenticateToken, borrow_controller_1.createHardwareRequestHandler);
+router.get('/requests', auth_middleware_1.authenticateToken, borrow_controller_1.getHardwareRequestsHandler);
+router.post('/requests/:id/approve', auth_middleware_1.authenticateToken, borrow_controller_1.approveHardwareRequestHandler);
+router.post('/requests/:id/reject', auth_middleware_1.authenticateToken, borrow_controller_1.rejectHardwareRequestHandler);
+router.post('/request-otp', auth_middleware_1.authenticateToken, borrow_controller_1.requestOtp);
+router.post('/verify-otp', auth_middleware_1.authenticateToken, borrow_controller_1.verifyOtp);
+router.post('/return', auth_middleware_1.authenticateToken, borrow_controller_1.returnItem);
+router.get('/history', auth_middleware_1.authenticateToken, borrow_controller_1.getBorrowHistory);
+exports.default = router;

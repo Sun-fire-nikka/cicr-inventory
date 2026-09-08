@@ -1759,33 +1759,76 @@ class ModalManager {
         const dueDate = (dueDateInput && dueDateInput.value) ? dueDateInput.value : defaultDue;
 
         const token = localStorage.getItem('cicr_token');
+        if (!token) {
+            ToastManager.show('Login Required', 'Please log in to submit a component issue request.', 'error');
+            return;
+        }
+
         const storedUser = JSON.parse(localStorage.getItem('cicr_user') || '{}');
         const userEmail = storedUser.email || (localStorage.getItem('cicr_auth')?.includes('@') ? localStorage.getItem('cicr_auth') : 'vardaansaxena096@gmail.com');
 
-        // Route ALL component checkout requests to the Admin Portal Request Queue
+        // Route component checkout request to the Admin Portal Request Queue
+        const requestPayload = {
+            itemId: selectedItem.id,
+            inventory_id: selectedItem.id,
+            item_id: selectedItem.id,
+            itemName: selectedItem.name,
+            quantity: qty,
+            purpose: purpose,
+            duration_days: 7,
+            dueDate: dueDate,
+            borrowerName: borrowerName,
+            borrower_name: borrowerName,
+            borrowerEmail: userEmail,
+            borrower_email: userEmail,
+            rollNumber: rollNum,
+            roll_number: rollNum
+        };
+
         try {
-            const res = await fetch(`${API_BASE}/borrow/request`, {
+            let res = await fetch(`${API_BASE}/borrow/request`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    itemId: selectedItem.id,
-                    itemName: selectedItem.name,
-                    quantity: qty,
-                    purpose: purpose,
-                    duration_days: 7,
-                    dueDate: dueDate,
-                    borrowerName: borrowerName,
-                    borrowerEmail: userEmail,
-                    rollNumber: rollNum
-                })
+                body: JSON.stringify(requestPayload)
             });
+
+            // If the deployed backend hasn't mounted /borrow/request yet (404), fall back to /borrow
+            if (res.status === 404) {
+                console.warn('[Borrow] /borrow/request returned 404, falling back to /borrow...');
+                res = await fetch(`${API_BASE}/borrow`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(requestPayload)
+                });
+            }
 
             if (res.ok) {
                 (document.getElementById('borrow-form') as HTMLFormElement).reset();
                 this.close('borrow-form-modal');
+
+                // Also update local requests queue for immediate reactive UI
+                const date = new Date().toISOString().split('T')[0];
+                const newReq: RequestRecord = {
+                    id: `req-${Date.now()}`,
+                    itemId: selectedItem.id,
+                    itemName: selectedItem.name,
+                    name: borrowerName,
+                    roll: rollNum,
+                    qty: qty,
+                    purpose: purpose,
+                    status: 'PENDING',
+                    requestedAt: date,
+                    dueDate: dueDate
+                };
+                requests.unshift(newReq);
+                DatabaseManager.save();
+
                 ToastManager.show(
                     'Request Transmitted',
                     `Issue request for ${qty}x ${selectedItem.name} submitted for Admin authorization. Telemetry email dispatched to administrators.`,
@@ -1795,35 +1838,23 @@ class ModalManager {
                 await DatabaseManager.syncFromBackend();
                 return;
             } else {
-                const errJson = await res.json();
-                ToastManager.show('Request Error', errJson.message || 'Unable to submit request.', 'error');
+                let errMsg = 'Unable to submit request.';
+                try {
+                    const errJson = await res.json();
+                    if (errJson && errJson.message) {
+                        errMsg = errJson.message;
+                    }
+                } catch {
+                    errMsg = res.statusText ? `Server returned: ${res.statusText} (${res.status})` : `Server responded with code ${res.status}`;
+                }
+                ToastManager.show('Request Error', errMsg, 'error');
+                return;
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Request API error:', e);
-            ToastManager.show('Network Error', 'Could not reach server to submit request.', 'error');
+            ToastManager.show('Network Error', 'Could not reach server to submit request. Please try again.', 'error');
+            return;
         }
-
-        // Local fallback if offline
-        const date = new Date().toISOString().split('T')[0];
-        const newReq: RequestRecord = {
-            id: `req-${Date.now()}`,
-            itemId: selectedItem.id,
-            itemName: selectedItem.name,
-            name: borrowerName,
-            roll: rollNum,
-            qty: qty,
-            purpose: purpose,
-            status: 'PENDING',
-            requestedAt: date,
-            dueDate: dueDate
-        };
-        requests.unshift(newReq);
-        DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
-        (document.getElementById('borrow-form') as HTMLFormElement).reset();
-        DatabaseManager.save();
-        this.close('borrow-form-modal');
-        ToastManager.show('Request Queued', `Sent request for ${qty}x ${selectedItem.name} to Admin Portal`, 'info');
-        window.dashboard!.init();
     }
 
     private static async handleReturnClick(idx: number) {
