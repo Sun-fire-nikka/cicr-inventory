@@ -1752,6 +1752,9 @@ class ModalManager {
         const token = localStorage.getItem('cicr_token');
         const isAdminUser = this.isAdmin();
 
+        const storedUser = JSON.parse(localStorage.getItem('cicr_user') || '{}');
+        const userEmail = storedUser.email || (localStorage.getItem('cicr_auth')?.includes('@') ? localStorage.getItem('cicr_auth') : 'vardaansaxena096@gmail.com');
+
         if (isAdminUser) {
             // Direct admin checkout
             try {
@@ -1765,15 +1768,18 @@ class ModalManager {
                         itemId: selectedItem.id,
                         quantity: qty,
                         purpose: purpose,
-                        duration_days: 7
+                        duration_days: 7,
+                        borrower_name: borrowerName,
+                        borrower_email: userEmail,
+                        roll_number: rollNum
                     })
                 });
 
                 if (res.ok) {
                     (document.getElementById('borrow-form') as HTMLFormElement).reset();
                     this.close('borrow-form-modal');
-                    ToastManager.show('Component Issued', `Checked out ${qty}x ${selectedItem.name} for '${purpose}'`, 'success');
-                    DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> (Due: ${dueDate}) for '${purpose}'.`);
+                    ToastManager.show('Component Issued', `Checked out ${qty}x ${selectedItem.name}. Confirmation email dispatched.`, 'success');
+                    DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> borrowed ${qty}x <span>${selectedItem.name}</span>.`);
                     await DatabaseManager.syncFromBackend();
                     return;
                 } else {
@@ -1787,7 +1793,6 @@ class ModalManager {
         } else {
             // Member submission -> Route to Admin Portal Request Queue
             try {
-                const userEmail = localStorage.getItem('cicr_auth') || 'member@cicr.lab';
                 const res = await fetch(`${API_BASE}/borrow/request`, {
                     method: 'POST',
                     headers: {

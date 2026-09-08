@@ -22,13 +22,20 @@ export const getFromAddress = () =>
 export const getReplyToAddress = () =>
   process.env.SMTP_REPLY_TO || NO_REPLY_HEADER;
 
-// Configure transport using environment variables or a fallback test account
+export const DEFAULT_SMTP_USER = 'cicrinventory@gmail.com';
+export const DEFAULT_SMTP_PASS = 'qbgfgbldvvxxubjx';
+
+export const getSmtpUser = (): string => process.env.SMTP_USER || DEFAULT_SMTP_USER;
+export const getSmtpPass = (): string => process.env.SMTP_PASS || DEFAULT_SMTP_PASS;
+export const isSmtpConfigured = (): boolean => Boolean(getSmtpUser() && getSmtpPass());
+
+// Configure transport using environment variables or verified credentials
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: Number(process.env.SMTP_PORT) || 587,
   auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
+    user: getSmtpUser(),
+    pass: getSmtpPass(),
   },
 });
 
@@ -301,7 +308,7 @@ export const sendBorrowConfirmation = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Borrow confirmation dispatched to ${recipientEmail}`);
       return { success: true, mocked: true };
     }
@@ -390,7 +397,7 @@ export const sendOtpEmail = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] OTP dispatched to admin ${adminEmail}`);
       return { success: true, mocked: true, otp };
     }
@@ -471,7 +478,7 @@ export const sendLoginOtpEmail = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Login OTP dispatched to ${recipientEmail}`);
       return { success: true, mocked: true, otp };
     }
@@ -555,7 +562,7 @@ export const sendReturnConfirmation = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Return email dispatched to ${recipientEmail}`);
       return { success: true, mocked: true };
     }
@@ -656,7 +663,7 @@ export const sendAdminNewUserRegistrationAlert = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Admin registration alert sent to ${adminEmails.join(', ')}`);
       return { success: true, mocked: true };
     }
@@ -729,7 +736,7 @@ export const sendUserApprovalSuccessEmail = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] User approval email dispatched to ${recipientEmail}`);
       return { success: true, mocked: true };
     }
@@ -796,7 +803,7 @@ export const sendUserRejectionNotificationEmail = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] User rejection email dispatched to ${recipientEmail}`);
       return { success: true, mocked: true };
     }
@@ -902,7 +909,7 @@ export const sendAdminBorrowNotification = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Admin borrow notification sent to ${adminEmails.join(', ')}`);
       return { success: true, mocked: true };
     }
@@ -987,7 +994,7 @@ export const sendAdminReturnNotification = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Admin return notification sent to ${adminEmails.join(', ')}`);
       return { success: true, mocked: true };
     }
@@ -1072,7 +1079,7 @@ export const sendAdminUserStatusAlert = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Admin user status alert sent to ${adminEmails.join(', ')}`);
       return { success: true, mocked: true };
     }
@@ -1149,7 +1156,7 @@ export const sendUpcomingReminder = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Upcoming reminder dispatched to ${recipientEmail}`);
       return { success: true, mocked: true };
     }
@@ -1235,7 +1242,7 @@ export const sendReturnReminder = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Return reminder dispatched to ${recipientEmail}`);
       return { success: true, mocked: true };
     }
@@ -1317,7 +1324,7 @@ export const sendDueReminder = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Reminder dispatched to ${recipientEmail}`);
       return { success: true, mocked: true };
     }
@@ -1436,7 +1443,7 @@ export const sendAdminHardwareRequestAlert = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Admin hardware alert dispatched to ${recipients.join(', ')}`);
       return { success: true, mocked: true };
     }
@@ -1525,7 +1532,7 @@ export const sendHardwareRequestStatusEmail = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Hardware status email dispatched to ${recipientEmail}`);
       return { success: true, mocked: true };
     }
@@ -1625,7 +1632,7 @@ export const sendLoginSecurityAlertEmail = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Login alert dispatched to ${recipients.join(', ')}`);
       return { success: true, mocked: true };
     }
@@ -1755,7 +1762,7 @@ export const sendAdminItemCreatedNotification = async (
       })
     };
 
-    if (!process.env.SMTP_USER) {
+    if (!isSmtpConfigured()) {
       console.log(`[MOCK EMAIL SERVICE] Item creation alert dispatched to ${adminRecipients.join(', ')}`);
       return { success: true, mocked: true };
     }

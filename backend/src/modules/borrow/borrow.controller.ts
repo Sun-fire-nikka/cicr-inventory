@@ -152,8 +152,9 @@ export const getAdmins = async (req: Request, res: Response) => {
 export const borrowItem = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    const userEmail = req.user?.email;
-    const userName = req.user?.name || 'Borrower';
+    const userEmail = req.body.borrower_email || req.user?.email || 'vardaansaxena096@gmail.com';
+    const userName = req.body.borrower_name || req.user?.name || 'Borrower';
+    const userRoll = req.body.roll_number || req.user?.roll_number || null;
     const inventory_id = req.body.inventory_id || req.body.itemId || req.body.item_id;
     const { quantity, purpose } = req.body;
 
@@ -201,7 +202,7 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
     dispatchBackground('admin-borrow-alert', sendAdminBorrowNotification(SUPER_ADMIN_EMAILS, {
       borrowerName: userName,
       borrowerEmail: userEmail || 'N/A',
-      rollNumber: req.user?.roll_number,
+      rollNumber: userRoll,
       itemName: item.name,
       category: item.category,
       quantity: qty,
