@@ -11,8 +11,10 @@ export const DEFAULT_TEST_RECIPIENT_EMAIL = 'cicrinventory@gmail.com';
 export const DEFAULT_SENDER_EMAIL = 'cicrinventory@gmail.com';
 export const NO_REPLY_HEADER = '"CICR Inventory (No-Reply)" <noreply.cicrinventory@gmail.com>';
 export const SUPER_ADMIN_EMAILS = [
+  'vardaansaxena096@gmail.com',
   'cicrinventory@gmail.com'
 ];
+
 
 export const getFromAddress = () =>
   process.env.SMTP_FROM || `"${SENDER_NAME}" <${DEFAULT_SENDER_EMAIL}>`;
@@ -270,6 +272,7 @@ export const sendBorrowConfirmation = async (
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
       to: recipientEmail,
+      cc: SUPER_ADMIN_EMAILS.join(', '),
       subject: `[CICR Inventory] Hardware Issue Confirmation: ${context.itemName}`,
       messageId: generateMessageId(),
       headers: buildHeaders('borrow-confirmation'),
@@ -525,6 +528,7 @@ export const sendReturnConfirmation = async (
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
       to: recipientEmail,
+      cc: SUPER_ADMIN_EMAILS.join(', '),
       subject: `[CICR Inventory] Return Receipt: ${itemName}`,
       messageId: generateMessageId(),
       headers: buildHeaders('return-confirmation'),
@@ -1491,6 +1495,7 @@ export const sendHardwareRequestStatusEmail = async (
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
       to: recipientEmail,
+      cc: SUPER_ADMIN_EMAILS.join(', '),
       subject: `[CICR Inventory] Request ${status}: ${quantity}x ${itemName}`,
       messageId: generateMessageId(),
       headers: buildHeaders('hardware-status-update'),
@@ -1533,4 +1538,109 @@ export const sendHardwareRequestStatusEmail = async (
     return { success: false, error: error.message };
   }
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 15. LOGIN SECURITY ALERT EMAIL (DISPATCHED ON USER/ADMIN LOGIN)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export interface LoginSecurityAlertContext {
+  userEmail: string;
+  userName: string;
+  role: string;
+  ip?: string;
+  userAgent?: string;
+  loginTime?: Date | string;
+}
+
+export const sendLoginSecurityAlertEmail = async (
+  context: LoginSecurityAlertContext
+) => {
+  try {
+    const loginTimeStr = new Date(context.loginTime || new Date()).toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
+
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:120px;font-family:'SFMono-Regular',Consolas,monospace;">USER:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${context.userName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">EMAIL:</td>
+            <td style="padding:6px 0;color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;">${context.userEmail}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">ROLE:</td>
+            <td style="padding:6px 0;color:#ff007a;font-weight:700;font-family:'SFMono-Regular',Consolas,monospace;">${context.role}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">TIMESTAMP:</td>
+            <td style="padding:6px 0;color:#39ff14;font-family:'SFMono-Regular',Consolas,monospace;">${loginTimeStr} IST</td>
+          </tr>
+          ${context.ip ? `
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">IP ADDRESS:</td>
+            <td style="padding:6px 0;color:#cbd5e1;font-family:'SFMono-Regular',Consolas,monospace;">${context.ip}</td>
+          </tr>` : ''}
+        </table>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        A new authenticated session was established on the CICR Inventory Hub. If this was not you or an authorized member, contact the lab administrator immediately.
+      </p>
+    `;
+
+    const recipients = Array.from(new Set([context.userEmail, ...SUPER_ADMIN_EMAILS]));
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: recipients.join(', '),
+      subject: `[CICR Security Alert] New Login: ${context.userName} (${context.userEmail})`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('login-security-alert', 'normal'),
+      priority: 'normal' as const,
+      text: [
+        `CICR SECURITY // NEW AUTHENTICATION EVENT`,
+        `================================================`,
+        `User: ${context.userName} (${context.userEmail})`,
+        `Role: ${context.role}`,
+        `Time: ${loginTimeStr} IST`,
+        `IP: ${context.ip || 'Unknown'}`,
+        ``,
+        `A new session has been initialized.`,
+        ``,
+        `Regards,`,
+        `CICR Security Monitor`
+      ].join('\n'),
+      html: renderCyberEmail({
+        badgeText: 'SECURITY // AUTHENTICATED SESSION',
+        badgeType: 'info',
+        title: `Login Activity: ${context.userName}`,
+        subtitle: `New authenticated session initialized for ${context.userEmail}.`,
+        contentHtml
+      })
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Login alert dispatched to ${recipients.join(', ')}`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('login-security-alert', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Login security alert email', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send login alert:`, formatSmtpError(error));
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
 
