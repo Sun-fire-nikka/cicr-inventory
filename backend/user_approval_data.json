@@ -3,70 +3,15 @@
     "vardaansaxena096@gmail.com": {
       "status": "APPROVED",
       "role": "ADMIN",
-      "approvedAt": "2026-09-08T16:42:54.388Z",
-      "approvedBy": "CICR Admin"
+      "approvedAt": "2026-09-08T00:00:00.000Z",
+      "approvedBy": "SYSTEM"
     },
-    "vardaansaxenagdg@gmail.com": {
-      "status": "PENDING",
-      "role": "MEMBER"
-    },
-    "kushagragargdelhi@gmail.com": {
-      "status": "PENDING",
-      "role": "MEMBER"
-    },
-    "992501030399@mail.jiit.ac.in": {
-      "status": "PENDING",
-      "role": "MEMBER"
-    },
-    "kriscifer330@gmail.com": {
-      "status": "PENDING",
-      "role": "MEMBER"
-    },
-    "kushgdhi@gmail.com": {
-      "status": "PENDING",
-      "role": "MEMBER"
-    },
-    "kriscifer331@gmail.com": {
-      "status": "PENDING",
-      "role": "MEMBER"
-    },
-    "992501030406@mail.jiit.ac.in": {
-      "status": "PENDING",
-      "role": "MEMBER"
-    },
-    "test_member_1788883891042@cicr.lab": {
-      "status": "PENDING",
-      "role": "MEMBER"
-    },
-    "test_member_1788883843125@cicr.lab": {
-      "status": "PENDING",
-      "role": "MEMBER"
-    },
-    "test_member_1788883823879@cicr.lab": {
-      "status": "PENDING",
-      "role": "MEMBER"
-    },
-    "test_member_1788883807223@cicr.lab": {
-      "status": "PENDING",
-      "role": "MEMBER"
-    },
-    "test_member_1788883786959@cicr.lab": {
-      "status": "PENDING",
-      "role": "MEMBER"
+    "cicrinventory@gmail.com": {
+      "status": "APPROVED",
+      "role": "ADMIN",
+      "approvedAt": "2026-09-08T00:00:00.000Z",
+      "approvedBy": "SYSTEM"
     }
   },
-  "purgedEmails": [
-    "test_member_1788883786959@cicr.lab",
-    "test_member_1788883807223@cicr.lab",
-    "test_member_1788883823879@cicr.lab",
-    "test_member_1788883843125@cicr.lab",
-    "test_member_1788883891042@cicr.lab",
-    "992501030406@mail.jiit.ac.in",
-    "kriscifer331@gmail.com",
-    "kushgdhi@gmail.com",
-    "kriscifer330@gmail.com",
-    "992501030399@mail.jiit.ac.in",
-    "kushagragargdelhi@gmail.com",
-    "vardaansaxenagdg@gmail.com"
-  ]
+  "purgedEmails": []
 }

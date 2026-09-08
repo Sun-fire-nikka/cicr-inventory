@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
-export const MASTER_ADMIN_EMAIL = 'cicrinventory@gmail.com';
+export const MASTER_ADMIN_EMAIL = 'vardaansaxena096@gmail.com';
 export const SUPER_ADMIN_EMAILS = [
+  'vardaansaxena096@gmail.com',
   'cicrinventory@gmail.com'
 ];
 
@@ -170,8 +171,8 @@ export const getAllUserApprovals = (): Record<string, UserApprovalRecord> => {
     };
   });
   return {
-    ...base,
-    ...approvalState
+    ...approvalState,
+    ...base
   };
 };
 
