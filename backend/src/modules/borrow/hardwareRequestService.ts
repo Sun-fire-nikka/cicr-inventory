@@ -129,8 +129,45 @@ export const createHardwareRequest = async (payload: {
   return newRequest;
 };
 
-export const getAllHardwareRequests = (): HardwareIssueRequest[] => {
-  return Object.values(requestsState).sort((a, b) => {
+export const getAllHardwareRequests = async (): Promise<HardwareIssueRequest[]> => {
+  const localList = Object.values(requestsState);
+
+  // Also query pending rows from Supabase borrow_records
+  try {
+    const { data: dbRecords } = await dbRead
+      .from('borrow_records')
+      .select('*, inventory(name, category)')
+      .eq('status', 'PENDING')
+      .order('borrowed_at', { ascending: false });
+
+    if (dbRecords && dbRecords.length > 0) {
+      for (const rec of dbRecords) {
+        const exists = localList.some(r => r.id === rec.id || (r.itemId === rec.inventory_id && r.purpose === rec.purpose));
+        if (!exists) {
+          localList.push({
+            id: rec.id,
+            itemId: rec.inventory_id,
+            itemName: rec.inventory?.name || 'Hardware Component',
+            category: rec.inventory?.category || 'Robotics',
+            borrowerName: rec.borrower_name || 'Member',
+            borrowerEmail: rec.roll_number ? `${rec.roll_number}@mail.jiit.ac.in` : 'student@mail.jiit.ac.in',
+            rollNumber: rec.roll_number,
+            userId: rec.user_id,
+            quantity: rec.quantity || 1,
+            purpose: rec.purpose || 'Testing',
+            durationDays: 7,
+            dueDate: rec.due_date ? rec.due_date.split('T')[0] : '',
+            status: 'PENDING',
+            requestedAt: rec.borrowed_at || new Date().toISOString()
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[HARDWARE REQUEST] Error reading pending records from Supabase:', err);
+  }
+
+  return localList.sort((a, b) => {
     return new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime();
   });
 };
@@ -144,7 +181,31 @@ export const approveHardwareRequest = async (
   adminName: string,
   adminEmail: string
 ): Promise<{ success: boolean; request?: HardwareIssueRequest; error?: string }> => {
-  const req = requestsState[id];
+  let req = requestsState[id];
+  if (!req) {
+    // Check if it exists in Supabase borrow_records with status = 'PENDING'
+    const { data: dbRec } = await dbRead.from('borrow_records').select('*, inventory(name, category)').eq('id', id).maybeSingle();
+    if (dbRec) {
+      req = {
+        id: dbRec.id,
+        itemId: dbRec.inventory_id,
+        itemName: dbRec.inventory?.name || 'Hardware Component',
+        category: dbRec.inventory?.category || 'Robotics',
+        borrowerName: dbRec.borrower_name || 'Member',
+        borrowerEmail: dbRec.roll_number ? `${dbRec.roll_number}@mail.jiit.ac.in` : 'student@mail.jiit.ac.in',
+        rollNumber: dbRec.roll_number,
+        userId: dbRec.user_id,
+        quantity: dbRec.quantity || 1,
+        purpose: dbRec.purpose || 'Testing',
+        durationDays: 7,
+        dueDate: dbRec.due_date ? dbRec.due_date.split('T')[0] : '',
+        status: dbRec.status,
+        requestedAt: dbRec.borrowed_at || new Date().toISOString()
+      };
+      requestsState[id] = req;
+    }
+  }
+
   if (!req) {
     return { success: false, error: 'Request not found.' };
   }
@@ -226,13 +287,43 @@ export const rejectHardwareRequest = async (
   adminEmail: string,
   reason?: string
 ): Promise<{ success: boolean; request?: HardwareIssueRequest; error?: string }> => {
-  const req = requestsState[id];
+  let req = requestsState[id];
+  if (!req) {
+    const { data: dbRec } = await dbRead.from('borrow_records').select('*, inventory(name, category)').eq('id', id).maybeSingle();
+    if (dbRec) {
+      req = {
+        id: dbRec.id,
+        itemId: dbRec.inventory_id,
+        itemName: dbRec.inventory?.name || 'Hardware Component',
+        category: dbRec.inventory?.category || 'Robotics',
+        borrowerName: dbRec.borrower_name || 'Member',
+        borrowerEmail: dbRec.roll_number ? `${dbRec.roll_number}@mail.jiit.ac.in` : 'student@mail.jiit.ac.in',
+        rollNumber: dbRec.roll_number,
+        userId: dbRec.user_id,
+        quantity: dbRec.quantity || 1,
+        purpose: dbRec.purpose || 'Testing',
+        durationDays: 7,
+        dueDate: dbRec.due_date ? dbRec.due_date.split('T')[0] : '',
+        status: dbRec.status,
+        requestedAt: dbRec.borrowed_at || new Date().toISOString()
+      };
+      requestsState[id] = req;
+    }
+  }
+
   if (!req) {
     return { success: false, error: 'Request not found.' };
   }
 
   if (req.status !== 'PENDING') {
     return { success: false, error: `Request has already been ${req.status.toLowerCase()}.` };
+  }
+
+  // If persisted in Supabase borrow_records, delete it
+  try {
+    await supabase.from('borrow_records').delete().eq('id', id);
+  } catch (e) {
+    // Non-blocking
   }
 
   req.status = 'REJECTED';

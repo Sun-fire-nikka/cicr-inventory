@@ -539,7 +539,7 @@ exports.createHardwareRequestHandler = createHardwareRequestHandler;
 const getHardwareRequestsHandler = async (req, res) => {
     try {
         const { getAllHardwareRequests } = await Promise.resolve().then(() => __importStar(require('./hardwareRequestService')));
-        const requests = getAllHardwareRequests();
+        const requests = await getAllHardwareRequests();
         return res.status(200).json({
             status: 'success',
             count: requests.length,

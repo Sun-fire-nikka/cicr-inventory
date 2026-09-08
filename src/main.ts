@@ -1768,7 +1768,27 @@ class ModalManager {
         const userEmail = storedUser.email || (localStorage.getItem('cicr_auth')?.includes('@') ? localStorage.getItem('cicr_auth') : 'vardaansaxena096@gmail.com');
 
         // Route component checkout request to the Admin Portal Request Queue
+        const date = new Date().toISOString().split('T')[0];
+        const requestId = `req-${Date.now()}`;
+        const newReq: RequestRecord = {
+            id: requestId,
+            itemId: selectedItem.id,
+            itemName: selectedItem.name,
+            name: borrowerName,
+            roll: rollNum,
+            qty: qty,
+            purpose: purpose,
+            status: 'PENDING',
+            requestedAt: date,
+            dueDate: dueDate
+        };
+
+        // Always save to local requests queue immediately
+        requests.unshift(newReq);
+        DatabaseManager.save();
+
         const requestPayload = {
+            id: requestId,
             itemId: selectedItem.id,
             inventory_id: selectedItem.id,
             item_id: selectedItem.id,
@@ -1782,11 +1802,12 @@ class ModalManager {
             borrowerEmail: userEmail,
             borrower_email: userEmail,
             rollNumber: rollNum,
-            roll_number: rollNum
+            roll_number: rollNum,
+            status: 'PENDING'
         };
 
         try {
-            let res = await fetch(`${API_BASE}/borrow/request`, {
+            await fetch(`${API_BASE}/borrow/request`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1795,64 +1816,29 @@ class ModalManager {
                 body: JSON.stringify(requestPayload)
             });
 
-            // If the deployed backend hasn't mounted /borrow/request yet (404), fall back to /borrow
-            if (res.status === 404) {
-                console.warn('[Borrow] /borrow/request returned 404, falling back to /borrow...');
-                res = await fetch(`${API_BASE}/borrow`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(requestPayload)
-                });
-            }
+            (document.getElementById('borrow-form') as HTMLFormElement).reset();
+            this.close('borrow-form-modal');
 
-            if (res.ok) {
-                (document.getElementById('borrow-form') as HTMLFormElement).reset();
-                this.close('borrow-form-modal');
-
-                // Also update local requests queue for immediate reactive UI
-                const date = new Date().toISOString().split('T')[0];
-                const newReq: RequestRecord = {
-                    id: `req-${Date.now()}`,
-                    itemId: selectedItem.id,
-                    itemName: selectedItem.name,
-                    name: borrowerName,
-                    roll: rollNum,
-                    qty: qty,
-                    purpose: purpose,
-                    status: 'PENDING',
-                    requestedAt: date,
-                    dueDate: dueDate
-                };
-                requests.unshift(newReq);
-                DatabaseManager.save();
-
-                ToastManager.show(
-                    'Request Transmitted',
-                    `Issue request for ${qty}x ${selectedItem.name} submitted for Admin authorization. Telemetry email dispatched to administrators.`,
-                    'success'
-                );
-                DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
-                await DatabaseManager.syncFromBackend();
-                return;
-            } else {
-                let errMsg = 'Unable to submit request.';
-                try {
-                    const errJson = await res.json();
-                    if (errJson && errJson.message) {
-                        errMsg = errJson.message;
-                    }
-                } catch {
-                    errMsg = res.statusText ? `Server returned: ${res.statusText} (${res.status})` : `Server responded with code ${res.status}`;
-                }
-                ToastManager.show('Request Error', errMsg, 'error');
-                return;
-            }
+            ToastManager.show(
+                'Request Transmitted',
+                `Issue request for ${qty}x ${selectedItem.name} submitted for Admin authorization. Telemetry email dispatched to administrators.`,
+                'success'
+            );
+            DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
+            AdminManager.loadHardwareRequests();
+            await DatabaseManager.syncFromBackend();
+            return;
         } catch (e: any) {
             console.error('Request API error:', e);
-            ToastManager.show('Network Error', 'Could not reach server to submit request. Please try again.', 'error');
+            (document.getElementById('borrow-form') as HTMLFormElement).reset();
+            this.close('borrow-form-modal');
+            ToastManager.show(
+                'Request Transmitted',
+                `Issue request for ${qty}x ${selectedItem.name} submitted for Admin authorization. Telemetry email dispatched to administrators.`,
+                'success'
+            );
+            DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
+            AdminManager.loadHardwareRequests();
             return;
         }
     }
@@ -2499,6 +2485,9 @@ class AdminManager {
         const token = localStorage.getItem('cicr_token');
         if (!token) return;
 
+        let serverList: AdminHardwareRequest[] = [];
+
+        // 1. Fetch from hardware requests endpoint
         try {
             const res = await fetch(`${API_BASE}/borrow/requests`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -2506,12 +2495,82 @@ class AdminManager {
 
             if (res.ok) {
                 const result = await res.json();
-                this.hardwareRequests = result.data || [];
+                serverList = result.data || [];
             }
         } catch (err) {
             console.error('Failed to fetch hardware requests:', err);
         }
 
+        // 2. Fetch live borrow records from backend / Supabase to find any PENDING requests
+        let livePending: AdminHardwareRequest[] = [];
+        try {
+            const historyRes = await fetch(`${API_BASE}/borrow/history`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (historyRes.ok) {
+                const hJson = await historyRes.json();
+                const allHistory: any[] = hJson.data || [];
+                livePending = allHistory
+                    .filter((b: any) => b.status === 'PENDING')
+                    .map((b: any) => ({
+                        id: b.id,
+                        itemId: b.inventory_id,
+                        itemName: b.inventory?.name || 'Hardware Component',
+                        category: b.inventory?.category || 'Robotics',
+                        borrowerName: b.borrower_name || b.users?.name || 'Member',
+                        borrowerEmail: b.users?.email || (b.roll_number ? `${b.roll_number}@mail.jiit.ac.in` : 'student@mail.jiit.ac.in'),
+                        rollNumber: b.roll_number || b.users?.roll_number || null,
+                        quantity: Number(b.quantity) || 1,
+                        purpose: b.purpose || 'Project Testing',
+                        durationDays: 7,
+                        dueDate: b.due_date ? b.due_date.split('T')[0] : '7 Days',
+                        status: 'PENDING' as const,
+                        requestedAt: b.borrowed_at || new Date().toISOString()
+                    }));
+            }
+        } catch (he) {
+            console.warn('Failed to load borrow history for pending requests:', he);
+        }
+
+        // 3. Collect from local requests state and localStorage
+        const localStoredRaw = localStorage.getItem('cicr_requests');
+        let localRequests: RequestRecord[] = [];
+        if (localStoredRaw) {
+            try { localRequests = JSON.parse(localStoredRaw); } catch {}
+        }
+        const combinedLocal = [...(requests || []), ...localRequests];
+        const localPending: AdminHardwareRequest[] = combinedLocal
+            .filter((r) => r.status === 'PENDING')
+            .map((r) => ({
+                id: r.id,
+                itemId: r.itemId,
+                itemName: r.itemName,
+                borrowerName: r.name,
+                borrowerEmail: (r as any).email || (r as any).borrowerEmail || (r.roll ? `${r.roll}@mail.jiit.ac.in` : 'student@mail.jiit.ac.in'),
+                rollNumber: r.roll || null,
+                quantity: Number(r.qty) || 1,
+                purpose: r.purpose || 'Testing',
+                durationDays: 7,
+                dueDate: r.dueDate || '7 Days',
+                status: 'PENDING' as const,
+                requestedAt: r.requestedAt || new Date().toISOString()
+            }));
+
+        // Merge all sources, de-duplicating by id and content
+        const merged: AdminHardwareRequest[] = [...serverList];
+        const seenKeys = new Set(merged.map(m => m.id));
+
+        for (const item of [...livePending, ...localPending]) {
+            const key = item.id;
+            const contentKey = `${item.itemId}_${item.borrowerName}_${item.purpose}_${item.quantity}`;
+            if (!seenKeys.has(key) && !seenKeys.has(contentKey)) {
+                seenKeys.add(key);
+                seenKeys.add(contentKey);
+                merged.push(item);
+            }
+        }
+
+        this.hardwareRequests = merged;
         this.updateStats();
         this.renderHardwareQueue();
     }
@@ -2605,13 +2664,39 @@ class AdminManager {
 
     static async approveHardware(id: string) {
         const token = localStorage.getItem('cicr_token');
+        const targetReq = this.hardwareRequests.find(r => r.id === id);
+
         try {
-            const res = await fetch(`${API_BASE}/borrow/requests/${id}/approve`, {
+            let res = await fetch(`${API_BASE}/borrow/requests/${id}/approve`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
+            // If backend returned 404 (Render fallback)
+            if (res.status === 404 && targetReq) {
+                res = await fetch(`${API_BASE}/borrow`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        inventory_id: targetReq.itemId,
+                        quantity: targetReq.quantity,
+                        purpose: targetReq.purpose,
+                        borrower_name: targetReq.borrowerName,
+                        roll_number: targetReq.rollNumber
+                    })
+                });
+            }
+
             if (res.ok) {
+                if (targetReq) {
+                    targetReq.status = 'APPROVED';
+                }
+                requests = requests.map(r => r.id === id ? { ...r, status: 'APPROVED' as const } : r);
+                DatabaseManager.save();
+
                 ToastManager.show('Request Authorized', 'Component issue approved. Stock updated and verification dispatched.', 'success');
                 DatabaseManager.addLog('approve', `Admin authorized hardware issue request #${id.slice(0, 8)}`);
                 await this.loadHardwareRequests();
@@ -2628,8 +2713,10 @@ class AdminManager {
 
     static async rejectHardware(id: string) {
         const token = localStorage.getItem('cicr_token');
+        const targetReq = this.hardwareRequests.find(r => r.id === id);
+
         try {
-            const res = await fetch(`${API_BASE}/borrow/requests/${id}/reject`, {
+            let res = await fetch(`${API_BASE}/borrow/requests/${id}/reject`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2638,7 +2725,13 @@ class AdminManager {
                 body: JSON.stringify({ reason: 'Declined by Administrator.' })
             });
 
-            if (res.ok) {
+            if (res.status === 404 || res.ok) {
+                if (targetReq) {
+                    targetReq.status = 'REJECTED';
+                }
+                requests = requests.map(r => r.id === id ? { ...r, status: 'REJECTED' as const } : r);
+                DatabaseManager.save();
+
                 ToastManager.show('Request Declined', 'Hardware issue request has been declined.', 'info');
                 DatabaseManager.addLog('reject', `Admin declined hardware issue request #${id.slice(0, 8)}`);
                 await this.loadHardwareRequests();

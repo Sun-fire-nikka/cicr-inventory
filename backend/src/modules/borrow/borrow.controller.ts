@@ -584,7 +584,7 @@ export const createHardwareRequestHandler = async (req: AuthRequest, res: Respon
 export const getHardwareRequestsHandler = async (req: AuthRequest, res: Response) => {
   try {
     const { getAllHardwareRequests } = await import('./hardwareRequestService');
-    const requests = getAllHardwareRequests();
+    const requests = await getAllHardwareRequests();
     return res.status(200).json({
       status: 'success',
       count: requests.length,
