@@ -4617,8 +4617,8 @@ body.theme-pink .card-clock-right {
     padding: 18px 18px 16px;
     border-radius: 20px;
     background: var(--card-item-bg);
-    border: 1px solid var(--border-glass);
-    box-shadow: var(--glow-card);
+    border: 1.5px solid #ffffff !important;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.12), var(--glow-card);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     position: relative;
@@ -4630,21 +4630,14 @@ body.theme-pink .card-clock-right {
     position: absolute;
     inset: auto 0 0 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     opacity: 0.6;
 }
 
 .dash-card:hover {
+    border-color: #ffffff !important;
+    box-shadow: 0 0 25px rgba(255, 255, 255, 0.35), 0 8px 30px rgba(0, 0, 0, 0.5) !important;
     transform: translateY(-4px);
-}
-
-body.theme-pink .dash-card:hover {
-    border-color: rgba(244, 114, 182, 0.35);
-    box-shadow: 0 18px 32px rgba(190, 24, 93, 0.18), 0 0 18px rgba(244, 114, 182, 0.12);
-}
-
-.dash-card:hover {
-    transform: translateY(-3px);
     background: var(--bg-glass-hover);
 }
 
@@ -4722,9 +4715,23 @@ body.theme-pink .dash-card:hover {
 }
 
 /* Card color modifiers */
-.dash-card.card-blue:hover {
-    border-color: rgba(0, 240, 255, 0.2);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 10px rgba(0, 240, 255, 0.06);
+.dash-card.card-blue,
+.dash-card.card-purple,
+.dash-card.card-orange,
+.dash-card.card-green,
+.dash-card.card-cyan,
+.dash-card.card-pink {
+    border: 1.5px solid #ffffff !important;
+}
+
+.dash-card.card-blue:hover,
+.dash-card.card-purple:hover,
+.dash-card.card-orange:hover,
+.dash-card.card-green:hover,
+.dash-card.card-cyan:hover,
+.dash-card.card-pink:hover {
+    border-color: #ffffff !important;
+    box-shadow: 0 0 25px rgba(255, 255, 255, 0.35), 0 8px 30px rgba(0, 0, 0, 0.5) !important;
 }
 .card-blue .dash-card-icon-wrapper {
     background: rgba(0, 240, 255, 0.08);
@@ -4735,10 +4742,6 @@ body.theme-pink .dash-card:hover {
     color: var(--neon-cyan);
 }
 
-.dash-card.card-purple:hover {
-    border-color: rgba(189, 0, 255, 0.2);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 10px rgba(189, 0, 255, 0.06);
-}
 .card-purple .dash-card-icon-wrapper {
     background: rgba(189, 0, 255, 0.08);
     color: var(--neon-purple);
@@ -4748,10 +4751,6 @@ body.theme-pink .dash-card:hover {
     color: var(--neon-purple);
 }
 
-.dash-card.card-orange:hover {
-    border-color: rgba(255, 135, 0, 0.2);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 10px rgba(255, 135, 0, 0.06);
-}
 .card-orange .dash-card-icon-wrapper {
     background: rgba(255, 135, 0, 0.08);
     color: #ff8700;
@@ -4761,10 +4760,6 @@ body.theme-pink .dash-card:hover {
     color: #ff8700;
 }
 
-.dash-card.card-green:hover {
-    border-color: rgba(57, 255, 20, 0.2);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 10px rgba(57, 255, 20, 0.06);
-}
 .card-green .dash-card-icon-wrapper {
     background: rgba(57, 255, 20, 0.08);
     color: var(--neon-green);

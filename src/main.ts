@@ -1179,20 +1179,20 @@ class ModalManager {
         return this.getCurrentRole() === 'ADMIN';
     }
 
-    private static setBorrowModalMode(mode: 'borrow' | 'request', componentName: string, available: number) {
+    private static setBorrowModalMode(_mode: 'borrow' | 'request', componentName: string, available: number) {
         const modalTitle = document.getElementById('borrow-form-title');
         const subtitle = document.getElementById('borrow-form-subtitle');
         const submitBtn = document.getElementById('borrow-form-submit') as HTMLButtonElement | null;
         const qtyLimit = document.getElementById('borrow-qty-limit');
 
         if (modalTitle) {
-            modalTitle.innerText = mode === 'borrow' ? 'Borrow Component' : 'Request Component';
+            modalTitle.innerText = 'Request Component Issue';
         }
         if (subtitle) {
-            subtitle.innerText = `${mode === 'borrow' ? 'Borrowing' : 'Requesting'} ${componentName}`;
+            subtitle.innerText = `Requesting ${componentName} - Requires Admin Authorization`;
         }
         if (submitBtn) {
-            submitBtn.innerText = mode === 'borrow' ? 'Confirm Borrow' : 'Send Request';
+            submitBtn.innerText = 'Submit Issue Request';
         }
         if (qtyLimit) {
             qtyLimit.innerText = `Max units available: ${available}`;
@@ -1447,7 +1447,7 @@ class ModalManager {
             ? selectedItem.availableQuantity
             : Math.max(0, selectedItem.quantity - borrowedSum);
 
-        this.setBorrowModalMode(this.isAdmin() ? 'borrow' : 'request', selectedItem.name, available);
+        this.setBorrowModalMode('request', selectedItem.name, available);
 
         const qtyInput = document.getElementById('borrow-qty') as HTMLInputElement;
         qtyInput.max = String(available);
@@ -1750,87 +1750,48 @@ class ModalManager {
         const dueDate = (dueDateInput && dueDateInput.value) ? dueDateInput.value : defaultDue;
 
         const token = localStorage.getItem('cicr_token');
-        const isAdminUser = this.isAdmin();
-
         const storedUser = JSON.parse(localStorage.getItem('cicr_user') || '{}');
         const userEmail = storedUser.email || (localStorage.getItem('cicr_auth')?.includes('@') ? localStorage.getItem('cicr_auth') : 'vardaansaxena096@gmail.com');
 
-        if (isAdminUser) {
-            // Direct admin checkout
-            try {
-                const res = await fetch(`${API_BASE}/borrow`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        itemId: selectedItem.id,
-                        quantity: qty,
-                        purpose: purpose,
-                        duration_days: 7,
-                        borrower_name: borrowerName,
-                        borrower_email: userEmail,
-                        roll_number: rollNum
-                    })
-                });
+        // Route ALL component checkout requests to the Admin Portal Request Queue
+        try {
+            const res = await fetch(`${API_BASE}/borrow/request`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    itemId: selectedItem.id,
+                    itemName: selectedItem.name,
+                    quantity: qty,
+                    purpose: purpose,
+                    duration_days: 7,
+                    dueDate: dueDate,
+                    borrowerName: borrowerName,
+                    borrowerEmail: userEmail,
+                    rollNumber: rollNum
+                })
+            });
 
-                if (res.ok) {
-                    (document.getElementById('borrow-form') as HTMLFormElement).reset();
-                    this.close('borrow-form-modal');
-                    ToastManager.show('Component Issued', `Checked out ${qty}x ${selectedItem.name}. Confirmation email dispatched.`, 'success');
-                    DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> borrowed ${qty}x <span>${selectedItem.name}</span>.`);
-                    await DatabaseManager.syncFromBackend();
-                    return;
-                } else {
-                    const errJson = await res.json();
-                    ToastManager.show('Borrow Error', errJson.message || 'Unable to issue component.', 'error');
-                }
-            } catch (e) {
-                console.error('Borrow API error:', e);
-                ToastManager.show('Network Error', 'Could not reach server to complete borrow.', 'error');
+            if (res.ok) {
+                (document.getElementById('borrow-form') as HTMLFormElement).reset();
+                this.close('borrow-form-modal');
+                ToastManager.show(
+                    'Request Transmitted',
+                    `Issue request for ${qty}x ${selectedItem.name} submitted for Admin authorization. Telemetry email dispatched to administrators.`,
+                    'success'
+                );
+                DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
+                await DatabaseManager.syncFromBackend();
+                return;
+            } else {
+                const errJson = await res.json();
+                ToastManager.show('Request Error', errJson.message || 'Unable to submit request.', 'error');
             }
-        } else {
-            // Member submission -> Route to Admin Portal Request Queue
-            try {
-                const res = await fetch(`${API_BASE}/borrow/request`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        itemId: selectedItem.id,
-                        itemName: selectedItem.name,
-                        quantity: qty,
-                        purpose: purpose,
-                        duration_days: 7,
-                        dueDate: dueDate,
-                        borrowerName: borrowerName,
-                        borrowerEmail: userEmail,
-                        rollNumber: rollNum
-                    })
-                });
-
-                if (res.ok) {
-                    (document.getElementById('borrow-form') as HTMLFormElement).reset();
-                    this.close('borrow-form-modal');
-                    ToastManager.show(
-                        'Request Transmitted',
-                        `Issue request for ${qty}x ${selectedItem.name} dispatched to Admin Portal for authorization.`,
-                        'success'
-                    );
-                    DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
-                    await DatabaseManager.syncFromBackend();
-                    return;
-                } else {
-                    const errJson = await res.json();
-                    ToastManager.show('Request Error', errJson.message || 'Unable to submit request.', 'error');
-                }
-            } catch (e) {
-                console.error('Request API error:', e);
-                ToastManager.show('Network Error', 'Could not reach server to submit request.', 'error');
-            }
+        } catch (e) {
+            console.error('Request API error:', e);
+            ToastManager.show('Network Error', 'Could not reach server to submit request.', 'error');
         }
 
         // Local fallback if offline

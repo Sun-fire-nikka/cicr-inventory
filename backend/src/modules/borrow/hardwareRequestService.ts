@@ -174,8 +174,17 @@ export const approveHardwareRequest = async (
 
   const { borrowRecord, item, newAvailableQty, dueDate } = result;
 
-  // Send borrow confirmation to borrower
+  // Send approval status email to borrower (with CC to admins)
   if (req.borrowerEmail) {
+    sendHardwareRequestStatusEmail(
+      req.borrowerEmail,
+      req.borrowerName,
+      req.itemName,
+      req.quantity,
+      'APPROVED',
+      req.reviewedBy
+    ).catch((e) => console.error('[EMAIL ERROR] Failed to send approval status email to borrower:', e));
+
     const { data: activeHolders } = await dbRead
       .from('borrow_records')
       .select('borrower_name, roll_number, quantity, borrowed_at')
