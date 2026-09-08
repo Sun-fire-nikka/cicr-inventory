@@ -101,7 +101,7 @@ export const login = async (req: Request, res: Response) => {
     const { data: user, error } = await dbRead
       .from('users')
       .select('*')
-      .or(`email.eq.${identifier.toLowerCase()},name.eq.${identifier}`)
+      .or(`email.ilike.${identifier},name.ilike.${identifier}`)
       .limit(1)
       .maybeSingle();
 
