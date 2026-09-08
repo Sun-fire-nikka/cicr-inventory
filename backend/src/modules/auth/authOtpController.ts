@@ -44,7 +44,7 @@ export const sendOtp = async (req: Request, res: Response) => {
       } else {
         return res.status(400).json({
           status: 'error',
-          message: 'Access restricted. Please use your official college email address (@mail.jiit.ac.in).'
+          message: 'Access restricted. Only official JIIT student accounts (enrollmentnumber@mail.jiit.ac.in) and authorized administrators can access this portal.'
         });
       }
     }

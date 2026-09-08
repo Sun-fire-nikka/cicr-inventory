@@ -34,7 +34,10 @@ export const register = async (req: Request, res: Response) => {
     }
 
     if (!isValidEmail(email)) {
-      return res.status(400).json({ status: 'error', message: 'Invalid email format.' });
+      return res.status(400).json({
+        status: 'error',
+        message: 'Access restricted. Only official JIIT student accounts (enrollmentnumber@mail.jiit.ac.in) and authorized administrators can create an account.'
+      });
     }
 
     const normEmail = email.trim().toLowerCase();
@@ -48,6 +51,15 @@ export const register = async (req: Request, res: Response) => {
     const userRole = isMasterAdmin ? 'ADMIN' : 'MEMBER';
     const initialStatus = isMasterAdmin ? 'APPROVED' : 'PENDING';
 
+    // Auto-extract enrollment number from student email if roll_number not provided
+    let userRoll = roll_number ? String(roll_number).trim() : null;
+    if (!userRoll) {
+      const match = normEmail.match(/^(\d+)@mail\.jiit\.ac\.in$/i);
+      if (match) {
+        userRoll = match[1];
+      }
+    }
+
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
@@ -56,7 +68,7 @@ export const register = async (req: Request, res: Response) => {
     let newUser: any = {
       name: name.trim(),
       email: normEmail,
-      roll_number: roll_number || null,
+      roll_number: userRoll,
       role: userRole,
       created_at: new Date().toISOString()
     };
@@ -107,6 +119,13 @@ export const login = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Email/Username and password required.' });
     }
 
+    if (identifier.includes('@') && !isValidEmail(identifier)) {
+      return res.status(403).json({
+        status: 'forbidden',
+        message: 'Access restricted. Only official JIIT student accounts (enrollmentnumber@mail.jiit.ac.in) and authorized administrators can log in.'
+      });
+    }
+
     const { data: user, error } = await dbRead
       .from('users')
       .select('*')
@@ -116,6 +135,13 @@ export const login = async (req: Request, res: Response) => {
 
     if (error || !user) {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials. User not found.' });
+    }
+
+    if (!isValidEmail(user.email) && user.role !== 'ADMIN') {
+      return res.status(403).json({
+        status: 'forbidden',
+        message: 'Access restricted. Only official JIIT student accounts (enrollmentnumber@mail.jiit.ac.in) and authorized administrators can log in.'
+      });
     }
 
     const isMasterAdmin = isSuperAdminEmail(user.email);

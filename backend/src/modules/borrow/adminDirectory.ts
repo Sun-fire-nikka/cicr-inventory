@@ -5,7 +5,9 @@ export interface AdminDirectoryEntry {
 }
 
 export const ADMIN_DIRECTORY: AdminDirectoryEntry[] = [
-  { id: 'cicr-admin', name: 'CICR Inventory Admin', email: 'cicrinventory@gmail.com' }
+  { id: 'cicr-admin', name: 'CICR Inventory Admin', email: 'cicrinventory@gmail.com' },
+  { id: 'master-vardaan', name: 'Vardaan', email: 'vardaansaxena096@gmail.com' },
+  { id: 'admin-kushagra', name: 'Kushagra', email: 'kushagragargdelhi@gmail.com' }
 ];
 
 export const getAdminById = (adminId: string): AdminDirectoryEntry | undefined =>

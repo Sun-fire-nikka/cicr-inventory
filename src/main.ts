@@ -2022,11 +2022,30 @@ class AuthManager {
         this.appContainer.style.display = 'none';
     }
 
+    private static isAllowedEmail(email: string): boolean {
+        const norm = email.trim().toLowerCase();
+        const currentAdmins = [
+            'vardaansaxena096@gmail.com',
+            'cicrinventory@gmail.com',
+            'kushagragargdelhi@gmail.com'
+        ];
+        if (currentAdmins.includes(norm)) return true;
+        // JIIT student email with enrollment number or institutional domain
+        return /^\d+@mail\.jiit\.ac\.in$/i.test(norm) ||
+               /^[a-zA-Z0-9._%+-]+@mail\.jiit\.ac\.in$/i.test(norm) ||
+               /^[a-zA-Z0-9._%+-]+@jiit\.ac\.in$/i.test(norm);
+    }
+
     private static async handleLogin() {
         const identifier = this.loginUserInp.value.trim();
         const password = this.loginPassInp.value;
 
         this.loginErr.style.display = 'none';
+
+        if (identifier.includes('@') && !this.isAllowedEmail(identifier)) {
+            this.showLoginError("Access Restricted: Only JIIT accounts (enrollmentnumber@mail.jiit.ac.in) and authorized administrators can log in.");
+            return;
+        }
 
         try {
             const res = await fetch(`${API_BASE}/auth/login`, {
@@ -2214,11 +2233,19 @@ class AuthManager {
             return;
         }
 
+        if (!this.isAllowedEmail(email)) {
+            this.showSignupError("Registration Restricted: Only official JIIT student accounts (enrollmentnumber@mail.jiit.ac.in) can create an account.");
+            return;
+        }
+
+        const enrollmentMatch = email.match(/^(\d+)@mail\.jiit\.ac\.in$/i);
+        const rollNumber = enrollmentMatch ? enrollmentMatch[1] : undefined;
+
         try {
             const res = await fetch(`${API_BASE}/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: username, email, password }),
+                body: JSON.stringify({ name: username, email, password, roll_number: rollNumber }),
             });
 
             const data = await res.json();
