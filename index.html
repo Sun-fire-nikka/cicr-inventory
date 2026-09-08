@@ -112,6 +112,7 @@
                 <a class="nav-link" id="nav-inventory"><i data-lucide="layers"></i> Inventory</a>
                 <a class="nav-link" id="nav-add-item"><i data-lucide="plus-circle"></i> Add Component</a>
                 <a class="nav-link" id="nav-about"><i data-lucide="info"></i> About</a>
+                <a class="nav-link" id="nav-developers"><i data-lucide="terminal"></i> Developers</a>
                 <a class="nav-link" id="nav-logs-bell" style="position: relative;">
                     <i data-lucide="bell"></i> History
                     <span class="notification-badge" id="nav-bell-badge"></span>
@@ -231,6 +232,10 @@
                         <a href="#" class="sidebar-nav-link" id="side-nav-inventory" data-target="inventory-view">
                             <i data-lucide="layers"></i>
                             <span>Inventory</span>
+                        </a>
+                        <a href="#" class="sidebar-nav-link" id="side-nav-developers" data-target="developers-view">
+                            <i data-lucide="code-2"></i>
+                            <span>Meet The Developers</span>
                         </a>
 
                         <details class="vault-dropdown" open>
@@ -360,91 +365,199 @@
                            </div>
  
                            <div class="dash-card card-purple" id="dash-card-logs">
-                               <div class="dash-card-header">
-                                   <div class="dash-card-icon-wrapper">
-                                       <i data-lucide="clipboard-list"></i>
+                                <div class="dash-card-header">
+                                    <div class="dash-card-icon-wrapper">
+                                        <i data-lucide="clipboard-list"></i>
+                                    </div>
+                                    <span class="dash-card-tag">CHECKOUTS</span>
+                                </div>
+                                <div class="dash-card-body">
+                                    <h3 class="dash-card-title">Active Logs</h3>
+                                    <p class="dash-card-desc">Track active checkouts, log due return dates, and review student usage permissions.</p>
+                                </div>
+                                <div class="dash-card-footer">
+                                    <i data-lucide="arrow-right"></i>
+                                </div>
+                            </div>
+
+                            <div class="dash-card card-cyan" id="dash-card-devs">
+                                <div class="dash-card-header">
+                                    <div class="dash-card-icon-wrapper">
+                                        <i data-lucide="code-2"></i>
+                                    </div>
+                                    <span class="dash-card-tag">CREATIVE TEAM</span>
+                                </div>
+                                <div class="dash-card-body">
+                                    <h3 class="dash-card-title">Meet The Developers</h3>
+                                    <p class="dash-card-desc">Meet the engineering minds and mentors behind the CICR Robotics Vault.</p>
+                                </div>
+                                <div class="dash-card-footer">
+                                    <i data-lucide="arrow-right"></i>
+                                </div>
+                            </div>
+ 
+                       </div>
+                   </section>
+
+                   <!-- Slide 3: Pinterest Search Explorer Layout (3-Column Staggered Grid) -->
+                   <section class="explorer-layout-section reveal" id="inventory-view" style="display: none;">
+                       <div class="explorer-layout-container">
+                           <!-- Column 2 & 3: Main Explorer Center -->
+                           <div class="explorer-main-area">
+                               <!-- Top Search Bar & Stats integration -->
+                               <div class="explorer-search-row">
+                                   <div class="search-box-new">
+                                       <i data-lucide="search" class="search-icon"></i>
+                                       <input type="text" id="search-input" placeholder="Search components, modules, tools...">
+                                       <button class="clear-search" id="clear-search" style="display: none;">
+                                           <i data-lucide="x"></i>
+                                       </button>
                                    </div>
-                                   <span class="dash-card-tag">CHECKOUTS</span>
+                                   
+                                   <!-- Category tags in line (horizontal tags selector) -->
+                                   <div class="horizontal-tags-selector">
+                                       <span class="tag-pill active" data-category="all">All</span>
+                                       <span class="tag-pill" data-category="microcontrollers">MCU</span>
+                                       <span class="tag-pill" data-category="sensors">Sensors</span>
+                                       <span class="tag-pill" data-category="actuators">Actuators</span>
+                                       <span class="tag-pill" data-category="power">Power</span>
+                                       <span class="tag-pill" data-category="tools">Tools</span>
+                                   </div>
                                </div>
-                               <div class="dash-card-body">
-                                   <h3 class="dash-card-title">Active Logs</h3>
-                                   <p class="dash-card-desc">Track active checkouts, log due return dates, and review student usage permissions.</p>
-                               </div>
-                               <div class="dash-card-footer">
-                                   <i data-lucide="arrow-right"></i>
+
+                                <!-- Quick Stats Panel inside Explorer Layout -->
+                                <div class="explorer-stats-row">
+                                    <div class="stat-bubble-new">
+                                        <span class="bubble-label"><i data-lucide="boxes"></i> Total Vaulted</span>
+                                        <span class="bubble-value" id="stat-total">0</span>
+                                    </div>
+                                    <div class="stat-bubble-new">
+                                        <span class="bubble-label"><i data-lucide="shopping-cart"></i> Active Loans</span>
+                                        <span class="bubble-value text-purple" id="stat-borrowed">0</span>
+                                    </div>
+                                    <div class="stat-bubble-new">
+                                        <span class="bubble-label"><i data-lucide="alert-circle"></i> Low Reserves</span>
+                                        <span class="bubble-value text-yellow" id="stat-low">0</span>
+                                    </div>
+                                    <div class="stat-bubble-new">
+                                        <span class="bubble-label"><i data-lucide="package-x"></i> Out of Stock</span>
+                                        <span class="bubble-value text-pink" id="stat-out">0</span>
+                                    </div>
+                                </div>
+
+                               <!-- Dynamic Items Grid -->
+                               <div class="explorer-grid-container">
+                                   <div class="section-title-bar">
+                                       <h2>Vault Catalog</h2>
+                                       <span class="items-count-badge" id="results-count">Showing 0 items</span>
+                                   </div>
+                                   
+                                   <!-- No Results State -->
+                                   <div class="no-results glass" id="no-results" style="display: none;">
+                                       <i data-lucide="package-search"></i>
+                                       <h3>No items found</h3>
+                                       <p>Try adjusting your search keywords or sidebar filters.</p>
+                                   </div>
+
+                                   <div class="inventory-grid" id="inventory-grid">
+                                       <!-- Cards will be dynamically injected by JavaScript -->
+                                   </div>
                                </div>
                            </div>
- 
-                      </div>
-                  </section>
+                       </div>
+                   </section>
 
-                  <!-- Slide 3: Pinterest Search Explorer Layout (3-Column Staggered Grid) -->
-                  <section class="explorer-layout-section reveal" id="inventory-view" style="display: none;">
-                      <div class="explorer-layout-container">
-                          <!-- Column 2 & 3: Main Explorer Center -->
-                          <div class="explorer-main-area">
-                              <!-- Top Search Bar & Stats integration -->
-                              <div class="explorer-search-row">
-                                  <div class="search-box-new">
-                                      <i data-lucide="search" class="search-icon"></i>
-                                      <input type="text" id="search-input" placeholder="Search components, modules, tools...">
-                                      <button class="clear-search" id="clear-search" style="display: none;">
-                                          <i data-lucide="x"></i>
-                                      </button>
-                                  </div>
-                                  
-                                  <!-- Category tags in line (horizontal tags selector) -->
-                                  <div class="horizontal-tags-selector">
-                                      <span class="tag-pill active" data-category="all">All</span>
-                                      <span class="tag-pill" data-category="microcontrollers">MCU</span>
-                                      <span class="tag-pill" data-category="sensors">Sensors</span>
-                                      <span class="tag-pill" data-category="actuators">Actuators</span>
-                                      <span class="tag-pill" data-category="power">Power</span>
-                                      <span class="tag-pill" data-category="tools">Tools</span>
-                                  </div>
-                              </div>
-
-                               <!-- Quick Stats Panel inside Explorer Layout -->
-                               <div class="explorer-stats-row">
-                                   <div class="stat-bubble-new">
-                                       <span class="bubble-label"><i data-lucide="boxes"></i> Total Vaulted</span>
-                                       <span class="bubble-value" id="stat-total">0</span>
+                   <!-- Section: Meet The Developers & Under The Guidance of -->
+                   <section class="developers-section reveal" id="developers-view" style="display: none;">
+                       <!-- 1. Under The Guidance of Section -->
+                       <div class="devs-clean-section">
+                           <h2 class="devs-clean-heading">Under The Guidance of</h2>
+                           
+                           <div class="mentors-clean-container">
+                               <!-- Mentor 1: Gunjan Pal -->
+                               <div class="dev-profile-box glass">
+                                   <div class="box-glow-aura aura-cyan"></div>
+                                   <div class="photo-placeholder-frame">
+                                       <div class="photo-glow-ring ring-cyan"></div>
+                                       <div class="photo-placeholder-content">
+                                           <i data-lucide="user" class="photo-icon"></i>
+                                       </div>
                                    </div>
-                                   <div class="stat-bubble-new">
-                                       <span class="bubble-label"><i data-lucide="shopping-cart"></i> Active Loans</span>
-                                       <span class="bubble-value text-purple" id="stat-borrowed">0</span>
-                                   </div>
-                                   <div class="stat-bubble-new">
-                                       <span class="bubble-label"><i data-lucide="alert-circle"></i> Low Reserves</span>
-                                       <span class="bubble-value text-yellow" id="stat-low">0</span>
-                                   </div>
-                                   <div class="stat-bubble-new">
-                                       <span class="bubble-label"><i data-lucide="package-x"></i> Out of Stock</span>
-                                       <span class="bubble-value text-pink" id="stat-out">0</span>
-                                   </div>
+                                   <h3 class="dev-person-name">Gunjan Pal</h3>
                                </div>
 
-                              <!-- Dynamic Items Grid -->
-                              <div class="explorer-grid-container">
-                                  <div class="section-title-bar">
-                                      <h2>Vault Catalog</h2>
-                                      <span class="items-count-badge" id="results-count">Showing 0 items</span>
-                                  </div>
-                                  
-                                  <!-- No Results State -->
-                                  <div class="no-results glass" id="no-results" style="display: none;">
-                                      <i data-lucide="package-search"></i>
-                                      <h3>No items found</h3>
-                                      <p>Try adjusting your search keywords or sidebar filters.</p>
-                                  </div>
+                               <!-- Mentor 2: Dhruvi Gupta -->
+                               <div class="dev-profile-box glass">
+                                   <div class="box-glow-aura aura-purple"></div>
+                                   <div class="photo-placeholder-frame">
+                                       <div class="photo-glow-ring ring-purple"></div>
+                                       <div class="photo-placeholder-content">
+                                           <i data-lucide="user" class="photo-icon"></i>
+                                       </div>
+                                   </div>
+                                   <h3 class="dev-person-name">Dhruvi Gupta</h3>
+                               </div>
+                           </div>
+                       </div>
 
-                                  <div class="inventory-grid" id="inventory-grid">
-                                      <!-- Cards will be dynamically injected by JavaScript -->
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  </section>
+                       <!-- Sleek Cyber Divider -->
+                       <div class="devs-clean-divider"></div>
+
+                       <!-- 2. Meet The Developers Section -->
+                       <div class="devs-clean-section">
+                           <h2 class="devs-clean-heading">Meet The Developers</h2>
+                           
+                           <div class="devs-clean-container">
+                               <!-- Developer 1: Vardaan Saxena -->
+                               <div class="dev-profile-box glass">
+                                   <div class="box-glow-aura aura-cyan"></div>
+                                   <div class="photo-placeholder-frame">
+                                       <div class="photo-glow-ring ring-cyan"></div>
+                                       <div class="photo-placeholder-content">
+                                           <i data-lucide="user" class="photo-icon"></i>
+                                       </div>
+                                   </div>
+                                   <h3 class="dev-person-name">Vardaan Saxena</h3>
+                               </div>
+
+                               <!-- Developer 2: Kushagra Garg -->
+                               <div class="dev-profile-box glass">
+                                   <div class="box-glow-aura aura-purple"></div>
+                                   <div class="photo-placeholder-frame">
+                                       <div class="photo-glow-ring ring-purple"></div>
+                                       <div class="photo-placeholder-content">
+                                           <i data-lucide="user" class="photo-icon"></i>
+                                       </div>
+                                   </div>
+                                   <h3 class="dev-person-name">Kushagra Garg</h3>
+                               </div>
+
+                               <!-- Developer 3: Divyam Jain -->
+                               <div class="dev-profile-box glass">
+                                   <div class="box-glow-aura aura-green"></div>
+                                   <div class="photo-placeholder-frame">
+                                       <div class="photo-glow-ring ring-green"></div>
+                                       <div class="photo-placeholder-content">
+                                           <i data-lucide="user" class="photo-icon"></i>
+                                       </div>
+                                   </div>
+                                   <h3 class="dev-person-name">Divyam Jain</h3>
+                               </div>
+
+                               <!-- Developer 4: Mahak Katahara -->
+                               <div class="dev-profile-box glass">
+                                   <div class="box-glow-aura aura-pink"></div>
+                                   <div class="photo-placeholder-frame">
+                                       <div class="photo-glow-ring ring-pink"></div>
+                                       <div class="photo-placeholder-content">
+                                           <i data-lucide="user" class="photo-icon"></i>
+                                       </div>
+                                   </div>
+                                   <h3 class="dev-person-name">Mahak Katahara</h3>
+                               </div>
+                           </div>
+                       </div>
+                   </section>
 
              </main>
            </div>

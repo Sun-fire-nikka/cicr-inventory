@@ -417,7 +417,7 @@ class DashboardManager {
                 if (sec.id === targetId) {
                     sec.classList.add('active');
                     sec.style.display = 'flex';
-                    if (sec.id === 'inventory-view' || sec.id === 'projects-view' || sec.id === 'meetings-view' || sec.id === 'events-view') {
+                    if (sec.id === 'inventory-view' || sec.id === 'projects-view' || sec.id === 'meetings-view' || sec.id === 'events-view' || sec.id === 'developers-view') {
                         sec.style.display = 'block';
                     }
                 } else {
@@ -453,7 +453,8 @@ class DashboardManager {
                     'projects-view': 'PROJECTS',
                     'meetings-view': 'MEETINGS',
                     'events-view': 'EVENTS',
-                    'inventory-view': 'INVENTORY'
+                    'inventory-view': 'INVENTORY',
+                    'developers-view': 'MEET THE DEVELOPERS'
                 };
                 breadcrumbActive.innerText = nameMap[targetId] || 'WORKSPACE';
             }
@@ -471,6 +472,12 @@ class DashboardManager {
                 }
             });
         });
+
+        // Floating Navbar developers link
+        const navDevs = document.getElementById('nav-developers');
+        if (navDevs) {
+            navDevs.addEventListener('click', () => switchSection('developers-view'));
+        }
 
         // 2. Dashboard action pills switching listeners
         const pillProjects = document.getElementById('dashboard-pill-projects');
@@ -508,6 +515,10 @@ class DashboardManager {
             cardLogs.addEventListener('click', () => {
                 ModalManager.openLogsDrawer();
             });
+        }
+        const cardDevs = document.getElementById('dash-card-devs');
+        if (cardDevs) {
+            cardDevs.addEventListener('click', () => switchSection('developers-view'));
         }
         const cardProjects = document.getElementById('dash-card-projects');
         if (cardProjects) {
