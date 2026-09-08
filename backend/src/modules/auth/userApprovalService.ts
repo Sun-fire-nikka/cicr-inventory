@@ -2,6 +2,15 @@ import fs from 'fs';
 import path from 'path';
 
 export const MASTER_ADMIN_EMAIL = 'vardaansaxena096@gmail.com';
+export const SUPER_ADMIN_EMAILS = [
+  'vardaansaxena096@gmail.com',
+  'cicrinventory@gmail.com'
+];
+
+export const isSuperAdminEmail = (email: string): boolean => {
+  const norm = email.trim().toLowerCase();
+  return SUPER_ADMIN_EMAILS.some((admin) => admin.toLowerCase() === norm);
+};
 
 export interface UserApprovalRecord {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -52,7 +61,7 @@ const saveState = () => {
 
 export const isManagedUser = (email: string): boolean => {
   const normEmail = email.trim().toLowerCase();
-  if (normEmail === MASTER_ADMIN_EMAIL.toLowerCase()) return true;
+  if (isSuperAdminEmail(normEmail)) return true;
   if (purgedEmails.has(normEmail)) return false;
   return Boolean(approvalState[normEmail]);
 };
@@ -60,7 +69,7 @@ export const isManagedUser = (email: string): boolean => {
 export const getUserApproval = (email: string, initialRole: 'ADMIN' | 'MEMBER' = 'MEMBER'): UserApprovalRecord => {
   const normEmail = email.trim().toLowerCase();
   
-  if (normEmail === MASTER_ADMIN_EMAIL.toLowerCase()) {
+  if (isSuperAdminEmail(normEmail)) {
     return {
       status: 'APPROVED',
       role: 'ADMIN',
@@ -87,7 +96,7 @@ export const setUserApproval = (
 ): UserApprovalRecord => {
   const normEmail = email.trim().toLowerCase();
   
-  if (normEmail === MASTER_ADMIN_EMAIL.toLowerCase()) {
+  if (isSuperAdminEmail(normEmail)) {
     return {
       status: 'APPROVED',
       role: 'ADMIN',
@@ -119,7 +128,7 @@ export const setUserRole = (
 ): UserApprovalRecord => {
   const normEmail = email.trim().toLowerCase();
   
-  if (normEmail === MASTER_ADMIN_EMAIL.toLowerCase()) {
+  if (isSuperAdminEmail(normEmail)) {
     return {
       status: 'APPROVED',
       role: 'ADMIN',
@@ -139,7 +148,7 @@ export const setUserRole = (
 
 export const deleteUserApproval = (email: string): void => {
   const normEmail = email.trim().toLowerCase();
-  if (normEmail === MASTER_ADMIN_EMAIL.toLowerCase()) return;
+  if (isSuperAdminEmail(normEmail)) return;
   
   delete approvalState[normEmail];
   purgedEmails.add(normEmail);
@@ -147,13 +156,17 @@ export const deleteUserApproval = (email: string): void => {
 };
 
 export const getAllUserApprovals = (): Record<string, UserApprovalRecord> => {
-  return {
-    [MASTER_ADMIN_EMAIL.toLowerCase()]: {
+  const base: Record<string, UserApprovalRecord> = {};
+  SUPER_ADMIN_EMAILS.forEach((adm) => {
+    base[adm.toLowerCase()] = {
       status: 'APPROVED',
       role: 'ADMIN',
       approvedAt: '2026-09-08T00:00:00.000Z',
       approvedBy: 'SYSTEM'
-    },
+    };
+  });
+  return {
+    ...base,
     ...approvalState
   };
 };

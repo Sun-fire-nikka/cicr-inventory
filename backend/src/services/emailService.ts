@@ -5,14 +5,21 @@ import { enqueueEmail } from '../config/emailQueue';
 
 dotenv.config();
 
-// Verified sender + default test recipient (v1.4.7).
-// Sender is pinned to the verified personal Gmail account; the default test
-// recipient ('kush' / kushgdhi@gmail.com) is used by test/test-email.cjs.
-// The diagnostic probe (test-email.cjs) additionally targets the institutional
-// numeric student inbox 992501030406@mail.jiit.ac.in (Institutional Email Support).
-const SENDER_NAME = 'CICR Inventory Support';
-export const DEFAULT_TEST_RECIPIENT_EMAIL = 'kushgdhi@gmail.com';
-export const DEFAULT_SENDER_EMAIL = 'kushagragargdelhi@gmail.com';
+// Verified sender + default admin recipients
+export const SENDER_NAME = 'CICR Inventory';
+export const DEFAULT_TEST_RECIPIENT_EMAIL = 'vardaansaxena096@gmail.com';
+export const DEFAULT_SENDER_EMAIL = 'cicrinventory@gmail.com';
+export const NO_REPLY_HEADER = '"CICR Inventory (No-Reply)" <noreply.cicrinventory@gmail.com>';
+export const SUPER_ADMIN_EMAILS = [
+  'vardaansaxena096@gmail.com',
+  'cicrinventory@gmail.com'
+];
+
+export const getFromAddress = () =>
+  process.env.SMTP_FROM || `"${SENDER_NAME}" <${DEFAULT_SENDER_EMAIL}>`;
+
+export const getReplyToAddress = () =>
+  process.env.SMTP_REPLY_TO || NO_REPLY_HEADER;
 
 // Configure transport using environment variables or a fallback test account
 const transporter = nodemailer.createTransport({
@@ -56,11 +63,7 @@ const formatSmtpError = (error: any): string => {
   return parts.length ? parts.join(' ') : 'Unknown SMTP error';
 };
 
-// Dynamic Message-ID generation per RFC 2822 §3.6.4:
-//   msg-id  = "<" id-left "@" id-right ">"
-//   id-left = dot-atom-text (unix-ms "." 128-bit hex)
-//   id-right = domain (derived from the configured SMTP host so it aligns with
-//              the authenticated sending domain for SPF/DKIM friendliness)
+// Dynamic Message-ID generation per RFC 2822 §3.6.4
 const generateMessageId = (): string => {
   const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
   const idRight = smtpHost.replace(/^smtp\./i, '').trim().toLowerCase() || 'gmail.com';
@@ -68,19 +71,17 @@ const generateMessageId = (): string => {
   return `<${idLeft}@${idRight}>`;
 };
 
-// Shared delivery headers. Priority 'high' is used for the 10-minute OTP so
-// mobile clients surface it immediately; everything else is 'normal'.
+// Shared delivery headers for no-reply authentic system appearance
 const buildHeaders = (kind: string, priority: 'high' | 'normal' = 'normal') => ({
-  'X-CICR-Mailer': `CICR-Inventory/v1.4.7`,
+  'X-CICR-Mailer': `CICR-Inventory/v2.0-Live`,
   'X-Mailer-Type': kind,
   'X-Priority': priority === 'high' ? '1 (Highest)' : '3 (Normal)',
   'Importance': priority === 'high' ? 'High' : 'Normal',
-  'List-Unsubscribe': `<mailto:${process.env.SMTP_USER || 'no-reply@cicr.edu'}?subject=unsubscribe>`,
+  'X-Auto-Response-Suppress': 'All',
+  'Auto-Submitted': 'auto-generated',
+  'List-Unsubscribe': `<mailto:noreply.cicrinventory@gmail.com?subject=unsubscribe>`,
 });
 
-// Log the FULL SMTP delivery response (info.response is the raw SMTP dialogue
-// tail, e.g. "250 2.0.0 OK 17e-20020a170902a7b0...") plus accepted/rejected
-// recipient arrays — the exact codes needed to debug @mail.jiit.ac.in delivery.
 const logDelivery = (kind: string, info: any): void => {
   console.log(
     `[EMAIL SERVICE] ${kind} accepted by SMTP | messageId=${info?.messageId} | ` +
@@ -117,8 +118,8 @@ export const sendBorrowConfirmation = async (
     const holdersTable = buildHoldersTable(context.holders);
     const categoryLine = context.category ? ` (${context.category})` : '';
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
-      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
       to: recipientEmail,
       subject: `[CICR Inventory] Borrow Confirmation: ${context.itemName}`,
       messageId: generateMessageId(),
@@ -189,8 +190,8 @@ export const sendOtpEmail = async (
 ) => {
   try {
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
-      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
       to: adminEmail,
       subject: `[CICR Inventory] Borrow Approval OTP: ${otp}`,
       messageId: generateMessageId(),
@@ -207,7 +208,7 @@ export const sendOtpEmail = async (
         '',
         'This OTP is valid for 10 minutes. Share it with the student only after verifying the request.',
         'Regards,',
-        'CICR Management Team'
+        'CICR Inventory Team'
       ].join('\n'),
       html: `
         <h3>CICR Inventory - Borrow Approval Request</h3>
@@ -220,7 +221,7 @@ export const sendOtpEmail = async (
         <p style="font-size:28px;font-weight:bold;letter-spacing:4px;background:#f0f4ff;padding:10px;border-radius:6px;">${otp}</p>
         <p>This OTP is <strong>valid for 10 minutes</strong>. Share it with the student only after verifying the request.</p>
         <br/>
-        <p><em>CICR Management Team</em></p>
+        <p><em>CICR Inventory Team</em></p>
       `,
     };
 
@@ -264,8 +265,8 @@ export const sendUpcomingReminder = async (
   try {
     const formattedDueDate = formatDueDate(dueDate);
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
-      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
       to: recipientEmail,
       subject: `[CICR Inventory] Return Due Tomorrow: ${itemName}`,
       messageId: generateMessageId(),
@@ -278,7 +279,7 @@ export const sendUpcomingReminder = async (
         '',
         'Please return it to the lab on or before the due date.',
         'Regards,',
-        'CICR Management Team'
+        'CICR Inventory Team'
       ].join('\n'),
       html: `
         <h3>CICR Inventory - Return Due Tomorrow</h3>
@@ -286,7 +287,7 @@ export const sendUpcomingReminder = async (
         <p><strong>Reminder:</strong> your borrowed item <strong>"${itemName}"</strong> is due <strong>tomorrow</strong> (${formattedDueDate}).</p>
         <p>Please return it to the lab on or before the due date.</p>
         <br/>
-        <p><em>CICR Management Team</em></p>
+        <p><em>CICR Inventory Team</em></p>
       `,
     };
 
@@ -321,8 +322,8 @@ export const sendReturnReminder = async (
       ? `Your return is ${daysOverdue} day(s) overdue.`
       : 'Your item is due today.';
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
-      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
       to: recipientEmail,
       subject: daysOverdue > 0
         ? `[CICR Inventory] OVERDUE Return: ${itemName}`
@@ -339,7 +340,7 @@ export const sendReturnReminder = async (
         '',
         'Please return it to the lab at your earliest convenience.',
         'Regards,',
-        'CICR Management Team'
+        'CICR Inventory Team'
       ].join('\n'),
       html: `
         <h3>CICR Inventory - Return Reminder</h3>
@@ -349,7 +350,7 @@ export const sendReturnReminder = async (
         <p><strong>Due date:</strong> ${formattedDueDate}</p>
         <p>Please return it to the lab at your earliest convenience.</p>
         <br/>
-        <p><em>CICR Management Team</em></p>
+        <p><em>CICR Inventory Team</em></p>
       `,
     };
 
@@ -367,7 +368,6 @@ export const sendReturnReminder = async (
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send return reminder to ${recipientEmail}: ${formatSmtpError(error)}`);
-    // Graceful failover so email failures don't crash the reminder job
     return { success: false, error: formatSmtpError(error) };
   }
 };
@@ -385,10 +385,11 @@ export const sendDueReminder = async (
     const isOverdue = dueWindowLabel.startsWith('overdue');
     const headline = isOverdue ? 'Overdue Item' : 'Return Reminder';
     const mailOptions = {
-      from: process.env.SMTP_FROM || '"CICR Lab Admin" <no-reply@cicr.edu>',
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
       to: recipientEmail,
       subject: `[CICR Inventory] ${isOverdue ? 'OVERDUE' : 'Return Reminder'}: ${itemName}`,
-      text: `Hello ${borrowerName},\n\nThis is a reminder that ${quantity}x ${itemName} is ${dueWindowLabel}.\n\nDue Date: ${formattedDueDate}\n\nPlease return it to the CICR lab${isOverdue ? ' as soon as possible' : ' on or before the due date'}.\n\nRegards,\nCICR Management Team`,
+      text: `Hello ${borrowerName},\n\nThis is a reminder that ${quantity}x ${itemName} is ${dueWindowLabel}.\n\nDue Date: ${formattedDueDate}\n\nPlease return it to the CICR lab${isOverdue ? ' as soon as possible' : ' on or before the due date'}.\n\nRegards,\nCICR Inventory Team`,
       html: `
         <h3>CICR Inventory - ${headline}</h3>
         <p>Hello <strong>${borrowerName}</strong>,</p>
@@ -396,7 +397,7 @@ export const sendDueReminder = async (
         <p><strong>Due Date:</strong> ${formattedDueDate}</p>
         <p>Please return it to the CICR lab${isOverdue ? ' as soon as possible' : ' on or before the due date'}.</p>
         <br/>
-        <p><em>CICR Management Team</em></p>
+        <p><em>CICR Inventory Team</em></p>
       `,
     };
 
@@ -410,7 +411,6 @@ export const sendDueReminder = async (
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send reminder email to ${recipientEmail}:`, error.message);
-    // Graceful failover so a bad address doesn't abort the rest of the sweep
     return { success: false, error: error.message };
   }
 };
@@ -424,14 +424,14 @@ export const sendReturnConfirmation = async (
   try {
     const formattedReturnedAt = returnedAt.toISOString();
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
-      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
       to: recipientEmail,
       subject: `[CICR Inventory] Return Confirmation: ${itemName}`,
       messageId: generateMessageId(),
       headers: buildHeaders('return-confirmation'),
       priority: 'normal' as const,
-      text: `Hello ${borrowerName},\n\nThank you! Your borrowed item ${itemName} has been successfully returned.\n\nReturned At: ${formattedReturnedAt}\n\nNo further reminders will be sent for this borrow.\n\nRegards,\nCICR Management Team`,
+      text: `Hello ${borrowerName},\n\nThank you! Your borrowed item ${itemName} has been successfully returned.\n\nReturned At: ${formattedReturnedAt}\n\nNo further reminders will be sent for this borrow.\n\nRegards,\nCICR Inventory Team`,
       html: `
         <h3>CICR Inventory - Return Confirmation</h3>
         <p>Hello <strong>${borrowerName}</strong>,</p>
@@ -439,7 +439,7 @@ export const sendReturnConfirmation = async (
         <p><strong>Returned At:</strong> ${formattedReturnedAt}</p>
         <p>No further reminders will be sent for this borrow.</p>
         <br/>
-        <p><em>CICR Management Team</em></p>
+        <p><em>CICR Inventory Team</em></p>
       `,
     };
 
@@ -457,14 +457,9 @@ export const sendReturnConfirmation = async (
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send return email to ${recipientEmail}: ${formatSmtpError(error)}`);
-    // Graceful failover so email failures don't crash the return HTTP response
     return { success: false, error: formatSmtpError(error) };
   }
 };
-
-// ──────────────────────────────────────────────────────────────────────────────
-// LOGIN OTP EMAIL (v1.6.2)
-// ──────────────────────────────────────────────────────────────────────────────
 
 export const sendLoginOtpEmail = async (
   recipientEmail: string,
@@ -473,8 +468,8 @@ export const sendLoginOtpEmail = async (
 ) => {
   try {
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
-      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
       to: recipientEmail,
       subject: `[CICR Inventory] Login OTP: ${otp}`,
       messageId: generateMessageId(),
@@ -489,7 +484,7 @@ export const sendLoginOtpEmail = async (
         'If you did not request this, please ignore this email.',
         '',
         'Regards,',
-        'CICR Management Team'
+        'CICR Inventory Team'
       ].join('\n'),
       html: `
         <h3>CICR Inventory - Login OTP</h3>
@@ -499,7 +494,7 @@ export const sendLoginOtpEmail = async (
         <p>This OTP is <strong>valid for 5 minutes</strong>.</p>
         <p>If you did not request this, please ignore this email.</p>
         <br/>
-        <p><em>CICR Management Team</em></p>
+        <p><em>CICR Inventory Team</em></p>
       `,
     };
 
@@ -544,10 +539,10 @@ export const sendAdminNewUserRegistrationAlert = async (
       : new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
 
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
-      replyTo: userContext.userEmail,
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
       to: adminEmails.join(', '),
-      subject: `[CICR Admin] 🔔 New Account Access Request: ${userContext.userName}`,
+      subject: `[CICR Admin Alert] 🔔 New Account Access Request: ${userContext.userName}`,
       messageId: generateMessageId(),
       headers: buildHeaders('admin-registration-alert', 'high'),
       priority: 'high' as const,
@@ -607,7 +602,7 @@ export const sendAdminNewUserRegistrationAlert = async (
           </div>
           <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:28px;padding-top:16px;text-align:center;">
             <p style="color:#64748b;font-size:11px;margin:0;">
-              CICR Robotics Society &bull; Jaypee Institute of Information Technology, Sector 128
+              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
             </p>
           </div>
         </div>
@@ -642,8 +637,8 @@ export const sendUserApprovalSuccessEmail = async (
 ) => {
   try {
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
-      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
       to: recipientEmail,
       subject: `[CICR Inventory] 🎉 Access Approved! Welcome to CICR Portal`,
       messageId: generateMessageId(),
@@ -652,7 +647,7 @@ export const sendUserApprovalSuccessEmail = async (
       text: [
         `Hello ${recipientName},`,
         ``,
-        `Great news! Your account registration for the CICR Robotics Inventory Portal has been APPROVED by Master Admin Vardaan Saxena.`,
+        `Great news! Your account registration for the CICR Robotics Inventory Portal has been APPROVED by the Admin team.`,
         ``,
         `You now have full access to:`,
         `- Browse available microcontrollers, sensors, motors, and robotics equipment.`,
@@ -662,7 +657,7 @@ export const sendUserApprovalSuccessEmail = async (
         `Log in now at: https://cicr-inventory.vercel.app/`,
         ``,
         `Best regards,`,
-        `CICR Team`
+        `CICR Inventory Team`
       ].join('\n'),
       html: `
         <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(16,185,129,0.3);">
@@ -686,7 +681,7 @@ export const sendUserApprovalSuccessEmail = async (
           </div>
           <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:28px;padding-top:16px;text-align:center;">
             <p style="color:#64748b;font-size:11px;margin:0;">
-              CICR Robotics Society &bull; Jaypee Institute of Information Technology, Sector 128
+              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
             </p>
           </div>
         </div>
@@ -721,8 +716,8 @@ export const sendUserRejectionNotificationEmail = async (
 ) => {
   try {
     const mailOptions = {
-      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
-      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
       to: recipientEmail,
       subject: `[CICR Inventory] Registration Status Update`,
       messageId: generateMessageId(),
@@ -733,10 +728,10 @@ export const sendUserRejectionNotificationEmail = async (
         ``,
         `Your account registration request for the CICR Robotics Inventory Portal was reviewed by the Admin team and could not be approved at this time.`,
         ``,
-        `If you believe this was done in error or you need access for an active college robotics project, please contact the CICR Admin directly at vardaansaxena096@gmail.com.`,
+        `If you believe this was done in error or you need access for an active college robotics project, please contact the CICR Admin directly at vardaansaxena096@gmail.com or cicrinventory@gmail.com.`,
         ``,
         `Regards,`,
-        `CICR Management Team`
+        `CICR Inventory Team`
       ].join('\n'),
       html: `
         <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(239,68,68,0.3);">
@@ -750,12 +745,12 @@ export const sendUserRejectionNotificationEmail = async (
               Your account access request was reviewed by the CICR Admin and could not be approved at this time.
             </p>
             <p style="color:#94a3b8;font-size:13px;margin:0;">
-              If you require access for an active JIIT-128 robotics project or competition, please reach out directly to Master Admin Vardaan at <a href="mailto:vardaansaxena096@gmail.com" style="color:#00f0ff;">vardaansaxena096@gmail.com</a>.
+              If you require access for an active JIIT-128 robotics project or competition, please reach out directly to CICR Admins at <a href="mailto:vardaansaxena096@gmail.com" style="color:#00f0ff;">vardaansaxena096@gmail.com</a> / <a href="mailto:cicrinventory@gmail.com" style="color:#00f0ff;">cicrinventory@gmail.com</a>.
             </p>
           </div>
           <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:24px;padding-top:16px;text-align:center;">
             <p style="color:#64748b;font-size:11px;margin:0;">
-              CICR Robotics Society &bull; Jaypee Institute of Information Technology, Sector 128
+              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
             </p>
           </div>
         </div>
@@ -776,6 +771,299 @@ export const sendUserRejectionNotificationEmail = async (
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send user rejection email to ${recipientEmail}: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// REAL-TIME ADMIN AUDIT & TRANSACTION NOTIFICATIONS
+// ──────────────────────────────────────────────────────────────────────────────
+
+export interface AdminBorrowAlertContext {
+  borrowerName: string;
+  borrowerEmail: string;
+  rollNumber?: string | null;
+  itemName: string;
+  category?: string | null;
+  quantity: number;
+  remainingStock: number;
+  purpose: string;
+  durationDays: number;
+  dueDate: Date | string;
+}
+
+export const sendAdminBorrowNotification = async (
+  adminEmails: string[],
+  context: AdminBorrowAlertContext
+) => {
+  try {
+    if (!adminEmails || !adminEmails.length) return { success: false, message: 'No admin recipients' };
+    const formattedDueDate = formatDueDate(context.dueDate);
+    const categoryLine = context.category ? ` [${context.category}]` : '';
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: adminEmails.join(', '),
+      subject: `[CICR Admin Alert] 📦 Component Borrowed: ${context.itemName} (${context.quantity}x)`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('admin-borrow-alert', 'high'),
+      priority: 'high' as const,
+      text: [
+        `CICR ADMIN HARDWARE AUDIT LOG`,
+        `==================================`,
+        `A hardware item has been issued from the inventory:`,
+        ``,
+        `Item: ${context.itemName}${categoryLine}`,
+        `Quantity Borrowed: ${context.quantity}`,
+        `Remaining Available Stock: ${context.remainingStock}`,
+        `Borrower: ${context.borrowerName} (${context.borrowerEmail})`,
+        `Roll Number: ${context.rollNumber || 'N/A'}`,
+        `Purpose: ${context.purpose}`,
+        `Due Date: ${formattedDueDate} (${context.durationDays} days)`,
+        ``,
+        `This is an automated real-time notification sent to all CICR Admins.`,
+        `Regards,`,
+        `CICR Automated Inventory System`
+      ].join('\n'),
+      html: `
+        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(0,240,255,0.25);">
+          <div style="text-align:center;margin-bottom:20px;">
+            <h2 style="color:#00f0ff;margin:0 0 4px 0;letter-spacing:1px;font-size:22px;">⚡ CICR INVENTORY</h2>
+            <p style="color:#94a3b8;font-size:12px;margin:0;text-transform:uppercase;letter-spacing:1.5px;">Live Hardware Issuance Telemetry</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(0,240,255,0.2);border-radius:8px;padding:20px;margin-bottom:20px;">
+            <div style="display:inline-block;background:rgba(0,240,255,0.15);color:#00f0ff;border:1px solid rgba(0,240,255,0.3);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:bold;margin-bottom:14px;">
+              📦 COMPONENT ISSUED
+            </div>
+            <h3 style="color:#ffffff;margin:0 0 14px 0;font-size:17px;">${context.quantity}x ${context.itemName} ${categoryLine}</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;width:120px;">Borrower:</td>
+                <td style="padding:6px 0;color:#ffffff;font-weight:bold;">${context.borrowerName}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Email:</td>
+                <td style="padding:6px 0;color:#00f0ff;">${context.borrowerEmail}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Roll Number:</td>
+                <td style="padding:6px 0;color:#e2e8f0;">${context.rollNumber || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Purpose:</td>
+                <td style="padding:6px 0;color:#e2e8f0;">${context.purpose}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Return Deadline:</td>
+                <td style="padding:6px 0;color:#facc15;font-weight:bold;">${formattedDueDate} (${context.durationDays} days)</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Stock Left:</td>
+                <td style="padding:6px 0;color:#10b981;font-weight:bold;">${context.remainingStock} units</td>
+              </tr>
+            </table>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:14px;text-align:center;">
+            <p style="color:#64748b;font-size:11px;margin:0;">
+              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Admin borrow notification sent to ${adminEmails.join(', ')}`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('admin-borrow-alert', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Admin borrow notification', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send admin borrow notification: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+export interface AdminReturnAlertContext {
+  borrowerName: string;
+  borrowerEmail?: string;
+  itemName: string;
+  quantity?: number;
+  returnedAt: Date | string;
+}
+
+export const sendAdminReturnNotification = async (
+  adminEmails: string[],
+  context: AdminReturnAlertContext
+) => {
+  try {
+    if (!adminEmails || !adminEmails.length) return { success: false, message: 'No admin recipients' };
+    const retTime = new Date(context.returnedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: adminEmails.join(', '),
+      subject: `[CICR Admin Alert] 🔄 Item Restocked / Returned: ${context.itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('admin-return-alert', 'normal'),
+      priority: 'normal' as const,
+      text: [
+        `CICR ADMIN HARDWARE AUDIT LOG`,
+        `==================================`,
+        `An item has been returned and restocked in the inventory:`,
+        ``,
+        `Item: ${context.itemName}`,
+        `Borrower: ${context.borrowerName} (${context.borrowerEmail || 'N/A'})`,
+        `Returned At: ${retTime} IST`,
+        `Status: RESTOCKED & VERIFIED`,
+        ``,
+        `Regards,`,
+        `CICR Automated Inventory System`
+      ].join('\n'),
+      html: `
+        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid rgba(16,185,129,0.25);">
+          <div style="text-align:center;margin-bottom:20px;">
+            <h2 style="color:#10b981;margin:0 0 4px 0;letter-spacing:1px;font-size:22px;">⚡ CICR INVENTORY</h2>
+            <p style="color:#94a3b8;font-size:12px;margin:0;text-transform:uppercase;letter-spacing:1.5px;">Live Hardware Return Telemetry</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:20px;margin-bottom:20px;">
+            <div style="display:inline-block;background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:bold;margin-bottom:14px;">
+              🔄 COMPONENT RESTOCKED
+            </div>
+            <h3 style="color:#ffffff;margin:0 0 14px 0;font-size:17px;">${context.itemName}</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;width:120px;">Returned By:</td>
+                <td style="padding:6px 0;color:#ffffff;font-weight:bold;">${context.borrowerName}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Email:</td>
+                <td style="padding:6px 0;color:#00f0ff;">${context.borrowerEmail || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Restocked At:</td>
+                <td style="padding:6px 0;color:#10b981;font-weight:bold;">${retTime} IST</td>
+              </tr>
+            </table>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:14px;text-align:center;">
+            <p style="color:#64748b;font-size:11px;margin:0;">
+              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Admin return notification sent to ${adminEmails.join(', ')}`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('admin-return-alert', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Admin return notification', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send admin return notification: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+export const sendAdminUserStatusAlert = async (
+  adminEmails: string[],
+  userName: string,
+  userEmail: string,
+  status: 'APPROVED' | 'REJECTED',
+  performedBy: string
+) => {
+  try {
+    if (!adminEmails || !adminEmails.length) return { success: false, message: 'No admin recipients' };
+    const isApproved = status === 'APPROVED';
+    const actionColor = isApproved ? '#10b981' : '#ef4444';
+    const nowTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: adminEmails.join(', '),
+      subject: `[CICR Admin Log] Member ${status}: ${userName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('admin-user-status-log', 'normal'),
+      priority: 'normal' as const,
+      text: [
+        `CICR ADMIN ACCESS LOG`,
+        `==================================`,
+        `Member access request has been processed:`,
+        ``,
+        `User: ${userName} (${userEmail})`,
+        `Action: ${status}`,
+        `Performed By: ${performedBy}`,
+        `Time: ${nowTime} IST`,
+        ``,
+        `Regards,`,
+        `CICR Automated Inventory System`
+      ].join('\n'),
+      html: `
+        <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0d0f17;color:#f3f4f6;padding:32px 20px;border-radius:12px;max-width:580px;margin:0 auto;border:1px solid ${actionColor}40;">
+          <div style="text-align:center;margin-bottom:20px;">
+            <h2 style="color:${actionColor};margin:0 0 4px 0;letter-spacing:1px;font-size:22px;">⚡ CICR INVENTORY</h2>
+            <p style="color:#94a3b8;font-size:12px;margin:0;text-transform:uppercase;letter-spacing:1.5px;">Admin Security Audit Log</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid ${actionColor}40;border-radius:8px;padding:20px;margin-bottom:20px;">
+            <div style="display:inline-block;background:${actionColor}20;color:${actionColor};border:1px solid ${actionColor}50;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:bold;margin-bottom:14px;">
+              ${status === 'APPROVED' ? '✅ MEMBER APPROVED' : '❌ REQUEST REJECTED'}
+            </div>
+            <h3 style="color:#ffffff;margin:0 0 14px 0;font-size:17px;">${userName} (${userEmail})</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;width:120px;">Status:</td>
+                <td style="padding:6px 0;color:${actionColor};font-weight:bold;">${status}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Processed By:</td>
+                <td style="padding:6px 0;color:#ffffff;font-weight:bold;">${performedBy}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#94a3b8;">Timestamp:</td>
+                <td style="padding:6px 0;color:#e2e8f0;">${nowTime} IST</td>
+              </tr>
+            </table>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:14px;text-align:center;">
+            <p style="color:#64748b;font-size:11px;margin:0;">
+              ⚡ CICR Hardware Vault &bull; Auto-Generated System Email (Do Not Reply)
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Admin user status alert sent to ${adminEmails.join(', ')}`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('admin-user-status-log', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Admin user status alert', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send admin user status alert: ${formatSmtpError(error)}`);
     return { success: false, error: formatSmtpError(error) };
   }
 };

@@ -2,7 +2,14 @@ import { Request, Response } from 'express';
 import { supabase } from '../../app';
 import { dbRead } from '../../config/database';
 import { AuthRequest } from '../../middleware/auth.middleware';
-import { sendBorrowConfirmation, sendReturnConfirmation, sendOtpEmail } from '../../services/emailService';
+import {
+  sendBorrowConfirmation,
+  sendReturnConfirmation,
+  sendOtpEmail,
+  sendAdminBorrowNotification,
+  sendAdminReturnNotification,
+  SUPER_ADMIN_EMAILS
+} from '../../services/emailService';
 import { ADMIN_DIRECTORY, getAdminById } from './adminDirectory';
 import { generateOtp, storeOtp, verifyOtp as verifyOtpCode, consumeOtp } from './otpService';
 import { cacheGetJSON, cacheSetJSON } from '../../config/redis';
@@ -186,6 +193,20 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
       }));
     }
 
+    // Instant notification to all superadmins
+    dispatchBackground('admin-borrow-alert', sendAdminBorrowNotification(SUPER_ADMIN_EMAILS, {
+      borrowerName: userName,
+      borrowerEmail: userEmail || 'N/A',
+      rollNumber: req.user?.roll_number,
+      itemName: item.name,
+      category: item.category,
+      quantity: qty,
+      remainingStock: newAvailableQty,
+      purpose,
+      durationDays: days,
+      dueDate
+    }));
+
     return res.status(201).json({
       status: 'success',
       message: 'Item borrowed successfully!',
@@ -332,6 +353,20 @@ export const verifyOtp = async (req: AuthRequest, res: Response) => {
       }));
     }
 
+    // Instant notification to all superadmins
+    dispatchBackground('admin-borrow-alert', sendAdminBorrowNotification(SUPER_ADMIN_EMAILS, {
+      borrowerName: userName,
+      borrowerEmail: userEmail || 'N/A',
+      rollNumber: req.user?.roll_number,
+      itemName: item.name,
+      category: item.category,
+      quantity: payload.quantity,
+      remainingStock: newAvailableQty,
+      purpose: payload.purpose,
+      durationDays: payload.durationDays,
+      dueDate
+    }));
+
     return res.status(201).json({
       status: 'success',
       message: 'OTP verified. Borrow confirmed successfully!',
@@ -414,12 +449,21 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
     const itemName = record.inventory?.name || record.inventory_id;
     await logAudit('Returned', userId, record.inventory_id, `Returned ${record.quantity} units of "${itemName}"`);
 
-    // 5. Send Return Confirmation Receipt Email
+    // 5. Send Return Confirmation Receipt Email to borrower
     const userEmail = req.user?.email;
     const userName = req.user?.name || 'Borrower';
     if (userEmail) {
       dispatchBackground('return-confirmation', sendReturnConfirmation(userEmail, userName, itemName, returnTimestamp));
     }
+
+    // 6. Instant notification to all superadmins
+    dispatchBackground('admin-return-alert', sendAdminReturnNotification(SUPER_ADMIN_EMAILS, {
+      borrowerName: userName,
+      borrowerEmail: userEmail,
+      itemName,
+      quantity: record.quantity,
+      returnedAt: returnTimestamp
+    }));
 
     return res.status(200).json({
       status: 'success',

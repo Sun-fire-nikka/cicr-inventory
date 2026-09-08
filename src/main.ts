@@ -2307,7 +2307,7 @@ class AdminManager {
 
         tbody.innerHTML = usersList.map(u => {
             const statusClass = u.status === 'APPROVED' ? 'approved' : u.status === 'PENDING' ? 'pending' : 'rejected';
-            const isMaster = u.isMasterAdmin || u.email.toLowerCase() === 'vardaansaxena096@gmail.com';
+            const isMaster = u.isMasterAdmin || u.email.toLowerCase() === 'vardaansaxena096@gmail.com' || u.email.toLowerCase() === 'cicrinventory@gmail.com';
             const roleBadge = isMaster
                 ? `<span class="badge-role master"><i data-lucide="crown" style="width:10px;height:10px;"></i> MASTER ADMIN</span>`
                 : u.role === 'ADMIN'

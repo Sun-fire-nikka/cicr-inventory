@@ -19,6 +19,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: 'ADMIN' | 'MEMBER';
+  roll_number?: string | null;
 }
 
 export interface AuthRequest extends Request {
@@ -42,7 +43,8 @@ const parseJwtUser = (decoded: unknown): AuthUser | null => {
     id: d.id,
     name: typeof d.name === 'string' ? d.name : 'User',
     email: d.email,
-    role: d.role
+    role: d.role,
+    roll_number: typeof d.roll_number === 'string' ? d.roll_number : null
   };
 };
 

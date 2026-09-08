@@ -7,6 +7,8 @@ import { AuthRequest } from '../../middleware/auth.middleware';
 import { isValidEmail } from '../../validators/email.validator';
 import {
   MASTER_ADMIN_EMAIL,
+  SUPER_ADMIN_EMAILS,
+  isSuperAdminEmail,
   isManagedUser,
   getUserApproval,
   setUserApproval,
@@ -17,7 +19,8 @@ import {
 import {
   sendAdminNewUserRegistrationAlert,
   sendUserApprovalSuccessEmail,
-  sendUserRejectionNotificationEmail
+  sendUserRejectionNotificationEmail,
+  sendAdminUserStatusAlert
 } from '../../services/emailService';
 
 export const register = async (req: Request, res: Response) => {
@@ -44,7 +47,7 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Email already registered.' });
     }
 
-    const isMasterAdmin = normEmail === MASTER_ADMIN_EMAIL.toLowerCase();
+    const isMasterAdmin = isSuperAdminEmail(normEmail);
     const userRole = isMasterAdmin ? 'ADMIN' : 'MEMBER';
     const initialStatus = isMasterAdmin ? 'APPROVED' : 'PENDING';
 
@@ -64,7 +67,7 @@ export const register = async (req: Request, res: Response) => {
 
     // Send instant email notification to Admins if non-master-admin registers
     if (!isMasterAdmin) {
-      sendAdminNewUserRegistrationAlert([MASTER_ADMIN_EMAIL], {
+      sendAdminNewUserRegistrationAlert(SUPER_ADMIN_EMAILS, {
         userName: name.trim(),
         userEmail: normEmail,
         rollNumber: roll_number || null,
@@ -73,7 +76,7 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const message = isMasterAdmin
-      ? 'Master Admin registered successfully!'
+      ? 'Admin registered and approved successfully!'
       : 'Account registration submitted! Your request is pending CICR Admin approval.';
 
     return res.status(201).json({
@@ -207,7 +210,7 @@ export const listUsersForAdmin = async (req: AuthRequest, res: Response) => {
       .filter((u) => isManagedUser(u.email))
       .map((u) => {
         const normEmail = u.email.toLowerCase();
-        const isMasterAdmin = normEmail === MASTER_ADMIN_EMAIL.toLowerCase();
+        const isMasterAdmin = isSuperAdminEmail(normEmail);
         const record = isMasterAdmin
           ? { status: 'APPROVED', role: 'ADMIN' }
           : allApprovals[normEmail] || { status: 'PENDING', role: u.role || 'MEMBER' };
@@ -236,11 +239,17 @@ export const approveUser = async (req: AuthRequest, res: Response) => {
     const { data: user, error } = await dbRead.from('users').select('id, email, name').eq('id', id).single();
     if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
 
-    const updated = setUserApproval(user.email, 'APPROVED', req.user?.name || 'ADMIN');
+    const approver = req.user?.name || 'Admin';
+    const updated = setUserApproval(user.email, 'APPROVED', approver);
 
     // Send instant approval confirmation email to user
     sendUserApprovalSuccessEmail(user.email, user.name).catch((e) =>
       console.error('[EMAIL ERROR] Failed to send user approval email:', e)
+    );
+
+    // Instant alert to all superadmins
+    sendAdminUserStatusAlert(SUPER_ADMIN_EMAILS, user.name, user.email, 'APPROVED', approver).catch((e) =>
+      console.error('[EMAIL ERROR] Failed to send admin status alert:', e)
     );
 
     return res.status(200).json({ status: 'success', message: `User ${user.name} approved successfully.`, data: updated });
@@ -255,11 +264,17 @@ export const rejectUser = async (req: AuthRequest, res: Response) => {
     const { data: user, error } = await dbRead.from('users').select('id, email, name').eq('id', id).single();
     if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
 
-    const updated = setUserApproval(user.email, 'REJECTED', req.user?.name || 'ADMIN');
+    const rejector = req.user?.name || 'Admin';
+    const updated = setUserApproval(user.email, 'REJECTED', rejector);
 
     // Send rejection notification email to user
     sendUserRejectionNotificationEmail(user.email, user.name).catch((e) =>
       console.error('[EMAIL ERROR] Failed to send user rejection email:', e)
+    );
+
+    // Instant alert to all superadmins
+    sendAdminUserStatusAlert(SUPER_ADMIN_EMAILS, user.name, user.email, 'REJECTED', rejector).catch((e) =>
+      console.error('[EMAIL ERROR] Failed to send admin status alert:', e)
     );
 
     return res.status(200).json({ status: 'success', message: `User ${user.name} registration rejected.`, data: updated });
@@ -280,8 +295,8 @@ export const changeUserRole = async (req: AuthRequest, res: Response) => {
     const { data: user, error } = await dbRead.from('users').select('id, email, name').eq('id', id).single();
     if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
 
-    if (user.email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase() && role !== 'ADMIN') {
-      return res.status(400).json({ status: 'error', message: 'Cannot demote the Master Admin.' });
+    if (isSuperAdminEmail(user.email) && role !== 'ADMIN') {
+      return res.status(400).json({ status: 'error', message: 'Cannot demote a Super Admin.' });
     }
 
     const updated = setUserRole(user.email, role);
@@ -297,8 +312,8 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
     const { data: user, error } = await dbRead.from('users').select('id, email, name').eq('id', id).single();
     if (error || !user) return res.status(404).json({ status: 'error', message: 'User not found.' });
 
-    if (user.email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase()) {
-      return res.status(400).json({ status: 'error', message: 'Cannot delete Master Admin.' });
+    if (isSuperAdminEmail(user.email)) {
+      return res.status(400).json({ status: 'error', message: 'Cannot delete Super Admin.' });
     }
 
     deleteUserApproval(user.email);
