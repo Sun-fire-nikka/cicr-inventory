@@ -32,8 +32,8 @@ export const getReplyToAddress = () => {
   return NO_REPLY_HEADER;
 };
 
-export const DEFAULT_SMTP_USER = 'cicrinventory@gmail.com';
-export const DEFAULT_SMTP_PASS = 'qbgfgbldvvxxubjx';
+export const DEFAULT_SMTP_USER = process.env.SMTP_USER || 'cicrinventory@gmail.com';
+export const DEFAULT_SMTP_PASS = process.env.SMTP_PASS || '';
 
 export const getSmtpUser = (): string => {
   const envUser = process.env.SMTP_USER;
@@ -44,11 +44,7 @@ export const getSmtpUser = (): string => {
 };
 
 export const getSmtpPass = (): string => {
-  const envUser = process.env.SMTP_USER;
-  if (envUser && envUser.toLowerCase().includes('kushagra')) {
-    return DEFAULT_SMTP_PASS;
-  }
-  return process.env.SMTP_PASS || DEFAULT_SMTP_PASS;
+  return process.env.SMTP_PASS || '';
 };
 
 export const isSmtpConfigured = (): boolean => Boolean(getSmtpUser() && getSmtpPass());

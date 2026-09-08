@@ -36,7 +36,7 @@ if (isRedisEnabled && REDIS_URL) {
         port: Number(process.env.SMTP_PORT) || 587,
         auth: {
           user: process.env.SMTP_USER || 'cicrinventory@gmail.com',
-          pass: process.env.SMTP_PASS || 'qbgfgbldvvxxubjx'
+          pass: process.env.SMTP_PASS || ''
         }
       });
       const info = await transporter.sendMail(mailOptions as nodemailer.SendMailOptions);
