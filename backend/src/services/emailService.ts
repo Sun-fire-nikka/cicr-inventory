@@ -1643,4 +1643,135 @@ export const sendLoginSecurityAlertEmail = async (
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// 16. NEW ITEM CREATED TELEMETRY EMAIL (ADMIN CREATION EVENT)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export interface ItemCreatedEmailContext {
+  itemName: string;
+  category: string;
+  quantity: number;
+  location: string;
+  description?: string;
+  tags?: string[];
+  createdByAdminName: string;
+  createdByAdminEmail: string;
+  createdAt?: Date | string;
+}
+
+export const sendAdminItemCreatedNotification = async (
+  context: ItemCreatedEmailContext
+) => {
+  try {
+    const createdTimeStr = new Date(context.createdAt || new Date()).toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
+
+    const tagsHtml = (context.tags && context.tags.length)
+      ? context.tags.map(t => `<span style="display:inline-block;padding:2px 8px;margin:2px;background:#0d1527;border:1px solid #00f0ff;border-radius:3px;color:#00f0ff;font-size:11px;font-family:'SFMono-Regular',Consolas,monospace;">#${t}</span>`).join(' ')
+      : '<span style="color:#64748b;">None</span>';
+
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:130px;font-family:'SFMono-Regular',Consolas,monospace;">ITEM NAME:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:700;font-size:14px;">${context.itemName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">CATEGORY:</td>
+            <td style="padding:6px 0;color:#00f0ff;font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">${context.category.toUpperCase()}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">INITIAL STOCK:</td>
+            <td style="padding:6px 0;color:#39ff14;font-weight:700;font-family:'SFMono-Regular',Consolas,monospace;">${context.quantity} unit(s)</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">STORAGE LOCATION:</td>
+            <td style="padding:6px 0;color:#e2e8f0;font-family:'SFMono-Regular',Consolas,monospace;">${context.location}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">REGISTERED BY:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${context.createdByAdminName} <span style="color:#00f0ff;font-size:12px;">(${context.createdByAdminEmail})</span></td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">TIMESTAMP:</td>
+            <td style="padding:6px 0;color:#facc15;font-family:'SFMono-Regular',Consolas,monospace;">${createdTimeStr} IST</td>
+          </tr>
+          ${context.description ? `
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;vertical-align:top;">SPECIFICATIONS:</td>
+            <td style="padding:6px 0;color:#cbd5e1;line-height:1.4;">${context.description}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;vertical-align:top;">TAGS:</td>
+            <td style="padding:6px 0;">${tagsHtml}</td>
+          </tr>
+        </table>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        This new hardware component has been vaulted into the live inventory database and is now discoverable by authorized laboratory students.
+      </p>
+    `;
+
+    const adminRecipients = Array.from(new Set([context.createdByAdminEmail, ...SUPER_ADMIN_EMAILS]));
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: context.createdByAdminEmail,
+      cc: SUPER_ADMIN_EMAILS.filter(e => e.toLowerCase() !== context.createdByAdminEmail.toLowerCase()).join(', '),
+      subject: `[CICR Admin] New Hardware Component Added: ${context.itemName} (${context.quantity}x)`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('item-created-telemetry', 'high'),
+      priority: 'high' as const,
+      text: [
+        `CICR ADMIN // NEW HARDWARE COMPONENT VAULTED`,
+        `================================================`,
+        `Component: ${context.itemName} [${context.category.toUpperCase()}]`,
+        `Quantity: ${context.quantity} unit(s)`,
+        `Location: ${context.location}`,
+        `Registered By: ${context.createdByAdminName} (${context.createdByAdminEmail})`,
+        `Timestamp: ${createdTimeStr} IST`,
+        context.description ? `Specifications: ${context.description}` : '',
+        ``,
+        `View live catalog: https://cicr-inventory.vercel.app/`,
+        ``,
+        `Regards,`,
+        `CICR Automated Inventory Engine`
+      ].filter(Boolean).join('\n'),
+      html: renderCyberEmail({
+        badgeText: 'VAULT // COMPONENT REGISTERED',
+        badgeType: 'success',
+        title: `Component Added: ${context.itemName}`,
+        subtitle: `Registered into CICR Inventory by ${context.createdByAdminName}.`,
+        contentHtml,
+        actionButton: {
+          text: 'View in Vault Catalog',
+          url: 'https://cicr-inventory.vercel.app/'
+        }
+      })
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Item creation alert dispatched to ${adminRecipients.join(', ')}`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('item-created-telemetry', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Item created telemetry email', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send item creation email:`, formatSmtpError(error));
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+
 

@@ -1269,18 +1269,64 @@ body::before {
     margin-bottom: 8px;
 }
 
+.title-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
 .section-title-bar h2 {
     font-family: 'Orbitron', sans-serif;
     font-size: 18px;
     letter-spacing: 1px;
     font-weight: 700;
     color: var(--text-main);
+    margin: 0;
 }
 
 .items-count-badge {
     font-size: 12px;
     color: var(--text-dim);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 3px 10px;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+.btn-add-inventory-cyber {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.15) 0%, rgba(255, 0, 122, 0.15) 100%);
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+    transition: all 0.25s ease;
+}
+
+.btn-add-inventory-cyber:hover {
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.3) 0%, rgba(255, 0, 122, 0.3) 100%);
+    box-shadow: 0 0 25px rgba(0, 240, 255, 0.5), 0 0 10px rgba(255, 0, 122, 0.3);
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+.btn-add-inventory-cyber:active {
+    transform: translateY(0);
+}
+
+.btn-add-inventory-cyber i {
+    width: 16px;
+    height: 16px;
+}
+
 
 /* Inventory Grid & Cards */
 .inventory-grid {

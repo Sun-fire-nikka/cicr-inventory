@@ -497,10 +497,15 @@
 
                                <!-- Dynamic Items Grid -->
                                <div class="explorer-grid-container">
-                                   <div class="section-title-bar">
-                                       <h2>Vault Catalog</h2>
-                                       <span class="items-count-badge" id="results-count">Showing 0 items</span>
-                                   </div>
+                                    <div class="section-title-bar">
+                                        <div class="title-bar-left">
+                                            <h2>Vault Catalog</h2>
+                                            <span class="items-count-badge" id="results-count">Showing 0 items</span>
+                                        </div>
+                                        <button class="btn-add-inventory-cyber" id="btn-inventory-add-item" style="display: none;">
+                                            <i data-lucide="plus-circle"></i> Add Component
+                                        </button>
+                                    </div>
                                    
                                    <!-- No Results State -->
                                    <div class="no-results glass" id="no-results" style="display: none;">
@@ -874,11 +879,17 @@
                 </div>
                 <div class="form-group">
                     <label for="item-specs">Specifications & Description</label>
-                    <textarea id="item-specs" rows="4" placeholder="Enter key features, pinout, voltage requirements, or other guidelines..."></textarea>
+                    <textarea id="item-specs" rows="3" placeholder="Enter key features, pinout, voltage requirements, or other guidelines..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="item-tags">Search Tags (comma-separated)</label>
+                    <input type="text" id="item-tags" placeholder="e.g. esp32, wifi, bluetooth, 3.3v, robotics">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="btn-add-cancel">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add to Inventory</button>
+                    <button type="submit" class="btn btn-primary" id="btn-add-submit">
+                        <i data-lucide="plus-circle"></i> Vault Component
+                    </button>
                 </div>
             </form>
         </div>

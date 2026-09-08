@@ -1081,14 +1081,30 @@ class ModalManager {
         });
 
         const addForm = document.getElementById('add-item-form') as HTMLFormElement;
-        addForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleAddItemSubmit();
-        });
+        if (addForm) {
+            addForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleAddItemSubmit();
+            });
+        }
 
-        document.getElementById('btn-add-cancel')!.addEventListener('click', () => {
-            this.close('add-item-modal');
-        });
+        const btnInventoryAdd = document.getElementById('btn-inventory-add-item');
+        if (btnInventoryAdd) {
+            btnInventoryAdd.addEventListener('click', () => {
+                if (this.getCurrentRole() !== 'ADMIN') {
+                    ToastManager.show('Admin Access Required', 'Only administrators can register components into the vault.', 'warning');
+                    return;
+                }
+                this.open('add-item-modal');
+            });
+        }
+
+        const cancelAddBtn = document.getElementById('btn-add-cancel');
+        if (cancelAddBtn) {
+            cancelAddBtn.addEventListener('click', () => {
+                this.close('add-item-modal');
+            });
+        }
 
         const borrowForm = document.getElementById('borrow-form') as HTMLFormElement;
         borrowForm.addEventListener('submit', (e) => {
@@ -1614,13 +1630,30 @@ class ModalManager {
     }
 
     private static async handleAddItemSubmit() {
+        if (this.getCurrentRole() !== 'ADMIN') {
+            ToastManager.show('Admin Access Required', 'Only administrators can add new components to the vault.', 'warning');
+            return;
+        }
+
         const name = (document.getElementById('item-name') as HTMLInputElement).value.trim();
         const category = (document.getElementById('item-category') as HTMLSelectElement).value;
         const qty = parseInt((document.getElementById('item-qty') as HTMLInputElement).value);
         const location = (document.getElementById('item-location') as HTMLInputElement).value.trim();
         const specs = (document.getElementById('item-specs') as HTMLTextAreaElement).value.trim() || "No specifications provided.";
+        const rawTags = (document.getElementById('item-tags') as HTMLInputElement)?.value || '';
+        const tags = rawTags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
 
-        if (!name || !category || isNaN(qty) || !location) return;
+        if (!name || !category || isNaN(qty) || !location) {
+            ToastManager.show('Missing Fields', 'Please complete all required fields.', 'warning');
+            return;
+        }
+
+        const submitBtn = document.getElementById('btn-add-submit') as HTMLButtonElement;
+        const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<span>Vaulting Component...</span>`;
+        }
 
         const catMap: Record<string, string> = {
             microcontrollers: 'Controllers',
@@ -1644,14 +1677,15 @@ class ModalManager {
                     category: backendCategory,
                     quantity: qty,
                     location,
-                    description: specs
+                    description: specs,
+                    tags
                 })
             });
 
             if (res.ok) {
                 (document.getElementById('add-item-form') as HTMLFormElement).reset();
                 this.close('add-item-modal');
-                ToastManager.show('Component Registered', `Added ${qty}x ${name} to ${location}`, 'success');
+                ToastManager.show('Component Vaulted', `Added ${qty}x ${name} to ${location}. Telemetry alert sent to administrators.`, 'success');
                 DatabaseManager.addLog('add', `Registered new component <span>${name}</span> (Qty: ${qty}) at <span>${location}</span>.`);
                 await DatabaseManager.syncFromBackend();
                 return;
@@ -1662,6 +1696,12 @@ class ModalManager {
         } catch (e) {
             console.error('Failed to create item in backend:', e);
             ToastManager.show('Connection Error', 'Failed to reach database backend.', 'error');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+                lucide.createIcons();
+            }
         }
 
         // Fallback local addition if offline
@@ -1671,8 +1711,10 @@ class ModalManager {
             name,
             category,
             quantity: qty,
+            availableQuantity: qty,
             location,
             specs,
+            tags,
             borrowedBy: []
         };
         inventory.unshift(newItem);
@@ -1680,7 +1722,9 @@ class ModalManager {
         (document.getElementById('add-item-form') as HTMLFormElement).reset();
         this.close('add-item-modal');
         ToastManager.show('Component Saved', `Stored ${qty}x ${name} locally`, 'info');
-        window.dashboard!.init();
+        if (window.dashboard) {
+            window.dashboard.init();
+        }
     }
 
     private static async handleBorrowSubmit() {
@@ -2167,15 +2211,18 @@ class AuthManager {
         const sideAdminLink = document.getElementById('side-nav-admin');
         const dashAdminCard = document.getElementById('dash-card-admin');
         const adminViewSection = document.getElementById('admin-view');
+        const btnInventoryAdd = document.getElementById('btn-inventory-add-item');
         const isAdmin = ModalManager.getCurrentRole() === 'ADMIN' || role === 'ADMIN';
 
         if (isAdmin) {
             if (sideAdminLink) sideAdminLink.style.display = 'flex';
             if (dashAdminCard) dashAdminCard.style.display = 'flex';
+            if (btnInventoryAdd) btnInventoryAdd.style.display = 'inline-flex';
             AdminManager.init();
         } else {
             if (sideAdminLink) sideAdminLink.style.display = 'none';
             if (dashAdminCard) dashAdminCard.style.display = 'none';
+            if (btnInventoryAdd) btnInventoryAdd.style.display = 'none';
             if (adminViewSection) {
                 adminViewSection.style.display = 'none';
                 adminViewSection.classList.remove('active');
