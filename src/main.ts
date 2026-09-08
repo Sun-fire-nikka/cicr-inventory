@@ -707,6 +707,12 @@ class DashboardManager {
             }
 
             if (targetId === 'admin-view') {
+                const role = localStorage.getItem('cicr_role') || (localStorage.getItem('cicr_auth') === ADMIN_USERNAME ? 'ADMIN' : 'MEMBER');
+                if (role !== 'ADMIN') {
+                    ToastManager.show('Access Restricted', 'Admin privileges required to access Admin Portal.', 'warning');
+                    switchSection('inventory-view');
+                    return;
+                }
                 AdminManager.loadUsers();
             }
 
@@ -1675,52 +1681,104 @@ class ModalManager {
         const dueDate = (dueDateInput && dueDateInput.value) ? dueDateInput.value : defaultDue;
 
         const token = localStorage.getItem('cicr_token');
-        try {
-            const res = await fetch(`${API_BASE}/borrow`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    itemId: selectedItem.id,
-                    quantity: qty,
-                    purpose: purpose,
-                    duration_days: 7
-                })
-            });
+        const isAdminUser = this.isAdmin();
 
-            if (res.ok) {
-                (document.getElementById('borrow-form') as HTMLFormElement).reset();
-                this.close('borrow-form-modal');
-                ToastManager.show('Component Issued', `Checked out ${qty}x ${selectedItem.name} for '${purpose}'`, 'success');
-                DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> (Due: ${dueDate}) for '${purpose}'.`);
-                await DatabaseManager.syncFromBackend();
-                return;
-            } else {
-                const errJson = await res.json();
-                ToastManager.show('Borrow Error', errJson.message || 'Unable to issue component.', 'error');
+        if (isAdminUser) {
+            // Direct admin checkout
+            try {
+                const res = await fetch(`${API_BASE}/borrow`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        itemId: selectedItem.id,
+                        quantity: qty,
+                        purpose: purpose,
+                        duration_days: 7
+                    })
+                });
+
+                if (res.ok) {
+                    (document.getElementById('borrow-form') as HTMLFormElement).reset();
+                    this.close('borrow-form-modal');
+                    ToastManager.show('Component Issued', `Checked out ${qty}x ${selectedItem.name} for '${purpose}'`, 'success');
+                    DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> (Due: ${dueDate}) for '${purpose}'.`);
+                    await DatabaseManager.syncFromBackend();
+                    return;
+                } else {
+                    const errJson = await res.json();
+                    ToastManager.show('Borrow Error', errJson.message || 'Unable to issue component.', 'error');
+                }
+            } catch (e) {
+                console.error('Borrow API error:', e);
+                ToastManager.show('Network Error', 'Could not reach server to complete borrow.', 'error');
             }
-        } catch (e) {
-            console.error('Borrow API error:', e);
-            ToastManager.show('Network Error', 'Could not reach server to complete borrow.', 'error');
+        } else {
+            // Member submission -> Route to Admin Portal Request Queue
+            try {
+                const userEmail = localStorage.getItem('cicr_auth') || 'member@cicr.lab';
+                const res = await fetch(`${API_BASE}/borrow/request`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        itemId: selectedItem.id,
+                        itemName: selectedItem.name,
+                        quantity: qty,
+                        purpose: purpose,
+                        duration_days: 7,
+                        dueDate: dueDate,
+                        borrowerName: borrowerName,
+                        borrowerEmail: userEmail,
+                        rollNumber: rollNum
+                    })
+                });
+
+                if (res.ok) {
+                    (document.getElementById('borrow-form') as HTMLFormElement).reset();
+                    this.close('borrow-form-modal');
+                    ToastManager.show(
+                        'Request Transmitted',
+                        `Issue request for ${qty}x ${selectedItem.name} dispatched to Admin Portal for authorization.`,
+                        'success'
+                    );
+                    DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
+                    await DatabaseManager.syncFromBackend();
+                    return;
+                } else {
+                    const errJson = await res.json();
+                    ToastManager.show('Request Error', errJson.message || 'Unable to submit request.', 'error');
+                }
+            } catch (e) {
+                console.error('Request API error:', e);
+                ToastManager.show('Network Error', 'Could not reach server to submit request.', 'error');
+            }
         }
 
-        // Local fallback
+        // Local fallback if offline
         const date = new Date().toISOString().split('T')[0];
-        selectedItem.borrowedBy.push({
+        const newReq: RequestRecord = {
+            id: `req-${Date.now()}`,
+            itemId: selectedItem.id,
+            itemName: selectedItem.name,
             name: borrowerName,
             roll: rollNum,
             qty: qty,
             purpose: purpose,
-            date: date,
+            status: 'PENDING',
+            requestedAt: date,
             dueDate: dueDate
-        });
-        DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> checked out ${qty}x <span>${selectedItem.name}</span> (Due: ${dueDate}) for '${purpose}'.`);
+        };
+        requests.unshift(newReq);
+        DatabaseManager.addLog('borrow', `<span>${borrowerName}</span> requested ${qty}x <span>${selectedItem.name}</span> for '${purpose}'.`);
         (document.getElementById('borrow-form') as HTMLFormElement).reset();
         DatabaseManager.save();
         this.close('borrow-form-modal');
-        ToastManager.show('Item Issued', `Recorded ${qty}x ${selectedItem.name}`, 'info');
+        ToastManager.show('Request Queued', `Sent request for ${qty}x ${selectedItem.name} to Admin Portal`, 'info');
         window.dashboard!.init();
     }
 
@@ -2164,8 +2222,28 @@ interface AdminUserRecord {
     created_at: string;
 }
 
+interface AdminHardwareRequest {
+    id: string;
+    itemId: string;
+    itemName: string;
+    category?: string;
+    borrowerName: string;
+    borrowerEmail: string;
+    rollNumber?: string | null;
+    quantity: number;
+    purpose: string;
+    durationDays: number;
+    dueDate: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    requestedAt: string;
+    reviewedAt?: string;
+    reviewedBy?: string;
+    reviewNote?: string;
+}
+
 class AdminManager {
     private static users: AdminUserRecord[] = [];
+    private static hardwareRequests: AdminHardwareRequest[] = [];
     private static isInitialized = false;
 
     static init() {
@@ -2176,6 +2254,13 @@ class AdminManager {
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
                 this.loadUsers();
+            });
+        }
+
+        const hwRefreshBtn = document.getElementById('admin-hw-refresh-btn');
+        if (hwRefreshBtn) {
+            hwRefreshBtn.addEventListener('click', () => {
+                this.loadHardwareRequests();
             });
         }
 
@@ -2191,6 +2276,9 @@ class AdminManager {
         window.adminReject = (id: string) => this.rejectUser(id);
         window.adminSetRole = (id: string, role: 'ADMIN' | 'MEMBER') => this.setRole(id, role);
         window.adminDeleteUser = (id: string, name: string) => this.deleteUser(id, name);
+
+        window.adminApproveHardware = (id: string) => this.approveHardware(id);
+        window.adminRejectHardware = (id: string) => this.rejectHardware(id);
     }
 
     static async loadUsers() {
@@ -2202,44 +2290,178 @@ class AdminManager {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
-            if (!res.ok) return;
-
-            const result = await res.json();
-            this.users = result.data || [];
-            this.updateStats();
-            this.renderPendingQueue();
-            
-            const searchInput = document.getElementById('admin-users-search') as HTMLInputElement;
-            const query = searchInput ? searchInput.value : '';
-            this.renderUsersTable(this.filterUsers(query));
+            if (res.ok) {
+                const result = await res.json();
+                this.users = result.data || [];
+            }
         } catch (err) {
             console.error('Failed to fetch admin users:', err);
         }
+
+        await this.loadHardwareRequests();
+        this.updateStats();
+        this.renderPendingQueue();
+
+        const searchInput = document.getElementById('admin-users-search') as HTMLInputElement;
+        const query = searchInput ? searchInput.value : '';
+        this.renderUsersTable(this.filterUsers(query));
+    }
+
+    static async loadHardwareRequests() {
+        const token = localStorage.getItem('cicr_token');
+        if (!token) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/borrow/requests`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                this.hardwareRequests = result.data || [];
+            }
+        } catch (err) {
+            console.error('Failed to fetch hardware requests:', err);
+        }
+
+        this.updateStats();
+        this.renderHardwareQueue();
     }
 
     private static updateStats() {
-        const pending = this.users.filter(u => u.status === 'PENDING').length;
+        const pendingUsers = this.users.filter(u => u.status === 'PENDING').length;
+        const pendingHardware = this.hardwareRequests.filter(r => r.status === 'PENDING').length;
         const approved = this.users.filter(u => u.status === 'APPROVED').length;
         const admins = this.users.filter(u => u.role === 'ADMIN').length;
 
-        const statPending = document.getElementById('admin-stat-pending');
+        const statPendingUsers = document.getElementById('admin-stat-pending');
+        const statPendingHw = document.getElementById('admin-stat-hw-pending');
         const statApproved = document.getElementById('admin-stat-approved');
         const statAdmins = document.getElementById('admin-stat-admins');
         const pendingTag = document.getElementById('admin-pending-count-tag');
+        const hwTag = document.getElementById('admin-hw-count-tag');
         const sidebarBadge = document.getElementById('admin-pending-badge');
 
-        if (statPending) statPending.innerText = pending.toString();
+        if (statPendingUsers) statPendingUsers.innerText = pendingUsers.toString();
+        if (statPendingHw) statPendingHw.innerText = pendingHardware.toString();
         if (statApproved) statApproved.innerText = approved.toString();
         if (statAdmins) statAdmins.innerText = admins.toString();
-        if (pendingTag) pendingTag.innerText = `${pending} PENDING`;
+        if (pendingTag) pendingTag.innerText = `${pendingUsers} PENDING`;
+        if (hwTag) hwTag.innerText = `${pendingHardware} PENDING`;
 
+        const totalPending = pendingUsers + pendingHardware;
         if (sidebarBadge) {
-            if (pending > 0) {
+            if (totalPending > 0) {
                 sidebarBadge.style.display = 'inline-block';
-                sidebarBadge.innerText = pending.toString();
+                sidebarBadge.innerText = totalPending.toString();
             } else {
                 sidebarBadge.style.display = 'none';
             }
+        }
+    }
+
+    private static renderHardwareQueue() {
+        const container = document.getElementById('admin-hardware-list');
+        if (!container) return;
+
+        const pendingRequests = this.hardwareRequests.filter(r => r.status === 'PENDING');
+        if (pendingRequests.length === 0) {
+            container.innerHTML = `
+                <div class="admin-empty-state">
+                    <i data-lucide="package-check"></i>
+                    <p>No pending component requests in queue. Vault operations nominal.</p>
+                </div>
+            `;
+            lucide.createIcons();
+            return;
+        }
+
+        container.innerHTML = pendingRequests.map(r => `
+            <div class="hardware-request-card glass" data-request-id="${r.id}">
+                <div class="hw-card-header">
+                    <div class="hw-card-chip">
+                        <i data-lucide="cpu" style="width:14px; height:14px; color:var(--neon-cyan);"></i>
+                        <span class="hw-item-name">${r.itemName}</span>
+                    </div>
+                    <span class="hw-qty-badge">${r.quantity}x UNIT${r.quantity > 1 ? 'S' : ''}</span>
+                </div>
+
+                <div class="hw-card-requester">
+                    <div class="hw-avatar">${r.borrowerName.charAt(0).toUpperCase()}</div>
+                    <div class="hw-meta-col">
+                        <span class="hw-requester-name">${r.borrowerName}</span>
+                        <span class="hw-requester-email">${r.borrowerEmail}</span>
+                    </div>
+                </div>
+
+                <div class="hw-card-details">
+                    ${r.rollNumber ? `<div class="hw-detail-row"><span class="hw-lbl">ROLL:</span> <span class="hw-val mono">${r.rollNumber}</span></div>` : ''}
+                    <div class="hw-detail-row"><span class="hw-lbl">PURPOSE:</span> <span class="hw-val">${r.purpose}</span></div>
+                    <div class="hw-detail-row"><span class="hw-lbl">DUE DATE:</span> <span class="hw-val due">${r.dueDate || '7 Days'}</span></div>
+                    <div class="hw-detail-row"><span class="hw-lbl">REQUESTED:</span> <span class="hw-val date">${new Date(r.requestedAt).toLocaleString()}</span></div>
+                </div>
+
+                <div class="hw-card-actions">
+                    <button class="btn-hw-approve" onclick="window.adminApproveHardware('${r.id}')">
+                        <i data-lucide="check"></i> Approve Issue
+                    </button>
+                    <button class="btn-hw-reject" onclick="window.adminRejectHardware('${r.id}')">
+                        <i data-lucide="x"></i> Reject
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        lucide.createIcons();
+    }
+
+    static async approveHardware(id: string) {
+        const token = localStorage.getItem('cicr_token');
+        try {
+            const res = await fetch(`${API_BASE}/borrow/requests/${id}/approve`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                ToastManager.show('Request Authorized', 'Component issue approved. Stock updated and verification dispatched.', 'success');
+                DatabaseManager.addLog('approve', `Admin authorized hardware issue request #${id.slice(0, 8)}`);
+                await this.loadHardwareRequests();
+                await DatabaseManager.syncFromBackend();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                ToastManager.show('Approval Failed', err.message || 'Could not approve request.', 'error');
+            }
+        } catch (e) {
+            console.error('Error approving hardware request:', e);
+            ToastManager.show('Network Error', 'Failed to communicate with server.', 'error');
+        }
+    }
+
+    static async rejectHardware(id: string) {
+        const token = localStorage.getItem('cicr_token');
+        try {
+            const res = await fetch(`${API_BASE}/borrow/requests/${id}/reject`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ reason: 'Declined by Administrator.' })
+            });
+
+            if (res.ok) {
+                ToastManager.show('Request Declined', 'Hardware issue request has been declined.', 'info');
+                DatabaseManager.addLog('reject', `Admin declined hardware issue request #${id.slice(0, 8)}`);
+                await this.loadHardwareRequests();
+                await DatabaseManager.syncFromBackend();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                ToastManager.show('Rejection Failed', err.message || 'Could not reject request.', 'error');
+            }
+        } catch (e) {
+            console.error('Error rejecting hardware request:', e);
+            ToastManager.show('Network Error', 'Failed to communicate with server.', 'error');
         }
     }
 
@@ -3156,6 +3378,8 @@ declare global {
         adminReject?: (id: string) => void;
         adminSetRole?: (id: string, role: 'ADMIN' | 'MEMBER') => void;
         adminDeleteUser?: (id: string, name: string) => void;
+        adminApproveHardware?: (id: string) => void;
+        adminRejectHardware?: (id: string) => void;
     }
 }
 

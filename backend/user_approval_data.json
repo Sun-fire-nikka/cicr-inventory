@@ -1,4 +1,25 @@
 {
-  "approvalState": {},
+  "approvalState": {
+    "test_member_1788883786959@cicr.lab": {
+      "status": "PENDING",
+      "role": "MEMBER"
+    },
+    "test_member_1788883807223@cicr.lab": {
+      "status": "PENDING",
+      "role": "MEMBER"
+    },
+    "test_member_1788883823879@cicr.lab": {
+      "status": "PENDING",
+      "role": "MEMBER"
+    },
+    "test_member_1788883843125@cicr.lab": {
+      "status": "PENDING",
+      "role": "MEMBER"
+    },
+    "test_member_1788883891042@cicr.lab": {
+      "status": "PENDING",
+      "role": "MEMBER"
+    }
+  },
   "purgedEmails": []
 }

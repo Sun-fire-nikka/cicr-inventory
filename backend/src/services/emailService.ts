@@ -1326,3 +1326,212 @@ export const sendDueReminder = async (
     return { success: false, error: error.message };
   }
 };
+
+export interface HardwareRequestEmailContext {
+  requestId: string;
+  itemName: string;
+  category?: string;
+  quantity: number;
+  borrowerName: string;
+  borrowerEmail: string;
+  rollNumber?: string | null;
+  purpose: string;
+  durationDays?: number;
+  dueDate?: string;
+  requestedAt?: string;
+}
+
+export const sendAdminHardwareRequestAlert = async (
+  adminEmails: string | string[],
+  context: HardwareRequestEmailContext
+) => {
+  try {
+    const recipients = Array.isArray(adminEmails) ? adminEmails : [adminEmails];
+    const requestedDateStr = context.requestedAt
+      ? new Date(context.requestedAt).toLocaleString('en-GB')
+      : new Date().toLocaleString('en-GB');
+
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:140px;font-family:'SFMono-Regular',Consolas,monospace;">REQUEST ID:</td>
+            <td style="padding:6px 0;color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;font-weight:600;">#${context.requestId.slice(0, 8)}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">COMPONENT:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${context.quantity}x ${context.itemName}</td>
+          </tr>
+          ${context.category ? `
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">CATEGORY:</td>
+            <td style="padding:6px 0;color:#94a3b8;">${context.category.toUpperCase()}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">REQUESTER:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${context.borrowerName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">EMAIL:</td>
+            <td style="padding:6px 0;color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;">${context.borrowerEmail}</td>
+          </tr>
+          ${context.rollNumber ? `
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">ROLL NUMBER:</td>
+            <td style="padding:6px 0;color:#e2e8f0;font-family:'SFMono-Regular',Consolas,monospace;">${context.rollNumber}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">PURPOSE:</td>
+            <td style="padding:6px 0;color:#e2e8f0;line-height:1.4;">${context.purpose}</td>
+          </tr>
+          ${context.dueDate ? `
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">EST. DUE DATE:</td>
+            <td style="padding:6px 0;color:#facc15;font-family:'SFMono-Regular',Consolas,monospace;">${context.dueDate}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">TIMESTAMP:</td>
+            <td style="padding:6px 0;color:#94a3b8;font-family:'SFMono-Regular',Consolas,monospace;">${requestedDateStr}</td>
+          </tr>
+        </table>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        This request is queued in the Admin Portal. Please log in to approve or decline this component issue.
+      </p>
+    `;
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: recipients.join(', '),
+      subject: `[CICR Inventory] Hardware Request: ${context.quantity}x ${context.itemName} (${context.borrowerName})`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('admin-hardware-request', 'high'),
+      priority: 'high' as const,
+      text: [
+        `CICR INVENTORY // HARDWARE ISSUE REQUEST`,
+        `================================================`,
+        `A member has submitted an item issue request.`,
+        ``,
+        `Item: ${context.quantity}x ${context.itemName}`,
+        `Requester: ${context.borrowerName} (${context.borrowerEmail})`,
+        context.rollNumber ? `Roll Number: ${context.rollNumber}` : '',
+        `Purpose: ${context.purpose}`,
+        context.dueDate ? `Est. Due Date: ${context.dueDate}` : '',
+        `Timestamp: ${requestedDateStr}`,
+        ``,
+        `Please log in to the CICR Admin Portal to review and approve/reject this request.`,
+        ``,
+        `CICR Inventory System Core`
+      ].filter(Boolean).join('\n'),
+      html: renderCyberEmail({
+        badgeText: 'VAULT // HARDWARE REQUEST',
+        badgeType: 'warning',
+        title: `Hardware Issue Request: ${context.itemName}`,
+        subtitle: `Action required: ${context.borrowerName} has requested ${context.quantity}x ${context.itemName}.`,
+        contentHtml
+      })
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Admin hardware alert dispatched to ${recipients.join(', ')}`);
+      return { success: true, mocked: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('admin-hardware-alert', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send admin hardware request alert:`, formatSmtpError(error));
+    return { success: false, error: error.message };
+  }
+};
+
+export const sendHardwareRequestStatusEmail = async (
+  recipientEmail: string,
+  borrowerName: string,
+  itemName: string,
+  quantity: number,
+  status: 'APPROVED' | 'REJECTED',
+  reviewedBy: string,
+  reason?: string
+) => {
+  try {
+    const isApproved = status === 'APPROVED';
+
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:130px;font-family:'SFMono-Regular',Consolas,monospace;">COMPONENT:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${quantity}x ${itemName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">STATUS:</td>
+            <td style="padding:6px 0;color:${isApproved ? '#00f0ff' : '#ff007a'};font-weight:700;font-family:'SFMono-Regular',Consolas,monospace;">${status}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">REVIEWED BY:</td>
+            <td style="padding:6px 0;color:#e2e8f0;font-family:'SFMono-Regular',Consolas,monospace;">${reviewedBy}</td>
+          </tr>
+          ${reason ? `
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">NOTE:</td>
+            <td style="padding:6px 0;color:#94a3b8;line-height:1.4;">${reason}</td>
+          </tr>` : ''}
+        </table>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        ${isApproved
+          ? 'Your component issue request has been authorized. You may pick up the hardware from the CICR lab.'
+          : 'Your component issue request was declined by the administrator. Contact lab management if you need clarification.'}
+      </p>
+    `;
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: recipientEmail,
+      subject: `[CICR Inventory] Request ${status}: ${quantity}x ${itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('hardware-status-update'),
+      priority: isApproved ? ('normal' as const) : ('high' as const),
+      text: [
+        `CICR INVENTORY // HARDWARE REQUEST UPDATE`,
+        `================================================`,
+        `Hello ${borrowerName},`,
+        ``,
+        `Your request for ${quantity}x ${itemName} has been ${status}.`,
+        `Reviewed By: ${reviewedBy}`,
+        reason ? `Note: ${reason}` : '',
+        ``,
+        isApproved
+          ? `Your component issue has been authorized. Please collect your hardware from the lab.`
+          : `Your request was declined by the lab administrator.`,
+        ``,
+        `Regards,`,
+        `CICR Inventory Team`
+      ].filter(Boolean).join('\n'),
+      html: renderCyberEmail({
+        badgeText: isApproved ? 'DECISION // REQUEST APPROVED' : 'DECISION // REQUEST DECLINED',
+        badgeType: isApproved ? 'success' : 'danger',
+        title: `Hardware Request ${isApproved ? 'Approved' : 'Declined'}: ${itemName}`,
+        subtitle: `Hello ${borrowerName}, your hardware issue request status has been updated.`,
+        contentHtml
+      })
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Hardware status email dispatched to ${recipientEmail}`);
+      return { success: true, mocked: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('hardware-status-update', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send hardware status email:`, formatSmtpError(error));
+    return { success: false, error: error.message };
+  }
+};
+

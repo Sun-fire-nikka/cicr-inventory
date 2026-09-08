@@ -29,8 +29,9 @@ function dispatchBackground(label: string, promise: Promise<unknown>): void {
 // Helper function to insert into audit_logs
 async function logAudit(action: string, userId: string | undefined, itemId: string | null, description: string) {
   try {
+    const isUUID = (str?: string | null) => Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
     await supabase.from('audit_logs').insert([
-      { action, user_id: userId || null, item_id: itemId, description }
+      { action, user_id: isUUID(userId) ? userId : null, item_id: isUUID(itemId) ? itemId : null, description }
     ]);
   } catch (err) {
     console.error('Audit log failed:', err);
@@ -46,7 +47,7 @@ const parseRentalDays = (value: any): number | null => {
 
 const daysErrorMessage = `duration_days must be an integer between ${MIN_RENTAL_DAYS} and ${MAX_RENTAL_DAYS}.`;
 
-const finalizeBorrow = async (
+export const finalizeBorrow = async (
   payload: { userId: string; userName: string; itemId: string; quantity: number; purpose: string; durationDays: number }
 ) => {
   const { userId, userName, itemId, quantity, purpose, durationDays } = payload;
@@ -100,11 +101,14 @@ const finalizeBorrow = async (
   const dueDate = new Date(borrowedAt);
   dueDate.setDate(dueDate.getDate() + durationDays);
 
+  const isUUID = (str?: string) => Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
+  const safeUserId = isUUID(userId) ? userId : null;
+
   const { data: borrowRecord, error: borrowErr } = await supabase
     .from('borrow_records')
     .insert([
       {
-        user_id: userId,
+        user_id: safeUserId,
         borrower_name: userName,
         inventory_id: itemId,
         quantity,
@@ -521,3 +525,119 @@ export const getBorrowHistory = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ status: 'error', message: err.message });
   }
 };
+
+// ==========================================
+// HARDWARE ISSUE REQUEST HANDLERS (ADMIN PORTAL QUEUE)
+// ==========================================
+
+export const createHardwareRequestHandler = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const userEmail = req.user?.email || req.body.email || req.body.borrowerEmail;
+    const userName = req.user?.name || req.body.name || req.body.borrowerName;
+    const rollNumber = req.user?.roll_number || req.body.roll || req.body.roll_number;
+    const itemId = req.body.itemId || req.body.inventory_id || req.body.item_id;
+    const itemName = req.body.itemName;
+    const quantity = Number(req.body.quantity || req.body.qty || 1);
+    const purpose = req.body.purpose;
+    const durationDays = req.body.duration_days || req.body.durationDays || 7;
+    const dueDate = req.body.dueDate || req.body.due_date;
+
+    if (!itemId || !quantity || !purpose) {
+      return res.status(400).json({ status: 'error', message: 'itemId, quantity, and purpose are required.' });
+    }
+
+    if (quantity <= 0 || isNaN(quantity)) {
+      return res.status(400).json({ status: 'error', message: 'Quantity must be greater than zero.' });
+    }
+
+    if (!userName || !userEmail) {
+      return res.status(400).json({ status: 'error', message: 'Borrower name and email are required.' });
+    }
+
+    const { createHardwareRequest } = await import('./hardwareRequestService');
+    const requestRecord = await createHardwareRequest({
+      itemId,
+      itemName,
+      borrowerName: userName,
+      borrowerEmail: userEmail,
+      rollNumber,
+      userId,
+      quantity,
+      purpose,
+      durationDays,
+      dueDate
+    });
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Component issue request queued for Admin approval.',
+      data: requestRecord
+    });
+  } catch (err: any) {
+    console.error('Error creating hardware request:', err);
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+export const getHardwareRequestsHandler = async (req: AuthRequest, res: Response) => {
+  try {
+    const { getAllHardwareRequests } = await import('./hardwareRequestService');
+    const requests = getAllHardwareRequests();
+    return res.status(200).json({
+      status: 'success',
+      count: requests.length,
+      data: requests
+    });
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+export const approveHardwareRequestHandler = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const adminName = req.user?.name || 'ADMIN';
+    const adminEmail = req.user?.email || 'cicrinventory@gmail.com';
+
+    const { approveHardwareRequest } = await import('./hardwareRequestService');
+    const result = await approveHardwareRequest(id, adminName, adminEmail);
+
+    if (!result.success) {
+      return res.status(400).json({ status: 'error', message: result.error });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Hardware request ${id} approved and checked out.`,
+      data: result.request
+    });
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+export const rejectHardwareRequestHandler = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const adminName = req.user?.name || 'ADMIN';
+    const adminEmail = req.user?.email || 'cicrinventory@gmail.com';
+
+    const { rejectHardwareRequest } = await import('./hardwareRequestService');
+    const result = await rejectHardwareRequest(id, adminName, adminEmail, reason);
+
+    if (!result.success) {
+      return res.status(400).json({ status: 'error', message: result.error });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Hardware request ${id} rejected.`,
+      data: result.request
+    });
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+

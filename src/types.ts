@@ -49,3 +49,5 @@ export interface ActivityLog {
 export interface UserDatabase {
     [username: string]: string; // username -> password mapping
 }
+
+

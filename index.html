@@ -638,14 +638,18 @@
                                     </div>
                                     <div>
                                         <span class="admin-header-tag">ADMIN CONTROL CENTER</span>
-                                        <h2 class="admin-header-title">Member Access & Approvals</h2>
-                                        <p class="admin-header-desc">Manage registrations, grant access approvals, and assign administrative roles.</p>
+                                        <h2 class="admin-header-title">Admin Management & Issue Approvals</h2>
+                                        <p class="admin-header-desc">Review component issue requests, manage member approvals, and monitor vault telemetry.</p>
                                     </div>
                                 </div>
                                 <div class="admin-header-stats">
+                                    <div class="admin-stat-box stat-purple">
+                                        <span class="admin-stat-num" id="admin-stat-hw-pending">0</span>
+                                        <span class="admin-stat-lbl">Hardware Requests</span>
+                                    </div>
                                     <div class="admin-stat-box stat-pink">
                                         <span class="admin-stat-num" id="admin-stat-pending">0</span>
-                                        <span class="admin-stat-lbl">Pending Requests</span>
+                                        <span class="admin-stat-lbl">Account Approvals</span>
                                     </div>
                                     <div class="admin-stat-box stat-green">
                                         <span class="admin-stat-num" id="admin-stat-approved">0</span>
@@ -658,12 +662,34 @@
                                 </div>
                             </div>
 
-                            <!-- Pending Approvals Section -->
+                            <!-- Hardware Issue Requests Queue -->
+                            <div class="admin-block-card glass" id="admin-hardware-requests-block">
+                                <div class="admin-block-header">
+                                    <div class="admin-block-title-wrap">
+                                        <i data-lucide="cpu" class="text-cyan"></i>
+                                        <h3>Hardware Issue Requests Queue</h3>
+                                        <span class="admin-badge-count count-cyan" id="admin-hw-count-tag">0 PENDING</span>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" id="admin-hw-refresh-btn" title="Refresh Requests">
+                                        <i data-lucide="refresh-cw"></i> Refresh
+                                    </button>
+                                </div>
+
+                                <div class="admin-queue-list hardware-requests-grid" id="admin-hardware-list">
+                                    <!-- Dynamic hardware requests injected here -->
+                                    <div class="admin-empty-state">
+                                        <i data-lucide="package-check"></i>
+                                        <p>No pending component requests in queue. Vault operations nominal.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pending Member Approvals Section -->
                             <div class="admin-block-card glass">
                                 <div class="admin-block-header">
                                     <div class="admin-block-title-wrap">
                                         <i data-lucide="user-check" class="text-pink"></i>
-                                        <h3>Pending Approval Queue</h3>
+                                        <h3>Pending Member Registration Queue</h3>
                                         <span class="admin-badge-count" id="admin-pending-count-tag">0 PENDING</span>
                                     </div>
                                     <button class="btn btn-secondary btn-sm" id="admin-refresh-btn" title="Refresh User List">
