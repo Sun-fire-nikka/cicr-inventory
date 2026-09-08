@@ -2,7 +2,9 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { supabase } from '../../app';
+import { dbRead } from '../../config/database';
 import { AuthRequest } from '../../middleware/auth.middleware';
+import { isValidEmail } from '../../validators/email.validator';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -12,7 +14,11 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Name, email, and password required.' });
     }
 
-    const { data: existingUser } = await supabase
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ status: 'error', message: 'Invalid email format.' });
+    }
+
+    const { data: existingUser } = await dbRead
       .from('users')
       .select('id')
       .eq('email', email)
@@ -48,7 +54,7 @@ export const login = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Email and password required.' });
     }
 
-    const { data: user, error } = await supabase
+    const { data: user, error } = await dbRead
       .from('users')
       .select('*')
       .eq('email', email)
@@ -63,7 +69,11 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
     }
 
-    const secret = process.env.JWT_SECRET || 'super_secret_cicr_key';
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      console.error('FATAL: JWT_SECRET environment variable is not set.');
+      return res.status(500).json({ status: 'error', message: 'Server misconfiguration.' });
+    }
     const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, secret, { expiresIn: '7d' });
 
     return res.status(200).json({
@@ -78,7 +88,7 @@ export const login = async (req: Request, res: Response) => {
 
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
-    const { data: user, error } = await supabase
+    const { data: user, error } = await dbRead
       .from('users')
       .select('id, name, email, roll_number, role, created_at')
       .eq('id', req.user?.id)

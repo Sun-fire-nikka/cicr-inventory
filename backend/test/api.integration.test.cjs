@@ -271,7 +271,7 @@ test('POST /api/borrow happy path returns 201, computes due_date, decrements sto
   assert.equal(item.data.available_quantity, 6);
 });
 
-test('POST /api/borrow defaults duration_days to 7', async () => {
+test('POST /api/borrow defaults duration_days to 5', async () => {
   const { status, json } = await api('/api/borrow', {
     method: 'POST', token: memberToken,
     body: { inventory_id: itemId, quantity: 1, purpose: 'default duration test' }
@@ -280,7 +280,7 @@ test('POST /api/borrow defaults duration_days to 7', async () => {
   const borrowed = new Date(json.data.borrowed_at);
   const due = new Date(json.data.due_date);
   const diffDays = Math.round((due - borrowed) / 86400000);
-  assert.equal(diffDays, 7, `due_date should default to 7 days (got ${diffDays})`);
+  assert.equal(diffDays, 5, `due_date should default to 5 days (got ${diffDays})`);
 });
 
 test('POST /api/borrow quantity <= 0 returns 400', async () => {
@@ -322,6 +322,96 @@ test('POST /api/borrow/return non-existent id returns 404', async () => {
     method: 'POST', token: memberToken, body: { borrow_id: '00000000-0000-4000-8000-000000000000' }
   });
   assert.equal(status, 404);
+});
+
+// ---------- Rental duration cap (1–30 days) ----------
+test('POST /api/borrow rejects duration_days above 30 (rental cap)', async () => {
+  const { status, json } = await api('/api/borrow', {
+    method: 'POST', token: memberToken,
+    body: { inventory_id: itemId, quantity: 1, purpose: 'cap test', duration_days: 31 }
+  });
+  assert.equal(status, 400);
+  assert.match(json.message, /between 1 and 30/);
+});
+
+test('POST /api/borrow rejects duration_days below 1', async () => {
+  const { status } = await api('/api/borrow', {
+    method: 'POST', token: memberToken,
+    body: { inventory_id: itemId, quantity: 1, purpose: 'cap test', duration_days: 0 }
+  });
+  assert.equal(status, 400);
+});
+
+test('POST /api/borrow accepts duration_days = 1 (minimum)', async () => {
+  const { status, json } = await api('/api/borrow', {
+    method: 'POST', token: memberToken,
+    body: { inventory_id: itemId, quantity: 1, purpose: 'min cap test', duration_days: 1 }
+  });
+  assert.equal(status, 201);
+  const borrowed = new Date(json.data.borrowed_at);
+  const due = new Date(json.data.due_date);
+  const diffDays = Math.round((due - borrowed) / 86400000);
+  assert.equal(diffDays, 1);
+});
+
+test('POST /api/borrow accepts duration_days = 30 (maximum)', async () => {
+  const { status, json } = await api('/api/borrow', {
+    method: 'POST', token: memberToken,
+    body: { inventory_id: itemId, quantity: 1, purpose: 'max cap test', duration_days: 30 }
+  });
+  assert.equal(status, 201);
+  const borrowed = new Date(json.data.borrowed_at);
+  const due = new Date(json.data.due_date);
+  const diffDays = Math.round((due - borrowed) / 86400000);
+  assert.equal(diffDays, 30);
+});
+
+// ---------- Admin OTP approval workflow ----------
+test('GET /api/borrow/admins lists admin directory including KUSH', async () => {
+  const { status, json } = await api('/api/borrow/admins', { token: memberToken });
+  assert.equal(status, 200);
+  const kush = json.data.find((a) => a.email === 'kushagragargdelhi@gmail.com');
+  assert.ok(kush, 'KUSH admin should be in the directory');
+  assert.equal(kush.name, 'KUSH');
+});
+
+test('POST /api/borrow/request-otp missing fields returns 400', async () => {
+  const { status } = await api('/api/borrow/request-otp', {
+    method: 'POST', token: memberToken, body: { item_id: itemId }
+  });
+  assert.equal(status, 400);
+});
+
+test('POST /api/borrow/request-otp unknown admin returns 404', async () => {
+  const { status, json } = await api('/api/borrow/request-otp', {
+    method: 'POST', token: memberToken,
+    body: { item_id: itemId, quantity: 1, purpose: 'x', duration_days: 5, selected_admin_id: 'nobody' }
+  });
+  assert.equal(status, 404);
+  assert.match(json.message, /not found in the admin directory/);
+});
+
+test('POST /api/borrow/request-otp happy path sends OTP to selected admin', async () => {
+  const { status, json } = await api('/api/borrow/request-otp', {
+    method: 'POST', token: memberToken,
+    body: { item_id: itemId, quantity: 1, purpose: 'OTP integration test', duration_days: 5, selected_admin_id: 'kush' }
+  });
+  assert.equal(status, 200);
+  assert.equal(json.data.expires_in_seconds, 600);
+  assert.equal(json.data.selected_admin.email, 'kushagragargdelhi@gmail.com');
+});
+
+test('POST /api/borrow/verify-otp missing otp returns 400', async () => {
+  const { status } = await api('/api/borrow/verify-otp', { method: 'POST', token: memberToken, body: {} });
+  assert.equal(status, 400);
+});
+
+test('POST /api/borrow/verify-otp invalid otp returns 400', async () => {
+  const { status, json } = await api('/api/borrow/verify-otp', {
+    method: 'POST', token: memberToken, body: { otp: '000000' }
+  });
+  assert.equal(status, 400);
+  assert.match(json.message, /Invalid or expired OTP/);
 });
 
 // ---------- Audit ----------

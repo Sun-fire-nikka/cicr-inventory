@@ -1,10 +1,13 @@
 import { Router } from 'express';
-import { borrowItem, returnItem, getBorrowHistory } from './borrow.controller';
+import { borrowItem, returnItem, getBorrowHistory, getAdmins, requestOtp, verifyOtp } from './borrow.controller';
 import { authenticateToken } from '../../middleware/auth.middleware';
 
 const router = Router();
 
+router.get('/admins', getAdmins);
 router.post('/', authenticateToken, borrowItem);
+router.post('/request-otp', authenticateToken, requestOtp);
+router.post('/verify-otp', authenticateToken, verifyOtp);
 router.post('/return', authenticateToken, returnItem);
 router.get('/history', authenticateToken, getBorrowHistory);
 

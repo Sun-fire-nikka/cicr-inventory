@@ -1,6 +1,21 @@
 import { Request, Response } from 'express';
 import { supabase } from '../../app';
+import { dbRead } from '../../config/database';
 import { AuthRequest } from '../../middleware/auth.middleware';
+import { cacheGetJSON, cacheSetJSON, cacheInvalidate, cacheInvalidatePattern } from '../../config/redis';
+
+const ITEMS_LIST_CACHE_TTL = 30; // seconds
+const ITEMS_ITEM_CACHE_TTL = 30;
+
+const itemsListCacheKey = (category: unknown, search: unknown): string =>
+  `cicr:cache:items:list:${String(category ?? '')}:${String(search ?? '')}`;
+
+const itemsIdCacheKey = (id: string): string => `cicr:cache:items:id:${id}`;
+
+export const invalidateItemsCache = async (id?: string): Promise<void> => {
+  await cacheInvalidatePattern('cicr:cache:items:list:*');
+  if (id) await cacheInvalidate(itemsIdCacheKey(id));
+};
 
 // Helper function to log actions in audit_logs
 async function logAudit(action: string, userId: string | undefined, itemId: string | null, description: string) {
@@ -13,11 +28,18 @@ async function logAudit(action: string, userId: string | undefined, itemId: stri
   }
 }
 
-// GET /api/items (Search, Filter by Category, Get All)
+// GET /api/items (Search, Filter by Category, Get All) — cached 30s, read pool
 export const getItems = async (req: Request, res: Response) => {
   try {
     const { category, search } = req.query;
-    let query = supabase.from('inventory').select('*').order('created_at', { ascending: false });
+    const cacheKey = itemsListCacheKey(category, search);
+
+    const cached = await cacheGetJSON(cacheKey);
+    if (cached) {
+      return res.status(200).json(cached);
+    }
+
+    let query = dbRead.from('inventory').select('*').order('created_at', { ascending: false });
 
     if (category) {
       query = query.eq('category', category as string);
@@ -30,7 +52,9 @@ export const getItems = async (req: Request, res: Response) => {
     const { data: items, error } = await query;
     if (error) throw error;
 
-    return res.status(200).json({ status: 'success', count: items.length, data: items });
+    const payload = { status: 'success', count: items.length, data: items };
+    await cacheSetJSON(cacheKey, payload, ITEMS_LIST_CACHE_TTL);
+    return res.status(200).json(payload);
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
   }
@@ -46,17 +70,26 @@ export const getCategories = async (req: Request, res: Response) => {
   }
 };
 
-// GET /api/items/:id
+// GET /api/items/:id — cached 30s, read pool
 export const getItemById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { data: item, error } = await supabase.from('inventory').select('*').eq('id', id).single();
+    const cacheKey = itemsIdCacheKey(id);
+
+    const cached = await cacheGetJSON(cacheKey);
+    if (cached) {
+      return res.status(200).json(cached);
+    }
+
+    const { data: item, error } = await dbRead.from('inventory').select('*').eq('id', id).single();
 
     if (error || !item) {
       return res.status(404).json({ status: 'error', message: 'Item not found.' });
     }
 
-    return res.status(200).json({ status: 'success', data: item });
+    const payload = { status: 'success', data: item };
+    await cacheSetJSON(cacheKey, payload, ITEMS_ITEM_CACHE_TTL);
+    return res.status(200).json(payload);
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
   }
@@ -94,6 +127,7 @@ export const createItem = async (req: AuthRequest, res: Response) => {
 
     // Log to Audit
     await logAudit('Item Added', req.user?.id, newItem.id, `Added "${newItem.name}" with quantity ${qty}`);
+    await invalidateItemsCache(newItem.id);
 
     return res.status(201).json({ status: 'success', message: 'Item created successfully!', data: newItem });
   } catch (err: any) {
@@ -108,7 +142,7 @@ export const updateItem = async (req: AuthRequest, res: Response) => {
     const updates = req.body;
 
     // Fetch existing item to calculate available quantity if total quantity changed
-    const { data: existingItem, error: fetchErr } = await supabase
+    const { data: existingItem, error: fetchErr } = await dbRead
       .from('inventory')
       .select('*')
       .eq('id', id)
@@ -137,6 +171,7 @@ export const updateItem = async (req: AuthRequest, res: Response) => {
 
     // Log to Audit
     await logAudit('Item Edited', req.user?.id, id, `Updated details for item "${updatedItem.name}"`);
+    await invalidateItemsCache(id);
 
     return res.status(200).json({ status: 'success', message: 'Item updated successfully!', data: updatedItem });
   } catch (err: any) {
@@ -149,13 +184,14 @@ export const deleteItem = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const { data: item } = await supabase.from('inventory').select('name').eq('id', id).single();
+    const { data: item } = await dbRead.from('inventory').select('name').eq('id', id).single();
 
     const { error } = await supabase.from('inventory').delete().eq('id', id);
     if (error) throw error;
 
     // Log to Audit
     await logAudit('Deleted', req.user?.id, null, `Deleted item "${item?.name || id}"`);
+    await invalidateItemsCache(id);
 
     return res.status(200).json({ status: 'success', message: 'Item deleted successfully!' });
   } catch (err: any) {

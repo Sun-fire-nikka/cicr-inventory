@@ -1,8 +1,22 @@
+import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+import { enqueueEmail } from '../config/emailQueue';
+
+dotenv.config();
+
+// Verified sender + default test recipient (v1.4.7).
+// Sender is pinned to the verified personal Gmail account; the default test
+// recipient ('kush' / kushgdhi@gmail.com) is used by test/test-email.cjs.
+// The diagnostic probe (test-email.cjs) additionally targets the institutional
+// numeric student inbox 992501030406@mail.jiit.ac.in (Institutional Email Support).
+const SENDER_NAME = 'CICR Inventory Support';
+export const DEFAULT_TEST_RECIPIENT_EMAIL = 'kushgdhi@gmail.com';
+export const DEFAULT_SENDER_EMAIL = 'kushagragargdelhi@gmail.com';
 
 // Configure transport using environment variables or a fallback test account
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: Number(process.env.SMTP_PORT) || 587,
   auth: {
     user: process.env.SMTP_USER || '',
@@ -10,50 +24,351 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+export interface HolderSummary {
+  borrower_name: string;
+  roll_number?: string | null;
+  quantity: number;
+  borrowed_at?: string | null;
+}
+
+export interface BorrowEmailContext {
+  itemName: string;
+  category?: string | null;
+  quantity: number;
+  remainingStock: number;
+  holders: HolderSummary[];
+  durationDays: number;
+  dueDate: Date | string;
+}
+
 const formatDueDate = (dueDate: Date | string): string => {
   const d = new Date(dueDate);
-  return isNaN(d.getTime()) ? String(dueDate) : d.toISOString();
+  if (isNaN(d.getTime())) return String(dueDate);
+  return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+const formatSmtpError = (error: any): string => {
+  const parts: string[] = [];
+  if (error?.message) parts.push(`message=${JSON.stringify(error.message)}`);
+  if (error?.code !== undefined && error?.code !== null) parts.push(`code=${JSON.stringify(error.code)}`);
+  if (error?.response) parts.push(`response=${JSON.stringify(error.response)}`);
+  if (error?.responseCode !== undefined && error?.responseCode !== null) parts.push(`responseCode=${JSON.stringify(error.responseCode)}`);
+  return parts.length ? parts.join(' ') : 'Unknown SMTP error';
+};
+
+// Dynamic Message-ID generation per RFC 2822 §3.6.4:
+//   msg-id  = "<" id-left "@" id-right ">"
+//   id-left = dot-atom-text (unix-ms "." 128-bit hex)
+//   id-right = domain (derived from the configured SMTP host so it aligns with
+//              the authenticated sending domain for SPF/DKIM friendliness)
+const generateMessageId = (): string => {
+  const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const idRight = smtpHost.replace(/^smtp\./i, '').trim().toLowerCase() || 'gmail.com';
+  const idLeft = `${Date.now()}.${crypto.randomBytes(16).toString('hex')}`;
+  return `<${idLeft}@${idRight}>`;
+};
+
+// Shared delivery headers. Priority 'high' is used for the 10-minute OTP so
+// mobile clients surface it immediately; everything else is 'normal'.
+const buildHeaders = (kind: string, priority: 'high' | 'normal' = 'normal') => ({
+  'X-CICR-Mailer': `CICR-Inventory/v1.4.7`,
+  'X-Mailer-Type': kind,
+  'X-Priority': priority === 'high' ? '1 (Highest)' : '3 (Normal)',
+  'Importance': priority === 'high' ? 'High' : 'Normal',
+  'List-Unsubscribe': `<mailto:${process.env.SMTP_USER || 'no-reply@cicr.edu'}?subject=unsubscribe>`,
+});
+
+// Log the FULL SMTP delivery response (info.response is the raw SMTP dialogue
+// tail, e.g. "250 2.0.0 OK 17e-20020a170902a7b0...") plus accepted/rejected
+// recipient arrays — the exact codes needed to debug @mail.jiit.ac.in delivery.
+const logDelivery = (kind: string, info: any): void => {
+  console.log(
+    `[EMAIL SERVICE] ${kind} accepted by SMTP | messageId=${info?.messageId} | ` +
+    `response="${info?.response}" | accepted=${JSON.stringify(info?.accepted || [])} | ` +
+    `rejected=${JSON.stringify(info?.rejected || [])}`
+  );
+};
+
+const buildHoldersTable = (holders: HolderSummary[]): string => {
+  if (!holders.length) {
+    return '<p style="color:#666;">You are the only one currently holding this item.</p>';
+  }
+  const rows = holders
+    .map((h) => {
+      const who = `${h.borrower_name}${h.roll_number ? ` (${h.roll_number})` : ''}`;
+      const when = h.borrowed_at ? new Date(h.borrowed_at).toLocaleDateString('en-GB') : '—';
+      return `<tr><td style="padding:6px 10px;border:1px solid #ddd;">${who}</td><td style="padding:6px 10px;border:1px solid #ddd;">${h.quantity}</td><td style="padding:6px 10px;border:1px solid #ddd;">${when}</td></tr>`;
+    })
+    .join('');
+  return `
+    <table style="border-collapse:collapse;font-size:14px;">
+      <tr><th style="padding:6px 10px;border:1px solid #ddd;text-align:left;">Borrower</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left;">Units</th><th style="padding:6px 10px;border:1px solid #ddd;text-align:left;">Borrowed On</th></tr>
+      ${rows}
+    </table>`;
 };
 
 export const sendBorrowConfirmation = async (
   recipientEmail: string,
   borrowerName: string,
-  itemName: string,
-  quantity: number,
-  durationDays: number,
-  dueDate: Date | string
+  context: BorrowEmailContext
 ) => {
   try {
-    const formattedDueDate = formatDueDate(dueDate);
+    const formattedDueDate = formatDueDate(context.dueDate);
+    const holdersTable = buildHoldersTable(context.holders);
+    const categoryLine = context.category ? ` (${context.category})` : '';
     const mailOptions = {
-      from: process.env.SMTP_FROM || '"CICR Lab Admin" <no-reply@cicr.edu>',
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
       to: recipientEmail,
-      subject: `[CICR Inventory] Borrow Confirmation: ${itemName}`,
-      text: `Hello ${borrowerName},\n\nYou have successfully borrowed ${quantity}x ${itemName} for ${durationDays} day(s).\n\nDue Date: ${formattedDueDate}\n\nPlease ensure it is returned on or before the due date.\n\nRegards,\nCICR Management Team`,
+      subject: `[CICR Inventory] Borrow Confirmation: ${context.itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('borrow-confirmation'),
+      priority: 'normal' as const,
+      text: [
+        `Hello ${borrowerName},`,
+        '',
+        `You have successfully borrowed ${context.quantity}x ${context.itemName}${categoryLine}.`,
+        '',
+        `Remaining available stock: ${context.remainingStock}`,
+        '',
+        `Borrow duration: ${context.durationDays} day(s)`,
+        `Due date: ${formattedDueDate}`,
+        '',
+        `Current holders of ${context.itemName}:`,
+        ...context.holders.map((h) => `  - ${h.borrower_name}${h.roll_number ? ` (${h.roll_number})` : ''}: ${h.quantity} unit(s)`),
+        ...(context.holders.length ? [] : ['  - You are the only one currently holding this item.']),
+        '',
+        'IMPORTANT: Please return the item on or before the due date (5-day policy).',
+        'Regards,',
+        'CICR Management Team'
+      ].join('\n'),
       html: `
         <h3>CICR Inventory - Borrow Confirmation</h3>
         <p>Hello <strong>${borrowerName}</strong>,</p>
-        <p>You have successfully borrowed <strong>${quantity}x ${itemName}</strong>.</p>
-        <p><strong>Borrow Duration:</strong> ${durationDays} day(s)</p>
-        <p><strong>Due Date:</strong> ${formattedDueDate}</p>
-        <p>Please ensure the equipment is handled with care and returned on or before the due date.</p>
+        <p>You have successfully borrowed <strong>${context.quantity}x ${context.itemName}</strong>${categoryLine}.</p>
+        <p><strong>Remaining available stock:</strong> ${context.remainingStock}</p>
+        <p><strong>Borrow duration:</strong> ${context.durationDays} day(s)</p>
+        <p><strong>Due date:</strong> ${formattedDueDate}</p>
+        <h4>Current holders of ${context.itemName}</h4>
+        ${holdersTable}
+        <p style="background:#fff3cd;border-left:4px solid #ffc107;padding:10px;">
+          <strong>Reminder:</strong> Please return the item on or before <strong>${formattedDueDate}</strong>.
+          A strict 5-day return policy applies.
+        </p>
         <br/>
         <p><em>CICR Management Team</em></p>
       `,
     };
 
     if (!process.env.SMTP_USER) {
-      console.log(`[MOCK EMAIL SERVICE] Email dispatched to ${recipientEmail} for item '${itemName}' (Qty: ${quantity}, Duration: ${durationDays}d, Due: ${formattedDueDate})`);
+      console.log(`[MOCK EMAIL SERVICE] Borrow email dispatched to ${recipientEmail} for '${context.itemName}' (Qty: ${context.quantity}, Remaining: ${context.remainingStock}, Due: ${formattedDueDate})`);
       return { success: true, mocked: true };
     }
 
+    if (await enqueueEmail('borrow-confirmation', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
     const info = await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL SERVICE] Email sent successfully: ${info.messageId}`);
+    logDelivery('Borrow email', info);
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
-    console.error(`[EMAIL SERVICE ERROR] Failed to send email to ${recipientEmail}:`, error.message);
+    console.error(`[EMAIL SERVICE ERROR] Failed to send borrow email to ${recipientEmail}: ${formatSmtpError(error)}`);
     // Graceful failover so email failures don't crash the borrow HTTP response
-    return { success: false, error: error.message };
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+export const sendOtpEmail = async (
+  adminEmail: string,
+  adminName: string,
+  studentName: string,
+  otp: string,
+  itemName: string,
+  durationDays: number
+) => {
+  try {
+    const mailOptions = {
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      to: adminEmail,
+      subject: `[CICR Inventory] Borrow Approval OTP: ${otp}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('borrow-otp', 'high'),
+      priority: 'high' as const,
+      text: [
+        `Hello ${adminName},`,
+        '',
+        `${studentName} has requested approval to borrow:`,
+        `  Item: ${itemName}`,
+        `  Duration: ${durationDays} day(s)`,
+        '',
+        `Approval OTP: ${otp}`,
+        '',
+        'This OTP is valid for 10 minutes. Share it with the student only after verifying the request.',
+        'Regards,',
+        'CICR Management Team'
+      ].join('\n'),
+      html: `
+        <h3>CICR Inventory - Borrow Approval Request</h3>
+        <p>Hello <strong>${adminName}</strong>,</p>
+        <p><strong>${studentName}</strong> has requested approval to borrow:</p>
+        <ul>
+          <li><strong>Item:</strong> ${itemName}</li>
+          <li><strong>Duration:</strong> ${durationDays} day(s)</li>
+        </ul>
+        <p style="font-size:28px;font-weight:bold;letter-spacing:4px;background:#f0f4ff;padding:10px;border-radius:6px;">${otp}</p>
+        <p>This OTP is <strong>valid for 10 minutes</strong>. Share it with the student only after verifying the request.</p>
+        <br/>
+        <p><em>CICR Management Team</em></p>
+      `,
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] OTP dispatched to admin ${adminEmail} for '${itemName}' (OTP: ${otp}, Expires: 10m)`);
+      return { success: true, mocked: true, otp };
+    }
+
+    if (await enqueueEmail('borrow-otp', mailOptions)) {
+      return { success: true, queued: true, otp };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('OTP email', info);
+    return {
+      success: true,
+      messageId: info.messageId,
+      info: {
+        envelope: info.envelope,
+        accepted: info.accepted,
+        rejected: info.rejected,
+        pending: info.pending,
+        response: info.response,
+        messageId: info.messageId,
+        headers: mailOptions.headers,
+        replyTo: mailOptions.replyTo
+      }
+    };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send OTP email to ${adminEmail}: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+export const sendUpcomingReminder = async (
+  recipientEmail: string,
+  borrowerName: string,
+  itemName: string,
+  dueDate: Date | string
+) => {
+  try {
+    const formattedDueDate = formatDueDate(dueDate);
+    const mailOptions = {
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      to: recipientEmail,
+      subject: `[CICR Inventory] Return Due Tomorrow: ${itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('upcoming-reminder'),
+      priority: 'normal' as const,
+      text: [
+        `Hello ${borrowerName},`,
+        '',
+        `Reminder: your borrowed item "${itemName}" is due TOMORROW (${formattedDueDate}).`,
+        '',
+        'Please return it to the lab on or before the due date.',
+        'Regards,',
+        'CICR Management Team'
+      ].join('\n'),
+      html: `
+        <h3>CICR Inventory - Return Due Tomorrow</h3>
+        <p>Hello <strong>${borrowerName}</strong>,</p>
+        <p><strong>Reminder:</strong> your borrowed item <strong>"${itemName}"</strong> is due <strong>tomorrow</strong> (${formattedDueDate}).</p>
+        <p>Please return it to the lab on or before the due date.</p>
+        <br/>
+        <p><em>CICR Management Team</em></p>
+      `,
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Upcoming-due reminder dispatched to ${recipientEmail} for '${itemName}' (Due: ${formattedDueDate})`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('upcoming-reminder', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Upcoming-due reminder', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send upcoming-due reminder to ${recipientEmail}: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+export const sendReturnReminder = async (
+  recipientEmail: string,
+  borrowerName: string,
+  itemName: string,
+  dueDate: Date | string,
+  daysOverdue: number
+) => {
+  try {
+    const formattedDueDate = formatDueDate(dueDate);
+    const overdueNotice = daysOverdue > 0
+      ? `Your return is ${daysOverdue} day(s) overdue.`
+      : 'Your item is due today.';
+    const mailOptions = {
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      to: recipientEmail,
+      subject: daysOverdue > 0
+        ? `[CICR Inventory] OVERDUE Return: ${itemName}`
+        : `[CICR Inventory] Return Due Today: ${itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('return-reminder'),
+      priority: 'normal' as const,
+      text: [
+        `Hello ${borrowerName},`,
+        '',
+        `${overdueNotice}`,
+        `Item: ${itemName}`,
+        `Due date: ${formattedDueDate}`,
+        '',
+        'Please return it to the lab at your earliest convenience.',
+        'Regards,',
+        'CICR Management Team'
+      ].join('\n'),
+      html: `
+        <h3>CICR Inventory - Return Reminder</h3>
+        <p>Hello <strong>${borrowerName}</strong>,</p>
+        <p><strong>${overdueNotice}</strong></p>
+        <p><strong>Item:</strong> ${itemName}</p>
+        <p><strong>Due date:</strong> ${formattedDueDate}</p>
+        <p>Please return it to the lab at your earliest convenience.</p>
+        <br/>
+        <p><em>CICR Management Team</em></p>
+      `,
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Return reminder dispatched to ${recipientEmail} for '${itemName}' (Due: ${formattedDueDate}, Overdue: ${daysOverdue}d)`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('return-reminder', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Return reminder', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send return reminder to ${recipientEmail}: ${formatSmtpError(error)}`);
+    // Graceful failover so email failures don't crash the reminder job
+    return { success: false, error: formatSmtpError(error) };
   }
 };
 
@@ -109,9 +424,13 @@ export const sendReturnConfirmation = async (
   try {
     const formattedReturnedAt = returnedAt.toISOString();
     const mailOptions = {
-      from: process.env.SMTP_FROM || '"CICR Lab Admin" <no-reply@cicr.edu>',
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
       to: recipientEmail,
       subject: `[CICR Inventory] Return Confirmation: ${itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('return-confirmation'),
+      priority: 'normal' as const,
       text: `Hello ${borrowerName},\n\nThank you! Your borrowed item ${itemName} has been successfully returned.\n\nReturned At: ${formattedReturnedAt}\n\nNo further reminders will be sent for this borrow.\n\nRegards,\nCICR Management Team`,
       html: `
         <h3>CICR Inventory - Return Confirmation</h3>
@@ -129,12 +448,75 @@ export const sendReturnConfirmation = async (
       return { success: true, mocked: true };
     }
 
+    if (await enqueueEmail('return-confirmation', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
     const info = await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL SERVICE] Return email sent successfully: ${info.messageId}`);
+    logDelivery('Return email', info);
     return { success: true, messageId: info.messageId };
   } catch (error: any) {
-    console.error(`[EMAIL SERVICE ERROR] Failed to send return email to ${recipientEmail}:`, error.message);
+    console.error(`[EMAIL SERVICE ERROR] Failed to send return email to ${recipientEmail}: ${formatSmtpError(error)}`);
     // Graceful failover so email failures don't crash the return HTTP response
-    return { success: false, error: error.message };
+    return { success: false, error: formatSmtpError(error) };
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// LOGIN OTP EMAIL (v1.6.2)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const sendLoginOtpEmail = async (
+  recipientEmail: string,
+  recipientName: string,
+  otp: string
+) => {
+  try {
+    const mailOptions = {
+      from: process.env.SMTP_FROM || `"${SENDER_NAME}" <${process.env.SMTP_USER || DEFAULT_SENDER_EMAIL}>`,
+      replyTo: process.env.SMTP_USER || DEFAULT_SENDER_EMAIL,
+      to: recipientEmail,
+      subject: `[CICR Inventory] Login OTP: ${otp}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('login-otp', 'high'),
+      priority: 'high' as const,
+      text: [
+        `Hello ${recipientName},`,
+        '',
+        `Your CICR Inventory login OTP is: ${otp}`,
+        '',
+        'This OTP is valid for 5 minutes.',
+        'If you did not request this, please ignore this email.',
+        '',
+        'Regards,',
+        'CICR Management Team'
+      ].join('\n'),
+      html: `
+        <h3>CICR Inventory - Login OTP</h3>
+        <p>Hello <strong>${recipientName}</strong>,</p>
+        <p>Your login OTP is:</p>
+        <p style="font-size:28px;font-weight:bold;letter-spacing:4px;background:#f0f4ff;padding:10px;border-radius:6px;">${otp}</p>
+        <p>This OTP is <strong>valid for 5 minutes</strong>.</p>
+        <p>If you did not request this, please ignore this email.</p>
+        <br/>
+        <p><em>CICR Management Team</em></p>
+      `,
+    };
+
+    if (!process.env.SMTP_USER) {
+      console.log(`[MOCK EMAIL SERVICE] Login OTP dispatched to ${recipientEmail} (OTP: ${otp}, Expires: 5m)`);
+      return { success: true, mocked: true, otp };
+    }
+
+    if (await enqueueEmail('login-otp', mailOptions)) {
+      return { success: true, queued: true, otp };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Login OTP email', info);
+    return { success: true, messageId: info.messageId, otp };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send login OTP to ${recipientEmail}: ${formatSmtpError(error)}`);
+    return { success: false, error: formatSmtpError(error) };
   }
 };

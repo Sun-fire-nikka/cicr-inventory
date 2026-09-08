@@ -3,6 +3,7 @@ dotenv.config();
 
 import app from './app';
 import { supabase } from './app';
+import { startReminderScheduler } from './services/reminderService';
 import systemRoutes from './routes/system.routes';
 import { startReminderScheduler } from './services/reminderScheduler';
 

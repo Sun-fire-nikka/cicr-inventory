@@ -1,9 +1,12 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
-const { authenticateToken, requireAdmin } = require('../dist/middleware/auth.middleware.js');
 
-const SECRET = process.env.JWT_SECRET || 'super_secret_cicr_key';
+// Set JWT_SECRET before importing the middleware (it reads process.env at load time).
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_secret_for_tests_only';
+const SECRET = process.env.JWT_SECRET;
+
+const { authenticateToken, requireAdmin } = require('../dist/middleware/auth.middleware.js');
 
 function mockRes() {
   const res = {};
