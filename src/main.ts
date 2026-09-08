@@ -707,8 +707,7 @@ class DashboardManager {
             }
 
             if (targetId === 'admin-view') {
-                const role = localStorage.getItem('cicr_role') || (localStorage.getItem('cicr_auth') === ADMIN_USERNAME ? 'ADMIN' : 'MEMBER');
-                if (role !== 'ADMIN') {
+                if (ModalManager.getCurrentRole() !== 'ADMIN') {
                     ToastManager.show('Access Restricted', 'Admin privileges required to access Admin Portal.', 'warning');
                     switchSection('inventory-view');
                     return;
@@ -1125,13 +1124,38 @@ class ModalManager {
         selectedItem = null;
     }
 
-    private static getCurrentRole(): UserRole {
-        const storedRole = localStorage.getItem('cicr_role');
-        if (storedRole === 'ADMIN' || storedRole === 'MEMBER') {
-            return storedRole;
+    public static getCurrentRole(): UserRole {
+        const userStr = localStorage.getItem('cicr_user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                const email = (user.email || '').toLowerCase().trim();
+                if (
+                    email === 'vardaansaxena096@gmail.com' ||
+                    email === 'cicrinventory@gmail.com' ||
+                    user.role === 'ADMIN'
+                ) {
+                    return 'ADMIN';
+                }
+            } catch {}
         }
 
-        return localStorage.getItem('cicr_auth') === ADMIN_USERNAME ? 'ADMIN' : 'MEMBER';
+        const storedRole = localStorage.getItem('cicr_role');
+        if (storedRole === 'ADMIN') return 'ADMIN';
+
+        const authName = (localStorage.getItem('cicr_auth') || '').toLowerCase().trim();
+        if (
+            authName === 'vardaan' ||
+            authName === 'srvkiller09' ||
+            authName === 'cicrinventory' ||
+            authName.includes('vardaan') ||
+            authName.includes('cicrinventory') ||
+            authName === ADMIN_USERNAME.toLowerCase()
+        ) {
+            return 'ADMIN';
+        }
+
+        return 'MEMBER';
     }
 
     private static isAdmin() {
@@ -2038,7 +2062,29 @@ class AuthManager {
     }
 
     private static loginSuccess(username: string, role: string = 'MEMBER', _userObj?: any) {
+        let effectiveRole = role;
+        if (_userObj?.email) {
+            const normEmail = _userObj.email.toLowerCase().trim();
+            if (normEmail === 'vardaansaxena096@gmail.com' || normEmail === 'cicrinventory@gmail.com') {
+                effectiveRole = 'ADMIN';
+            }
+        }
+        const normName = username.toLowerCase().trim();
+        if (
+            normName === 'vardaan' ||
+            normName === 'srvkiller09' ||
+            normName.includes('vardaan') ||
+            normName.includes('cicrinventory')
+        ) {
+            effectiveRole = 'ADMIN';
+        }
+
         localStorage.setItem('cicr_auth', username);
+        localStorage.setItem('cicr_role', effectiveRole);
+        if (_userObj) {
+            localStorage.setItem('cicr_user', JSON.stringify({ ..._userObj, role: effectiveRole }));
+        }
+
         if (this.navUsername) {
             this.navUsername.innerText = username;
         }
@@ -2051,8 +2097,8 @@ class AuthManager {
         if (profileUserDisplay) profileUserDisplay.innerText = username;
         if (profileAvatarInitial) profileAvatarInitial.innerText = username.charAt(0).toUpperCase();
         if (profileRoleDisplay) {
-            profileRoleDisplay.innerText = role;
-            if (role === 'ADMIN') {
+            profileRoleDisplay.innerText = effectiveRole;
+            if (effectiveRole === 'ADMIN') {
                 profileRoleDisplay.style.color = '#ff007a';
             } else {
                 profileRoleDisplay.style.color = 'var(--neon-cyan)';
@@ -2067,7 +2113,7 @@ class AuthManager {
         this.appContainer.style.display = 'grid';
 
         // Show/Hide Admin Portal navigation & cards based on role
-        this.updateAdminVisibility(role);
+        this.updateAdminVisibility(effectiveRole);
 
         // Select Dashboard link in the left sidebar by default
         const activeNavClass = () => {
@@ -2112,19 +2158,21 @@ class AuthManager {
         lucide.createIcons();
         TerminalSimulator.start();
 
-        if (role === 'ADMIN') {
+        if (effectiveRole === 'ADMIN') {
             AdminManager.init();
             AdminManager.loadUsers();
         }
     }
 
-    private static updateAdminVisibility(role: string) {
+    private static updateAdminVisibility(role?: string) {
         const sideAdminLink = document.getElementById('side-nav-admin');
         const dashAdminCard = document.getElementById('dash-card-admin');
+        const isAdmin = ModalManager.getCurrentRole() === 'ADMIN' || role === 'ADMIN';
 
-        if (role === 'ADMIN') {
+        if (isAdmin) {
             if (sideAdminLink) sideAdminLink.style.display = 'flex';
             if (dashAdminCard) dashAdminCard.style.display = 'flex';
+            AdminManager.init();
         } else {
             if (sideAdminLink) sideAdminLink.style.display = 'none';
             if (dashAdminCard) dashAdminCard.style.display = 'none';
