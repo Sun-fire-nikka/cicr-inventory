@@ -11,13 +11,13 @@
       "role": "ADMIN",
       "approvedAt": "2026-09-08T00:00:00.000Z",
       "approvedBy": "SYSTEM"
-    },
-    "992501030399@mail.jiit.ac.in": {
-      "status": "PENDING",
-      "role": "MEMBER"
     }
   },
   "purgedEmails": [
-    "kushagragargdelhi@gmail.com"
+    "kushagragargdelhi@gmail.com",
+    "9922103999@mail.jiit.ac.in",
+    "992501030399@mail.jiit.ac.in",
+    "9922103702@mail.jiit.ac.in",
+    "9922103689@mail.jiit.ac.in"
   ]
 }

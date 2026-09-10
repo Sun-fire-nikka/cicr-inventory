@@ -4,19 +4,20 @@
 
 # CICR Inventory Hub
 
-**Creative & Innovative Cell in Robotics — Inventory System**
+**Creative & Innovative Cell in Robotics — Inventory & Hardware Allocation System**
 
-Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's robotics vault with a full-stack web platform: **React-free Vite + Three.js frontend**, **Node.js/Express REST API**, **Supabase (PostgreSQL)** persistence, and **Nodemailer** email automation.
+Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's robotics vault with a modern full-stack web platform: **React-free Vite + Three.js & Canvas VFX engines**, **Node.js/Express REST API**, **Supabase (PostgreSQL)** persistence, **Redis** session caching & queues, and **Nodemailer** transactional telemetry.
 
 [![Live Demo](https://img.shields.io/badge/LIVE-cicrinventory.vercel.app-00f0ff?style=for-the-badge&logo=vercel&logoColor=white)](https://cicrinventory.vercel.app/)
 [![Repo](https://img.shields.io/badge/GITHUB-CICR__Inventory-bd00ff?style=for-the-badge&logo=github&logoColor=white)](https://github.com/simplyvardaan/CICR_Inventory)
+[![Backend](https://img.shields.io/badge/API-Render%20Web%20Service-46e3b7?style=for-the-badge&logo=render&logoColor=white)](https://cicr-inventory-backend.onrender.com)
 [![License](https://img.shields.io/badge/LICENSE-MIT-1e2327?style=for-the-badge)](#-license)
 
 </div>
 
 ---
 
-## Table of Contents
+## 📑 Table of Contents
 
 - [Version History](#-version-history)
 - [System Architecture](#-system-architecture)
@@ -24,14 +25,18 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 - [Repository Structure](#-repository-structure)
 - [Getting Started](#-getting-started)
 - [Environment Variables](#-environment-variables)
+- [Dual Superadmin & Institutional Auth Guard](#-dual-superadmin--institutional-auth-guard)
+- [Admin Portal & Multi-Tier Hardware Queue](#-admin-portal--multi-tier-hardware-queue)
+- [Frontend Themes & Interactive Canvas Engines](#-frontend-themes--interactive-canvas-engines)
 - [API Reference](#-api-reference)
-- [Email Notification Workflow](#-email-notification-workflow)
+- [Email Telemetry & Notification Workflow](#-email-telemetry--notification-workflow)
 - [Back-of-the-Envelope (BOTE) Estimation & Scalability](#-back-of-the-envelope-bote-estimation--scalability)
 - ["Crack vs Smooth Surface" — System Analysis](#-crack-vs-smooth-surface--system-analysis)
 - [Third-Party Integration Bottlenecks & Rate Limits](#-third-party-integration-bottlenecks--rate-limits)
 - [Database Schema](#-database-schema)
 - [Testing](#-testing)
-- [Deployment](#-deployment)
+- [Production Deployment](#-production-deployment)
+- [Mentors & Core Team](#-mentors--core-team)
 - [Known Issues & Roadmap](#-known-issues--roadmap)
 - [License](#-license)
 
@@ -39,105 +44,123 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 
 ## 📌 Version History
 
-| Version | Status | Changes |
-|---------|--------|---------|
-| **v1.0.0** | ✅ Released | Initial frontend (Vite + Three.js) and Express server. |
-| **v1.1.0** | ✅ Released | Supabase schema, JWT auth, core inventory routes. |
-| **v1.2.1** | ✅ Released | Frontend-backend integration, borrow/return logic, route fixes. |
-| **v1.3.2** | ✅ Released | Nodemailer transport, SMTP config, transactional email base. |
+| Version | Status | Key Milestones & Changes |
+|---------|--------|---------------------------|
+| **v1.0.0** | ✅ Released | Initial frontend (Vite + Three.js) and Express server baseline. |
+| **v1.1.0** | ✅ Released | Supabase PostgreSQL schema, JWT authentication, core inventory routes. |
+| **v1.2.1** | ✅ Released | Frontend-backend integration, borrow/return logic, and route fixes. |
+| **v1.3.2** | ✅ Released | Nodemailer transport, SMTP config, and base transactional email dispatch. |
 | **v1.4.3** | ⚠️ Pre-release | Admin OTP approval (`request-otp` / `verify-otp`), 1–30 day rental cap, Day N-1 return reminders. |
-| **v1.4.4** | ✅ Released | Custom Message-ID, X-headers, plain-text fallback, SMTP response logging. |
-| **v1.4.5** | ⚠️ Pre-release | Frontend `API_BASE` points at local backend on port 5000. End-to-end OTP borrow verified. |
+| **v1.4.4** | ✅ Released | Custom Message-ID, X-headers, plain-text fallback, and SMTP response logging. |
+| **v1.4.5** | ⚠️ Pre-release | Frontend dynamic `API_BASE` points to local backend on port 5000. End-to-end OTP borrow flow verified. |
 | **v1.4.6** | ⚠️ Pre-release | Sender pinned to verified Gmail, `test-email.cjs` probe, `002_seed_test_users.sql`. |
 | **v1.4.7** | ⚠️ Pre-release | RFC 2822 dynamic Message-ID, `validators/email.validator.ts` for 12-digit `@mail.jiit.ac.in` IDs. |
 | **v1.5.0** | ✅ Released | Redis sessions, `dbRead`/`dbWrite` split, BullMQ email queue, RBAC middleware, API response cache (30s TTL). |
 | **v1.6.0** | ✅ Released | Frontend UI merge (dark theme, Three.js backgrounds, sidebar, modals). CORS updated to `CLIENT_URL`. |
-| **v1.6.1** | ✅ Released | Removed hardcoded mock credentials, added `reset-db.ts` script. |
-| **v1.6.2** | ✅ Released | OTP-based login (`send-otp` / `verify-otp`), strict email domain validation. |
+| **v1.6.1** | ✅ Released | Purged hardcoded mock credentials, added PostgreSQL database reset scripts. |
+| **v1.6.2** | ✅ Released | OTP-based login (`send-otp` / `verify-otp`), institutional domain enforcement. |
 | **v1.6.4** | ✅ Released | Inventory CRUD + borrow flow wired end-to-end via authenticated API calls. |
-| **v1.7.0** | ✅ Released | **Backend hardening.** Removed hardcoded JWT fallback (`super_secret_cicr_key`) — server now refuses to start without `JWT_SECRET`. Atomic SQL guards on `available_quantity` (`.gte('available_quantity', quantity)`) prevent concurrent borrow over-allocation. `000_create_tables.sql` migration added with full DDL + indexes. Deleted 7 dead files (`config/supabase.ts`, empty route/controller/service stubs). Standardized fire-and-forget email dispatch via `dispatchBackground()`. `.env.example` updated with all 14 environment variables. SMTP fallbacks standardized to `smtp.gmail.com` in both `emailService.ts` and `emailQueue.ts`. |
+| **v1.7.0** | ✅ Released | **Backend hardening.** Server refuses to start without `JWT_SECRET`. Atomic SQL concurrency guards on `available_quantity` prevent double-borrowing. Added `000_create_tables.sql` base migration. |
+| **v2.0.0** | ✅ Released | **Institutional Auth & Dual Superadmin.** Strictly enforced `@mail.jiit.ac.in` institutional email format for students; registered accounts enter `PENDING` status awaiting admin verification; master superadmins locked to `vardaansaxena096@gmail.com` and `cicrinventory@gmail.com`. |
+| **v2.2.0** | ✅ Released | **Admin Portal & Queues.** Compact cyberpunk redesign for Admin Control Center; added Member Approval queue and Hardware Issue Requests queue with multi-tier sync across Supabase, REST API, and local storage fallback. |
+| **v2.3.0** | ✅ Released | **Cyber Telemetry Redesign.** Transactional emails updated to authentic cyber aesthetic (zero emojis); automated instant alerts for member signups, approvals, rejections, hardware requests, and dual superadmin instant CC notifications. |
+| **v2.4.0** | ✅ Released | **Frontend Architecture & Roster.** Auto-detecting dynamic `API_BASE` (localhost vs. Render production); CORS configured for Vercel; added **Meet The Developers** team showcase, collapsible Vault Index sidebar navigation, out-of-stock indicators, and color-coded transaction logs. |
+| **v2.5.0** | ✅ Released | **CanvasFX Visual Engines.** Added 60 FPS physics-based **Sakura (Cherry Blossom)** falling petals engine and cinematic **Avengers Assemble** theme featuring vibrating Captain America Vibranium shield with radial gradients, Arc Reactor HUD, and ambient energy sparks. |
+| **v2.5.1** | ✅ Released | **Production Deployment & Security Hardening.** Dual-endpoint hardware request fallback, theme contrast optimizations, verified SMTP fallback for Render production (`render.yaml`), Vercel SPA build config (`vercel.json`), and purge of compiled build artifacts from source control. |
+| **v2.6.0** | ✅ Released | **Admin Item Deletion, Real-Time Audit Center & Database Hardening.** Full in-app item deletion with database cascade and emergency email alerts; cyber System Audit & Activity Logs center tracking all portal actions; 6-second background auto-synchronization; zero-mock-data sanitization. |
 
-> The current release is **v1.7.0 — Backend Hardening**. The backend is stable with atomic concurrency guards, proper error handling, and a complete database migration. See the commit history for details.
+> The current active release is **v2.6.0 — System Audit, Item Deletion & Database Hardening**. Both the Vercel frontend and Render backend run in production with live database sync, multi-tier hardware queues, real-time activity auditing, and automated transactional telemetry.
 
 ### 🏷️ Version Registry (Git Tags)
 
-| Version | Git Tag | Status |
-|---------|---------|--------|
-| **v1.0.0** | `v1.0.0` | ✅ Released |
-| **v1.1.0** | `v1.1.0` | ✅ Released |
-| **v1.2.1** | `v1.2.1` | ✅ Released |
-| **v1.3.2** | `v1.3.2` | ✅ Released |
-| **v1.4.3** | `v1.4.3` | ⚠️ Pre-release |
-| **v1.4.4** | `v1.4.4` | ✅ Released |
-| **v1.4.5** | `v1.4.5` | ⚠️ Pre-release |
-| **v1.4.6** | `v1.4.6` | ⚠️ Pre-release |
-| **v1.4.7** | `v1.4.7` | ⚠️ Pre-release |
-| **v1.5.0** | `v1.5.0` | ✅ Released |
-| **v1.6.0** | `v1.6.0` | ✅ Released |
-| **v1.6.1** | `v1.6.1` | ✅ Released |
-| **v1.6.2** | `v1.6.2` | ✅ Released |
-| **v1.6.4** | `v1.6.4` | ✅ Released |
-| **v1.7.0** | `v1.7.0` | ✅ Released |
+| Version | Git Tag | Status | Focus Area |
+|---------|---------|--------|------------|
+| **v1.0.0** | `v1.0.0` | ✅ Released | Initial MVP |
+| **v1.5.0** | `v1.5.0` | ✅ Released | Redis Caching & Queue |
+| **v1.7.0** | `v1.7.0` | ✅ Released | Backend Hardening & Atomic Guards |
+| **v2.0.0** | `v2.0.0` | ✅ Released | Dual Superadmin & Institutional Auth |
+| **v2.2.0** | `v2.2.0` | ✅ Released | Admin Portal & Hardware Issue Queues |
+| **v2.3.0** | `v2.3.0` | ✅ Released | Cyber-Themed Transactional Telemetry |
+| **v2.4.0** | `v2.4.0` | ✅ Released | Developer Roster & Collapsible Navigation |
+| **v2.5.0** | `v2.5.0` | ✅ Released | Avengers & Sakura Canvas Engines |
+| **v2.5.1** | `v2.5.1` | ✅ Released | Production Deployments & Security Polish |
+| **v2.6.0** | `v2.6.0` | ✅ Released | Real-Time Audit Logs & Admin Item Deletion |
 
 ---
 
 ## 🏗️ System Architecture
 
 ```
-┌──────────────────────┐      HTTPS (JSON)      ┌──────────────────────────┐
-│       FRONTEND       │ ─────────────────────► │        BACKEND API       │
-│  Vite + Three.js +   │    /api/*             │  Node.js + Express + TS  │
-│  TypeScript (Vanilla)│ ◄───────────────────── │  src/modules/*           │
-│  src/main.ts         │   JSON responses      │  src/services/           │
-└──────────────────────┘                       └─────┬──────────┬────────┘
-                                                     │          │
-                                          ┌──────────▼──┐  ┌────▼───────────┐
-                                          │    REDIS     │  │    SUPABASE     │
-                                          │ Sessions     │  │  PostgreSQL     │
-                                          │ API Cache    │  │  ┌───────────┐ │
-                                          │ BullMQ Queue │  │  │ dbRead    │ │
-                                          │ OTP State    │  │  │ (replica) │ │
-                                          └──────────────┘  │  ├───────────┤ │
-                                                            │  │ dbWrite   │ │
-                                                            │  │ (primary) │ │
-                                                            │  └───────────┘ │
-                                                            │  users, items, │
-                                                            │  borrow_records,│
-                                                            │  audit_logs     │
-                                                            └───────┬────────┘
-                                                                    │ SMTP
-                                                                    ▼
-                                                        ┌────────────────────┐
-                                                        │   Gmail SMTP       │
-                                                        │ (App Password)     │
-                                                        │ BullMQ → worker    │
-                                                        └────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│                        CLIENT                          │
+│   Vite 8 + Vanilla TypeScript + Three.js + Canvas 2D   │
+│   • Cyber Dark / Sakura Blossom / Avengers Themes      │
+│   • Meet The Developers / Collapsible Vault Index      │
+│   • Dynamic API Base Auto-Resolution                   │
+└───────────────────────────┬────────────────────────────┘
+                            │ HTTPS / JSON (REST API)
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│                      BACKEND API                       │
+│           Node.js ≥ 18 + Express 4 + TypeScript        │
+│   • Auth & RBAC Middleware (Dual Superadmin Guards)    │
+│   • Inventory CRUD & Atomic Concurrency Guards         │
+│   • Hardware Issue Request Pipeline                    │
+│   • BOTE Metrics & Capacity Simulation Engine          │
+└─────────────┬────────────────────────────┬─────────────┘
+              │                            │
+   ┌──────────▼───────────┐     ┌──────────▼───────────┐
+   │        REDIS         │     │  SUPABASE POSTGRES   │
+   │  • Session Store     │     │  • dbRead (Replica)  │
+   │  • API Cache (30s)   │     │  • dbWrite (Primary) │
+   │  • BullMQ Queue      │     │  • users / inventory │
+   │  • OTP State Store   │     │  • borrow_records    │
+   └──────────────────────┘     └──────────┬───────────┘
+                                           │ Multi-tier Sync
+                                ┌──────────▼───────────┐
+                                │   LOCAL PERSISTENCE  │
+                                │  • hardware_requests │
+                                │  • user_approval     │
+                                └──────────┬───────────┘
+                                           │ Transactional Alerts
+                                           ▼
+                                ┌──────────────────────┐
+                                │   GMAIL SMTP RELAY   │
+                                │ cicrinventory@gmail  │
+                                │ • Student Alerts     │
+                                │ • Superadmin CCs     │
+                                └──────────────────────┘
 ```
 
-**Request lifecycle (borrow example):**
+### Request Lifecycle (Hardware Issue Flow)
 
-1. Frontend sends `POST /api/borrow` with `Authorization: Bearer <JWT>` (or session cookie).
-2. `auth.middleware.ts` verifies the JWT (or falls back to the Redis session) and populates `req.user { id, name, email, role }`.
-3. `borrow.controller.ts` checks stock via `dbRead`, inserts a `borrow_records` row via `dbWrite` with `due_date = borrowed_at + duration_days`, and decrements `available_quantity`.
-4. `invalidateItemsCache()` clears the Redis inventory cache so subsequent `GET /api/items` reflects the new stock.
-5. `emailService.sendBorrowConfirmation(req.user.email, ...)` enqueues via BullMQ (or sends directly if Redis is unavailable) — fire-and-forget, never blocks the HTTP response.
-6. The `reminderService` (node-cron) independently scans for due/overdue borrows and emails borrowers.
+1. **Student Request**: Student logs in with institutional credentials (`<enrollment>@mail.jiit.ac.in`) and submits a hardware issue request (`POST /api/borrow/request`).
+2. **Instant Alert**: Backend saves the request to the pending queue with multi-tier sync (Supabase + local storage fallback) and dispatches an instant cyber notification email to the Dual Superadmins (`vardaansaxena096@gmail.com` and `cicrinventory@gmail.com`).
+3. **Admin Review**: Admin opens the **Admin Portal** (`GET /api/borrow/requests`), inspects purpose, requested duration, and current inventory stock.
+4. **Approval & Stock Decrement**: Admin clicks Approve (`POST /api/borrow/requests/:id/approve`):
+   - Database atomically decrements `available_quantity` (`gte` stock check prevents over-allocation).
+   - A `borrow_records` row is created with calculated `due_date` (`requested_at + duration_days`).
+   - Request status shifts to `APPROVED`.
+5. **Telemetry Dispatch**: Fire-and-forget confirmation email is dispatched to the student with borrow details, return deadline, and component care instructions, alongside an admin audit confirmation.
+6. **Automated Reminders**: `reminderService` (daily cron + startup scan) tracks loan status and alerts borrowers on Day N-1 (due tomorrow), Day Due, and overdue intervals.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | Vite 8, TypeScript, Three.js, lucide icons, vanilla DOM/CSS (dark neon-glass UI) |
-| **Backend** | Node.js ≥ 18, Express 4, TypeScript 5 (strict), ts-node, nodemon |
-| **Database** | Supabase (PostgreSQL) via `@supabase/supabase-js` — `dbRead` (replica/primary) + `dbWrite` (primary) |
-| **Cache/Sessions** | Redis via `ioredis` + `connect-redis` (in-memory fallback when `REDIS_URL` unset) |
-| **Auth** | `bcryptjs` password hashing + `jsonwebtoken` (JWT, 7-day expiry) + RBAC middleware |
-| **Email** | Nodemailer (SMTP, Gmail App Password) + BullMQ async queue (Redis-only) |
-| **Scheduling** | node-cron (daily 09:00 + boot-time due-tomorrow / due / overdue check) |
-| **Tests** | Node built-in test runner (`node --test`) — 72 tests |
-| **Deployment** | Backend: Render (`cicr-inventory-backend.onrender.com`) · Frontend: Vercel (`cicrinventory.vercel.app`) |
+| Layer | Technology | Details |
+|-------|------------|---------|
+| **Frontend** | Vite 8, TypeScript 5, Three.js, Lucide Icons | Vanilla DOM architecture, responsive cyber glassmorphism, zero framework bloat. |
+| **VFX & Animation** | HTML5 Canvas 2D + WebGL | 60 FPS Sakura falling petal simulation & Avengers Arc Reactor / Vibranium shield HUD. |
+| **Backend** | Node.js ≥ 18, Express 4, TypeScript 5 | Modular route architecture (`auth`, `inventory`, `borrow`, `dashboard`, `system`). |
+| **Database** | Supabase (PostgreSQL) | PostgREST connection with `dbRead` (replica/primary) and `dbWrite` (primary) separation. |
+| **Multi-Tier Sync** | JSON State Layer | Fallback storage for offline/resilient recovery (`hardware_requests_data.json`, `user_approval_data.json`). |
+| **Cache & Queues** | Redis via `ioredis` + `connect-redis` | Session persistence, 30-second inventory response cache, BullMQ async worker queues. |
+| **Authentication** | JWT (`jsonwebtoken`) + `bcryptjs` | 7-day token lifespan, institutional `@mail.jiit.ac.in` domain enforcement, admin approval gate. |
+| **Email Telemetry** | Nodemailer | Authenticated Gmail SMTP relay (`cicrinventory@gmail.com`) with cyber-styled HTML & text fallbacks. |
+| **Scheduler** | `node-cron` | Automated loan audits, due-tomorrow reminders, and overdue sweeps. |
+| **Testing** | Node built-in test runner (`node --test`) | Unit tests for auth/middleware, BOTE estimation, and end-to-end integration tests. |
+| **Deployment** | Vercel (Frontend) · Render (Backend) | Single-page application rewrites via `vercel.json`; containerized Node service via `render.yaml`. |
 
 ---
 
@@ -145,50 +168,67 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 
 ```
 CICR_Inventory/
-├── backend/                      # Express + TypeScript API
+├── backend/                             # Express + TypeScript REST API
 │   ├── src/
-│   │   ├── server.ts             # Entry point (HTTP listen + reminder scheduler)
-│   │   ├── app.ts                # Express app + Redis session store + route mounting
+│   │   ├── server.ts                    # HTTP server entry + reminder scheduler
+│   │   ├── app.ts                       # Express app, middleware, routes, and Supabase client
 │   │   ├── config/
-│   │   │   ├── database.ts       # dbRead / dbWrite (read replica + primary)
-│   │   │   ├── redis.ts          # Redis client + in-memory fallback + cache helpers
-│   │   │   └── emailQueue.ts     # BullMQ async email queue (Redis-only)
+│   │   │   ├── database.ts              # dbRead (replica) & dbWrite (primary) clients
+│   │   │   ├── redis.ts                 # Redis connection + in-memory cache fallback
+│   │   │   └── emailQueue.ts            # BullMQ email queue producer & worker
 │   │   ├── modules/
-│   │   │   ├── auth/             # register, login, OTP login, profile (+ routes)
-│   │   │   ├── inventory/        # items CRUD + Redis cache (+ routes)
-│   │   │   ├── borrow/           # borrow, return, OTP approval, history (+ routes)
-│   │   │   ├── dashboard/        # stats + audit log (+ routes)
-│   │   │   └── system/           # BOTE metrics + scale simulation (+ controller)
+│   │   │   ├── auth/                    # Register, login, OTP login, user approvals, profile
+│   │   │   │   ├── auth.controller.ts
+│   │   │   │   ├── auth.routes.ts
+│   │   │   │   ├── authOtpController.ts
+│   │   │   │   ├── authOtpService.ts
+│   │   │   │   └── userApprovalService.ts # Student registration approval state
+│   │   │   ├── borrow/                  # Direct borrow, hardware request queue, returns, history
+│   │   │   │   ├── adminDirectory.ts    # Authorized administrators directory
+│   │   │   │   ├── borrow.controller.ts
+│   │   │   │   ├── borrow.routes.ts
+│   │   │   │   ├── hardwareRequestService.ts # Multi-tier hardware request queue
+│   │   │   │   └── otpService.ts
+│   │   │   ├── inventory/               # Catalog CRUD, categories, stock tracking
+│   │   │   │   ├── inventory.controller.ts
+│   │   │   │   └── inventory.routes.ts
+│   │   │   ├── dashboard/               # Stats and audit logs
+│   │   │   └── system/                  # BOTE capacity metrics & load simulation
 │   │   ├── middleware/
-│   │   │   └── auth.middleware.ts# JWT verify + session fallback + RBAC
+│   │   │   └── auth.middleware.ts       # JWT verification, RBAC guards (`requireAdmin`)
 │   │   ├── validators/
-│   │   │   └── email.validator.ts# Institutional email validation
+│   │   │   └── email.validator.ts       # Institutional 12-digit student domain validator
 │   │   └── services/
-│   │       ├── emailService.ts   # Nodemailer transport + email templates
-│   │       ├── reminderService.ts# node-cron due/overdue reminder job
-│   │       └── boteService.ts    # BOTE capacity/latency math
+│   │       ├── emailService.ts          # Cyber-styled transactional email templates & SMTP transport
+│   │       ├── reminderService.ts       # Cron-based due/overdue reminder sweeps
+│   │       ├── reminderScheduler.ts
+│   │       └── boteService.ts           # Back-of-the-envelope capacity calculator
 │   ├── migrations/
-│   │   ├── 000_create_tables.sql # Base DDL (users, inventory, borrow_records, audit_logs)
+│   │   ├── 000_create_tables.sql        # Core DDL (users, inventory, borrow_records, audit_logs)
 │   │   ├── 001_add_due_date_to_borrow_records.sql
 │   │   └── 002_seed_test_users.sql
-│   ├── test/                     # auth.middleware + API integration tests (.cjs)
-│   ├── .env                      # local secrets (gitignored)
-│   ├── .env.example              # template (committed)
+│   ├── test/                            # Auth, BOTE, and API integration test suites
+│   ├── .env.example                     # Environment template
 │   ├── package.json
+│   ├── render.yaml                      # Render deployment specification
 │   └── tsconfig.json
-├── src/                          # Frontend (Vite + Three.js)
-│   ├── main.ts                   # UI logic; API_BASE constant (line 11)
-│   ├── types.ts
-│   ├── style.css
-│   └── assets/
-├── public/                       # Static images/icons
-├── docs/
-│   ├── BACKEND_HANDOFF.md        # v1.5.0 backend handoff guide
-│   └── BOTE_ESTIMATION.md        # Back-of-the-envelope email-pipeline capacity math
-├── index.html
-├── package.json                  # Frontend deps & scripts
+├── src/                                 # Vite + Three.js Frontend
+│   ├── main.ts                          # UI controller, dynamic API routing, canvas VFX loops
+│   ├── types.ts                         # TypeScript domain models
+│   ├── style.css                        # Glassmorphism cyber UI, responsive grid, theme variables
+│   └── assets/                          # Static assets and icons
+├── public/                              # Static public files & developer photos
+│   ├── devs/                            # Team & mentor portraits
+│   └── logo.png                         # CICR emblem
+├── docs/                                # Architectural guides and calculations
+│   ├── BACKEND_HANDOFF.md
+│   └── BOTE_ESTIMATION.md               # Email throughput and scalability derivation
+├── index.html                           # Root HTML, navigation, modals, and canvas layers
+├── package.json
+├── render.yaml                          # Root Render blueprint
+├── vercel.json                          # Vercel SPA build and rewrite rules
 ├── tsconfig.json
-└── README.md                     # You are here
+└── README.md                            # System documentation
 ```
 
 ---
@@ -197,488 +237,373 @@ CICR_Inventory/
 
 ### Prerequisites
 
-- Node.js ≥ 18 (tested on v24)
-- npm ≥ 9
-- A Supabase project (PostgreSQL + PostgREST)
-- A Gmail account with 2-Step Verification + App Password (for email)
+- **Node.js**: `≥ 18.0.0` (tested on Node v20 & v24)
+- **npm**: `≥ 9.0.0`
+- **Supabase Account**: A PostgreSQL project with PostgREST enabled.
+- **Gmail Account**: With 2-Factor Authentication enabled and a 16-character **App Password** generated.
+- **Redis** *(Optional)*: Local Redis instance or cloud provider (e.g. Upstash). In-memory fallback activates automatically if omitted.
 
-### 1. Clone & install
+### 1. Clone & Install Dependencies
 
 ```bash
 git clone https://github.com/simplyvardaan/CICR_Inventory.git
 cd CICR_Inventory
 
-# Frontend
+# Install Frontend dependencies
 npm install
 
-# Backend
+# Install Backend dependencies
 cd backend
 npm install
+cd ..
 ```
 
-### 2. Configure backend environment
+### 2. Configure Backend Environment
+
+Copy the template file inside `backend/`:
 
 ```bash
 cd backend
 cp .env.example .env
 ```
 
-Fill in `.env` (see [Environment Variables](#-environment-variables)).
+Edit `backend/.env` with your project secrets (see [Environment Variables](#-environment-variables)).
 
-### 3. Create the database schema
+### 3. Initialize Database Schema
 
-Run the [Database Schema](#-database-schema) SQL in the Supabase SQL Editor.
+Open the Supabase SQL Editor and execute:
+1. `backend/migrations/000_create_tables.sql` (Creates `users`, `inventory`, `borrow_records`, `audit_logs`, and indexes).
+2. `backend/migrations/001_add_due_date_to_borrow_records.sql` (Adds `due_date` tracking).
 
-### 4. Run the backend
+### 4. Start the Application
+
+#### Start the Backend API (Port 5000)
 
 ```bash
 cd backend
-npm run build        # tsc → dist/
-npm start            # http://localhost:5000
-# or during development:
-npm run dev          # nodemon + ts-node (watch mode)
+npm run dev        # nodemon + ts-node watch mode
+# or for production:
+npm run build && npm start
 ```
 
-### 5. Run the frontend
+#### Start the Frontend Client (Port 5173)
 
 ```bash
-cd CICR_Inventory
-npm run dev          # Vite dev server → http://localhost:5173
+# In the repository root
+npm run dev
 ```
 
-> **Frontend API target:** the frontend reads a single `API_BASE` constant in `src/main.ts:11`. As of **v1.5.0** it points **directly at the backend on port 5000** (`http://localhost:5000/api`) — so `POST /api/borrow/request-otp`, `POST /api/borrow/verify-otp`, and `GET /api/items` all hit the local Express server. For a deployed build, change it back to `https://cicr-inventory-backend.onrender.com/api`. The backend now accepts both JWT Bearer tokens and Redis-backed session cookies — use `credentials: 'include'` on fetch requests for session support.
+Visit `http://localhost:5173` in your browser.
 
-### Test accounts (seeded)
-
-Seeded idempotently via `backend/migrations/002_seed_test_users.sql` (upserts keep `kush` active as `MEMBER`; existing passwords are preserved):
-
-| Role | Email | Notes |
-|------|-------|-------|
-| **Admin** | `kushagragargdelhi@gmail.com` | KUSH — the only admin in the OTP approval directory |
-| Student | `kushgdhi@gmail.com` | `kush` — original seeded test student |
-| Student | `992501030406@mail.jiit.ac.in` | Institutional test account — **live OTP probe target** (numeric ID) |
-| Student | `992501030395@mail.jiit.ac.in` | Institutional test account (numeric ID) |
-| Student | `992501030399@gmail.jiit.ac.in` | Institutional test account |
-| Student | `992401210050@gmail.jiit.ac.in` | Institutional test account |
-| Student | `992401030154@mail.jiit.ac.in` | Institutional test account |
-
-> The five `@jiit.ac.in` students share the seeded password **`JiitCICR@2026!`**. All are `MEMBER` role; borrow/reminder emails land in the real inboxes.
-
-> **Test OTP mail routing (v1.4.7 — Institutional Email Support):** sender is pinned to **`CICR Inventory Support <kushagragargdelhi@gmail.com>`** (verified SMTP account, with `Reply-To: kushagragargdelhi@gmail.com`). The live probe in `test/test-email.cjs` dispatches the OTP to the numeric institutional inbox **`992501030406@mail.jiit.ac.in`** — mapping **Sender `kushagragargdelhi@gmail.com` → Receiver `992501030406@mail.jiit.ac.in`** — and prints full SMTP response codes + sent headers (see [Verify Email Delivery](#-verify-email-delivery)).
+> **Dynamic API Resolution**: The frontend detects local development automatically (`localhost` / `127.0.0.1`) and targets `http://localhost:5000/api`. On production deployments, it targets `https://cicr-inventory-backend.onrender.com/api` unless overridden by `VITE_API_BASE`.
 
 ---
 
 ## 🔑 Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `PORT` | No | Backend listen port (default `5000`) |
-| `SUPABASE_URL` | Yes | Supabase project API URL — `https://<project-ref>.supabase.co` (**not** `/rest/v1`, **not** the dashboard URL) |
-| `SUPABASE_ANON_KEY` | Yes | Supabase public anon key (safe to ship to the client; RLS protects data) |
-| `SUPABASE_READ_URL` | No | Read replica URL — when set, `dbRead` routes all SELECTs here; falls back to `SUPABASE_URL` |
-| `JWT_SECRET` | Yes | Secret used to sign/verify JWTs |
-| `JWT_ISSUER` | No | Optional JWT issuer claim for stricter verification |
-| `JWT_AUDIENCE` | No | Optional JWT audience claim for stricter verification |
-| `REDIS_URL` | No | Redis connection string (e.g. `redis://127.0.0.1:6379`). Enables session store, API caching, BullMQ email queue. Without it, in-memory fallback is used. |
-| `SESSION_SECRET` | No | Secret for `express-session` cookie signing (default `cicr_session_secret`) |
-| `SMTP_HOST` | No | SMTP server (default `smtp.gmail.com`) |
-| `SMTP_PORT` | No | SMTP port (default `587`) |
-| `SMTP_USER` | No | Authenticating Gmail account. If empty → mock mode (emails logged, not sent) |
-| `SMTP_PASS` | No | Gmail **16-character App Password** (requires 2FA on `SMTP_USER`) |
-| `SMTP_FROM` | No | From header — default **`"CICR Inventory Support" <kushagragargdelhi@gmail.com>`**. **Must match `SMTP_USER`** (Gmail rejects mismatched senders) |
-| `REMINDER_CRON` | No | Reminder schedule (default `0 9 * * *` — daily 09:00) |
+All backend configuration is managed through environment variables in `backend/.env`:
+
+| Variable | Required | Default | Description |
+|----------|:--------:|---------|-------------|
+| `PORT` | No | `5000` | Local HTTP port for the Express REST API. |
+| `NODE_ENV` | No | `development` | Environment mode (`development` / `production`). |
+| `SUPABASE_URL` | **Yes** | — | Supabase project API URL (e.g. `https://xyz.supabase.co`). |
+| `SUPABASE_ANON_KEY` | **Yes** | — | Supabase public anonymous key (RLS-protected). |
+| `SUPABASE_READ_URL` | No | — | Dedicated read replica URL for `dbRead`. Falls back to `SUPABASE_URL`. |
+| `JWT_SECRET` | **Yes** | — | Cryptographic secret for signing and verifying JWT tokens. Server halts if missing. |
+| `JWT_ISSUER` | No | `cicr-inventory` | Optional JWT issuer claim verification. |
+| `JWT_AUDIENCE` | No | `cicr-members` | Optional JWT audience claim verification. |
+| `REDIS_URL` | No | — | Redis connection string (e.g. `redis://127.0.0.1:6379`). Defaults to in-memory fallback. |
+| `SESSION_SECRET` | No | `cicr_session_secret` | Session cookie signing key. |
+| `SMTP_HOST` | No | `smtp.gmail.com` | SMTP host for outbound transactional emails. |
+| `SMTP_PORT` | No | `587` | SMTP port (STARTTLS standard 587). |
+| `SMTP_USER` | **Yes** | `cicrinventory@gmail.com` | Authenticating sender Gmail address. Mock mode activates if left blank. |
+| `SMTP_PASS` | **Yes** | — | 16-character Google App Password (requires 2FA). |
+| `SMTP_FROM` | No | `"CICR Inventory" <cicrinventory@gmail.com>` | Formatted RFC 5322 From header. |
+| `SMTP_REPLY_TO` | No | `"CICR Inventory (No-Reply)" <noreply.cicrinventory@gmail.com>` | Reply-To header. |
+| `REMINDER_CRON` | No | `0 9 * * *` | Cron schedule for loan sweeps (default: daily at 09:00 AM). |
+| `VITE_API_BASE` | No | *Auto-detected* | Frontend environment variable to override backend API endpoint. |
+
+---
+
+## 🛡️ Dual Superadmin & Institutional Auth Guard
+
+To safeguard club hardware and maintain strict audit accountability, the system enforces a strict two-tier security model:
+
+```
+                  ┌────────────────────────────────────────┐
+                  │          REGISTRATION ATTEMPT          │
+                  └───────────────────┬────────────────────┘
+                                      │
+                         Is Authorized Superadmin?
+                                ├── YES ──► Status: APPROVED · Role: ADMIN
+                                │           Instant Full Access
+                                │
+                                └── NO ───► Must Match Institutional Domain
+                                            (^[0-9]{12}@mail\.jiit\.ac\.in$)
+                                                ├── NO  ──► 400 REJECTED (External Email Blocked)
+                                                └── YES ──► Status: PENDING · Role: MEMBER
+                                                            Blocked from Login until Approved
+```
+
+### 1. Dual Master Superadmins
+Administrative privileges and Admin Portal access are restricted to two authorized master identities:
+- **`vardaansaxena096@gmail.com`** (Main Master Admin)
+- **`cicrinventory@gmail.com`** (CICR System Admin & Telemetry Relay)
+
+Any login or registration from these identities is automatically granted `APPROVED` status with full `ADMIN` role persistence across restarts.
+
+### 2. Institutional Email Enforcement
+- Student registrations are strictly restricted to official JIIT student emails matching the 12-digit enrollment format:
+  ```regex
+  ^[a-zA-Z0-9._%+-]+@mail\.jiit\.ac\.in$
+  ```
+  *(e.g., `992501030399@mail.jiit.ac.in`)*.
+- General consumer email addresses (`@gmail.com`, `@yahoo.com`, `@outlook.com`) are rejected at the API validator level.
+
+### 3. Student Registration Approval Gate
+- When an eligible student registers, their account is initialized in **`PENDING`** status.
+- An instant notification email is dispatched to both Superadmins.
+- The student cannot log in until an administrator explicitly reviews and approves the account in the **Admin Portal**.
+- Upon approval, the student receives an automated **Account Approved** welcome email detailing access guidelines.
+
+---
+
+## 📊 Admin Portal & Multi-Tier Hardware Queue
+
+The **Admin Portal** (`#admin-view`) is accessible only to authenticated administrators. It provides a cyberpunk command center for managing requests and members:
+
+### 1. Hardware Issue Requests Queue
+Instead of direct checkouts, students submit hardware requests with details on project purpose and required duration. Admins can:
+- **Inspect**: Review the student's name, enrollment number, requested component, required quantity, and project justification.
+- **Approve**: Atomically decrements warehouse inventory, creates an active loan record, computes the return deadline, and triggers confirmation emails to the borrower and CCs superadmins.
+- **Reject**: Rejects the request with an optional note and notifies the student via email.
+
+### 2. Member Approvals Queue
+- Real-time queue displaying newly registered students awaiting verification.
+- One-click **Approve** (activates student access) or **Reject** (revokes registration).
+- Role management allowing administrators to promote approved members to `ADMIN` or demote to `MEMBER`.
+
+### 3. Multi-Tier Resilience Sync
+Hardware requests and user approval states utilize a multi-tier persistence pipeline:
+1. **Supabase PostgreSQL**: Primary cloud database.
+2. **Express In-Memory Cache**: Zero-latency lookups and instant state reflection.
+3. **Local JSON Backing** (`hardware_requests_data.json` & `user_approval_data.json`): Protects against cloud network interrupts, guaranteeing that pending requests and member reviews survive server restarts.
+
+### 4. Direct In-App Item Deletion & Cascading Clean
+- Authorized administrators can permanently delete items directly from vault item cards (`.btn-card-delete-item`) or the Component Detail Modal (`#btn-modal-delete-item`).
+- **Cyber Confirmation Shield**: Prompts a confirmation modal (`#delete-confirm-modal`) with component telemetry before deletion.
+- **Relational Integrity**: Automatically cascades and deletes historical borrow records linked to the item in PostgreSQL before deleting the inventory row, preventing foreign-key constraints.
+- **Emergency Superadmin Telemetry**: Dispatches an instant high-priority red-badge email notification to all master superadmins (`vardaansaxena096@gmail.com` and `cicrinventory@gmail.com`) documenting the deleted item name, category, quantity, location, timestamp, and deleting admin credentials.
+
+### 5. System Audit & Activity Logs Command Center
+- Live telemetry center (`#admin-audit-section`) integrated into the Admin Portal stream tracking all operations across the platform:
+  - **`AUTH`**: New student registrations, admin account approvals, rejections, role modifications, user deletions, and user sign-ins.
+  - **`INVENTORY`**: Component catalog additions, stock quantity adjustments, and deletions.
+  - **`HARDWARE`**: Student hardware issue requests, administrative approvals, and rejections.
+  - **`LOANS`**: Component checkout events, OTP approvals, and inventory returns.
+- Interactive category filter tabs (`ALL`, `AUTH`, `INVENTORY`, `HARDWARE`, `LOANS`) and instant substring search filter.
+- Distinct color-coded badge indicators (Green for creation, Red for deletion/rejection, Cyan for auth/sign-in, Yellow for modification).
+
+### 6. Real-Time 6-Second Auto-Sync Engine
+- Client-side background daemon (`DatabaseManager.startAutoSync(6000)`) polls the Express API and Supabase every 6 seconds:
+  - Auto-refreshes warehouse inventory stock counts and availability.
+  - For active administrators: polls pending hardware requests, user approvals queue, and live audit log stream.
+  - Guarantees immediate cross-browser reactivity across all devices without manual page reloads.
+
+---
+
+## 🎨 Frontend Themes & Interactive Canvas Engines
+
+The client features dynamic visual engines rendered via HTML5 Canvas 2D and Three.js:
+
+```
+                               ┌── Cyber Dark (Default) ── Neon cyan accents & glassmorphic cards
+                               │
+Theme Switcher (src/main.ts) ──┼── Sakura (Cherry Blossom) ── 60 FPS falling & swaying petal engine
+                               │
+                               └── Avengers Assemble ────── Cinematic Vibranium Shield + Arc Reactor HUD
+```
+
+### 1. Avengers Assemble Theme
+- **Captain America Vibranium Shield**: Rendered on a full-screen canvas with metallic concentric rings, deep blue central medallion, crisp radial gradients, and animated ambient red aura.
+- **Arc Reactor HUD**: Pulsing cyan energy core with rotating technical reticles, angle brackets, and telemetry grids.
+- **Energy Sparks**: Ambient ascending sparks with randomized velocity and alpha blending.
+
+### 2. Cherry Blossom (Sakura) Theme
+- **Physics-Based Petal Engine**: Simulates 75 independent floral petals falling at 60 frames per second.
+- **Complex Dynamics**: Features sinusoidal horizontal sway, 3D flip angle simulation via cosine scaling, randomized rotational drift, and soft dual-gradient coloring (`#ffd1e8` to `#ec4899`).
+
+### 3. Meet The Developers & Mentors
+An interactive section celebrating the engineering minds behind the CICR Robotics Vault:
+- **Under The Guidance of**: Mentors Gunjan Pal (*Management Head*) and Dhruvi Gupta (*Management Head*).
+- **Meet The Developers**: Core engineering team members Vardaan Saxena, Kushagra Garg, Mahak Katahara, and Divyam Jain with custom glowing profile frames and role badges.
+
+### 4. Collapsible Vault Index
+- Left-sidebar collapsible drawer organizing hardware by categories: **Controllers**, **Sensors**, **Actuators**, **Power**, and **Tools**.
+- Real-time out-of-stock badges and color-coded transaction logs.
 
 ---
 
 ## 📡 API Reference
 
-Base URL (local): `http://localhost:5000` · Base URL (deployed): `https://cicr-inventory-backend.onrender.com`
+Base URL (Local): `http://localhost:5000` · Base URL (Production): `https://cicr-inventory-backend.onrender.com`
 
-Auth scheme: `Authorization: Bearer <JWT>`
+Auth Scheme: `Authorization: Bearer <JWT>`
 
-### System
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/api/health` | Public | Health check → `{ status, message }` |
-| `GET` | `/api/system/bote-metrics` | Public | Live BOTE capacity snapshot → `data: { capacity, peak, latency, memory, inventory }` (daily 500-email cap, peak burst, SMTP latency, Redis queue memory). See [BOTE & Scalability](#-back-of-the-envelope-bote-estimation--scalability) |
-| `GET` | `/api/system/simulate-scale` | Public | BOTE scale simulation. Query: `?users=` (required, non-negative), `?borrowsPerUserPerMonth=` (default 2), `?jobsPerUser=` (default 1) → `data: { scenario, gmail_accounts_needed, exceeds_single_gmail_cap, cost, capacity, latency, memory }` |
-
-### Auth
+### System & Health
 
 | Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/api/auth/register` | Public | Register. Body: `{ name, email, password, roll_number?, role? }` → `201` |
-| `POST` | `/api/auth/login` | Public | Login. Body: `{ email, password }` → `{ token, user }` (JWT 7d) |
-| `GET` | `/api/auth/profile` | Bearer | Current user profile |
+|--------|----------|:----:|-------------|
+| `GET` | `/api/health` | Public | System health check → `{ status: "ok" }`. |
+| `GET` | `/api/system/bote-metrics` | Public | Live Back-of-the-Envelope capacity snapshot (daily quota usage, peak burst, latency). |
+| `GET` | `/api/system/simulate-scale` | Public | Projects email and DB load under custom user counts (`?users=5000&borrowsPerUser=2`). |
 
-### Inventory
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/api/items` | Public | List items. Query: `?category=` `?search=` |
-| `GET` | `/api/items/categories` | Public | Static categories: Controllers, Sensors, Power, Actuators, Tools |
-| `GET` | `/api/items/:id` | Public | Single item |
-| `POST` | `/api/items` | Admin | Create item. Body: `{ name, description?, category, location, quantity, image?, tags? }` |
-| `PATCH` | `/api/items/:id` | Admin | Update item (auto-recalcs `available_quantity` when `quantity` changes) |
-| `DELETE` | `/api/items/:id` | Admin | Delete item |
-
-### Borrow / Return
+### Authentication & User Management
 
 | Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/api/borrow/admins` | Bearer | List admin directory (`{ email, name }`) for the OTP approval step — currently Admin **KUSH** (`kushagragargdelhi@gmail.com`) |
-| `POST` | `/api/borrow/request-otp` | Bearer | Step 1 of OTP workflow. Body: `{ item_id, quantity, purpose, duration_days?, selected_admin_id }`. Generates a **6-digit OTP** (TTL **10 min**, 5 attempts), sends it to the chosen admin's email → `200` |
-| `POST` | `/api/borrow/verify-otp` | Bearer | Step 2 of OTP workflow. Body: `{ otp }`. Verifies the OTP (6-digit, TTL, attempt budget, same-user), then creates the `BORROWED` record + decrements stock and **immediately dispatches the confirmation email** (see [Full Connected Flow](#-the-full-connected-flow-v145)) → `201` |
-| `POST` | `/api/borrow` | Bearer | Direct borrow (backward compatible). Body: `{ inventory_id, quantity, purpose, duration_days? }`. `duration_days` defaults to **5**, clamped to **1–30**. Computes `due_date = borrowed_at + duration_days`, decrements `available_quantity`, sends **borrow confirmation email to `req.user.email`** → `201` |
-| `POST` | `/api/borrow/return` | Bearer | Return item. Body: `{ borrow_id }`. Sets `status=RETURNED`, `returned_at`, restores `available_quantity`, sends **return confirmation email** → `200` |
-| `GET` | `/api/borrow/history` | Bearer | Borrow history. Members see only their own; Admins see all (joins resolved manually via `users` + `inventory`) |
+|--------|----------|:----:|-------------|
+| `POST` | `/api/auth/register` | Public | Register new account (JIIT domain required; defaults to `PENDING` status). |
+| `POST` | `/api/auth/login` | Public | Authenticate user → Returns JWT token & profile. Blocked if status is `PENDING`. |
+| `POST` | `/api/auth/send-otp` | Public | Dispatch OTP for passwordless login. |
+| `POST` | `/api/auth/verify-otp` | Public | Verify login OTP and issue JWT session. |
+| `GET` | `/api/auth/profile` | Bearer | Fetch profile of currently authenticated user. |
+| `GET` | `/api/auth/admin/users` | Admin | List all registered members with pending/approved status. |
+| `POST` | `/api/auth/admin/users/:id/approve` | Admin | Approve pending student registration; sends welcome email. |
+| `POST` | `/api/auth/admin/users/:id/reject` | Admin | Reject student registration. |
+| `POST` | `/api/auth/admin/users/:id/role` | Admin | Update user role (`ADMIN` or `MEMBER`). |
+| `DELETE` | `/api/auth/admin/users/:id` | Admin | Delete a user account. |
 
-### Dashboard
+### Inventory Management
 
 | Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/api/stats` | Public | `{ total_items, total_users, active_borrows, total_quantity, available_quantity, borrowed_quantity }` |
-| `GET` | `/api/audit` | Bearer | Latest 50 audit log entries (joins `users` + `inventory`) |
+|--------|----------|:----:|-------------|
+| `GET` | `/api/items` | Public | List all items with live availability. Supports `?category=` & `?search=`. |
+| `GET` | `/api/items/categories` | Public | Fetch available inventory categories. |
+| `GET` | `/api/items/:id` | Public | Fetch specific item details. |
+| `POST` | `/api/items` | Admin | Create component. Sends notification to superadmins. |
+| `PATCH` | `/api/items/:id` | Admin | Update item metadata or total quantity (recalcs availability). |
+| `DELETE` | `/api/items/:id` | Admin | Delete item from vault catalog. |
 
-### Example: Borrow request
+### Hardware Requests & Borrowing
 
-```bash
-curl -X POST http://localhost:5000/api/borrow \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{ "inventory_id": "<item-uuid>", "quantity": 2, "purpose": "Robo Soccer Project", "duration_days": 5 }'
-```
+| Method | Endpoint | Auth | Description |
+|--------|----------|:----:|-------------|
+| `POST` | `/api/borrow/request` | Bearer | Student submits hardware issue request `{ itemId, quantity, purpose, durationDays }`. |
+| `GET` | `/api/borrow/requests` | Bearer | List hardware issue requests. Students see own requests; Admins see all. |
+| `POST` | `/api/borrow/requests/:id/approve` | Admin | Approve request: decrements inventory, creates loan, sends email receipt. |
+| `POST` | `/api/borrow/requests/:id/reject` | Admin | Reject request with optional review notes. |
+| `POST` | `/api/borrow` | Bearer | Direct checkout (legacy/admin). Atomically decrements stock and schedules reminders. |
+| `POST` | `/api/borrow/return` | Bearer | Return component: increments available stock and dispatches return receipt. |
+| `GET` | `/api/borrow/history` | Bearer | Fetch borrow records. Filtered by user for students; global for admins. |
+| `GET` | `/api/borrow/admins` | Bearer | Fetch list of active system administrators. |
 
-```json
-{
-  "status": "success",
-  "message": "Item borrowed successfully!",
-  "data": {
-    "id": "...",
-    "user_id": "...",
-    "borrower_name": "Kushagra Garg",
-    "inventory_id": "...",
-    "quantity": 2,
-    "purpose": "Robo Soccer Project",
-    "borrowed_at": "2026-08-10T20:19:24Z",
-    "due_date": "2026-08-15T20:19:24Z",
-    "status": "BORROWED"
-  }
-}
-```
+### Dashboard & Telemetry
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|:----:|-------------|
+| `GET` | `/api/stats` | Public | Aggregate counts: items, users, active loans, total vs. available quantities. |
+| `GET` | `/api/audit` | Bearer | Fetch latest 50 security and operational audit log entries. |
 
 ---
 
-## ✉️ Email Notification Workflow
+## ✉️ Email Telemetry & Notification Workflow
 
-All email logic lives in `backend/src/services/emailService.ts`. When `SMTP_USER` is unset, the service runs in **mock mode** (logs the email instead of sending) so development never breaks. When set, real SMTP delivery via Gmail.
-
-```
-                 ┌─────────────────────────────────────────────────────────────┐
-                 │                     emailService.ts                         │
-                 │  sendOtpEmail()             sendBorrowConfirmation()        │
-                 │  sendReturnConfirmation()   sendReturnReminder()            │
-                 │  sendUpcomingReminder()     formatSmtpError()               │
-                 └───────────────┬─────────────────────────────────────────────┘
-                                 │ nodemailer (STARTTLS :587)
-                                 ▼
-                       Gmail App Password (SMTP_USER/SMTP_PASS)
-```
-
-### 0. Admin OTP approval (immediate, required before borrow)
-
-`POST /api/borrow/request-otp` generates a **6-digit OTP** and emails it to the chosen admin (from `/api/borrow/admins`). The borrower then calls `POST /api/borrow/verify-otp` with that OTP to complete the borrow. OTPs live in an in-memory store with a **10-minute TTL** and a **5-attempt** verification budget — hashed at rest, never persisted.
-
-### 🔄 The Full Connected Flow (v1.4.5)
-
-End-to-end walkthrough of the OTP-approved borrow, across frontend (`src/main.ts` → `API_BASE = http://localhost:5000/api`), backend (`borrow.controller.ts`), and email (`emailService.ts`):
+Transactional emails are handled in `backend/src/services/emailService.ts`. All templates follow a **cyber aesthetic** (dark slate backgrounds, cyan accents, monospace metadata blocks, and zero emojis).
 
 ```
- ┌─────────────── Student (frontend) ───────────────┐   ┌───────────── Backend API (:5000) ─────────────┐   ┌──────────┐
- │  1. Request OTP → POST /api/borrow/request-otp   │──►│  4. generateOtp() + storeOtp() (10-min TTL)    │   │          │
- │  2. (waits)                                       │   │  5. sendOtpEmail(admin.email, otp)   ─────────│──►│   Admin   │
- │  3. Admin shares the OTP with the student         │   │  6. POST /api/borrow/verify-otp { otp } ◄─────│   Inbox   │
- │  7. Student enters OTP on the frontend ───────────│──►│  7. verifyOtp() + consumeOtp()                 │   │          │
- │                                                  │   │  8. finalizeBorrow():                           │   │          │
- │                                                  │   │     • insert borrow_records (BORROWED)          │   │          │
- │                                                  │   │     • DECREMENT available_quantity ◄───────────►│   Supabase │
- │                                                  │   │  9. sendBorrowConfirmation(student) ───────────│───────────►│ Student
- │                                                  │   │ 10. reminderService: Day N-1 due-tomorrow scan  │   │ Inbox    │
- └──────────────────────────────────────────────────┘   └───────────────────────────────────────────────┘   └──────────┘
+                      ┌────────────────────────────────────────┐
+                      │            NODEMAILER RELAY            │
+                      │    Sender: cicrinventory@gmail.com     │
+                      └───────────────────┬────────────────────┘
+                                          │
+        ┌─────────────────────────────────┼─────────────────────────────────┐
+        ▼                                 ▼                                 ▼
+┌──────────────────┐            ┌──────────────────┐            ┌──────────────────┐
+│  STUDENT ALERTS  │            │  SUPERADMIN CCs  │            │ CRON REMINDERS   │
+│ • Registration   │            │ • New Signup     │            │ • Day N-1 Notice │
+│ • Approval/Reject│            │ • Issue Request  │            │ • Day Due Alert  │
+│ • Loan Receipt   │            │ • Item Created   │            │ • Overdue Notice │
+│ • Return Receipt │            │ • Loan Checkout  │            └──────────────────┘
+└──────────────────┘            └──────────────────┘
 ```
 
-The numbered sequence:
+### Automated Triggers
 
-| Step | Who | Action | Where |
-|:---:|-----|--------|-------|
-| 1 | Student | Submits the borrow request → `POST /api/borrow/request-otp` with `{ item_id, quantity, purpose, duration_days, selected_admin_id }` | Frontend → `borrow.routes.ts` |
-| 2 | Backend | Validates item/stock, `generateOtp()` → `storeOtp()` with a **10-minute TTL**, sends the OTP email | `borrow.controller.ts:requestOtp` |
-| 3 | Admin | **Receives the OTP email** (`sendOtpEmail` → `[CICR Inventory] Borrow Approval OTP: <otp>`) | `emailService.ts` |
-| 4 | Admin | Shares the OTP with the student (in person / over the group) | — |
-| 5 | Student | **Enters the OTP on the frontend** → `POST /api/borrow/verify-otp` with `{ otp }` | Frontend → `borrow.routes.ts` |
-| 6 | Backend | `verifyOtpCode()` checks the 6-digit code, TTL, 5-attempt budget, and that it was issued to this user; then `consumeOtp()` burns it | `borrow.controller.ts:verifyOtp` |
-| 7 | Backend | `finalizeBorrow()` inserts the `BORROWED` record and **decrements `available_quantity`** | `borrow.controller.ts` |
-| 8 | Backend | **Confirmation email dispatched immediately** — `sendBorrowConfirmation()` fires asynchronously to the student (item, qty, remaining stock, holders table, due date) | `borrow.controller.ts:verifyOtp` → `emailService.ts` |
-| 9 | Backend | **Day N-1 reminder scheduled** — `reminderService` (node-cron, daily 09:00 + boot) picks the new record on its next scan and emails `[CICR Inventory] Return Due Tomorrow: <item>` the day before `due_date` | `reminderService.ts` |
-| 10 | Student | Borrow completed; stock reflects the borrow; reminders stop only after `POST /api/borrow/return` (which also restores stock + emails a return confirmation) | `borrow.controller.ts:returnItem` |
-
-> **v1.4.5 integration guarantee:** the OTP verification handler dispatches the confirmation email **in the same request** as the stock decrement — there is no lag or queued batch between "OTP verified" and "confirmation sent". Email dispatch is fire-and-forget (`.catch()`), so a slow SMTP hop never delays the `201` response.
-
-### 1. Borrow confirmation (immediate)
-
-Triggered on `POST /api/borrow` / `POST /api/borrow/verify-otp`. Sent **asynchronously** (`.catch()` fire-and-forget) to `req.user.email` — the logged-in borrower. Includes:
-
-- **Item details** — name + category, quantity borrowed
-- **Remaining available stock** — `available_quantity` after decrement
-- **Current holders summary** — other active (`BORROWED`) records for the same item: name/roll, units, borrowed-on date
-- **5-day due-date notice** — exact deadline (`borrowed_at + duration_days`, default 5) with a highlighted policy warning
-
-### 2. Return confirmation
-
-Triggered on `POST /api/borrow/return`. Sent to `req.user.email` with the item name and `returned_at` timestamp.
-
-### 3. Due-today / overdue reminders (automated)
-
-`backend/src/services/reminderService.ts` starts in `server.ts` and runs:
-
-- **Immediately on server boot**, and
-- **Daily at 09:00** (configurable via `REMINDER_CRON`).
-
-`runDueReminderCheck()`:
-
-1. Selects all `borrow_records` with `status = 'BORROWED'` and `due_date < end-of-today` plus, in the same pass, any borrowed item with `due_date` landing **tomorrow** (Day N-1).
-2. Resolves each borrower's **registered email** from `users.user_id`.
-3. Sends `sendUpcomingReminder(...)` for tomorrow-due items (`[CICR Inventory] Return Due Tomorrow: <item>`) and `sendReturnReminder(...)` for due/overdue ones — subject `[CICR Inventory] OVERDUE Return: <item>` when `daysOverdue > 0`, otherwise `[CICR Inventory] Return Due Today: <item>`.
-
-> **Gmail notes:** App Passwords require 2-Step Verification on the account. `SMTP_FROM` must use the same account as `SMTP_USER`. Errors are caught, logged with `message / code / response / responseCode`, and never crash the API.
-
-### ⚠️ Institutional Email Sinkhole (v1.4.4)
-
-Institutional gateways (`@mail.jiit.ac.in`, `@jiit.ac.in`, and most `.ac.in` / `.edu` domains) treat low-reputation, HTML-only, or header-light mail as bulk and **silently sinkhole it** — the sender's SMTP server replies `250 OK`, the recipient inbox never sees it. This is exactly why the BOTE model shows 2–5% first-send loss on institutional domains.
-
-**v1.4.4 mitigations** (all in `backend/src/services/emailService.ts`):
-
-| Fix | What it does |
-|-----|--------------|
-| **Plain-text fallback** on every template | Gives the filter a text/plain alternative — HTML-only mail scores as bulk |
-| **Custom Message-ID** | `<<unixms>.<hex>@cicr-inventory.local>` — avoids the default nodemailer format some gateways fingerprint |
-| **X-Header set** | `X-CICR-Mailer`, `X-Mailer-Type`, `Importance`, `List-Unsubscribe` |
-| **Priority header** | OTP mail flagged `high` (surfaces in mobile notifications); the rest `normal` |
-| **Full SMTP response logging** | Console logs raw `response` (`250 2.0.0 OK …`) + `accepted[]`/`rejected[]` per send |
-
-**v1.4.7 — Institutional Email Support for `@mail.jiit.ac.in`:**
-
-| Change | What it does |
-|--------|--------------|
-| **RFC 2822 dynamic Message-ID** | `generateMessageId()` derives the `id-right` from the configured SMTP host (`smtp.gmail.com → gmail.com`) so it aligns with the authenticated sending domain (SPF/DKIM friendly), `id-left` = unix-ms + 128-bit hex |
-| **Explicit sender + Reply-To** | `CICR Inventory Support <kushagragargdelhi@gmail.com>` with `Reply-To: kushagragargdelhi@gmail.com` |
-| **High-priority headers** | `X-Priority: 1 (Highest)` / `Importance: High` on OTP mail, plus full X-header set |
-| **Numeric student-ID validation** | New `backend/src/validators/email.validator.ts` accepts **12-digit numeric** institutional IDs `^[0-9]{12}@mail\.jiit\.ac\.in$` (and any `jiit.ac.in` subdomain) — register never rejects them |
-| **Institutional probe** | `test/test-email.cjs` dispatches the OTP to `992501030406@mail.jiit.ac.in` and logs full SMTP response codes + sent headers |
-
-**Verify delivery with:**
-
-```bash
-cd backend
-npm run build
-node test/test-email.cjs     # sends test OTP to 992501030406@mail.jiit.ac.in
-```
-
-The probe prints the **complete SMTP response codes + sent headers** — raw `response`, `accepted`, `rejected`, `pending`, `envelope`, `messageId`, then every header (`X-CICR-Mailer`, `X-Mailer-Type`, `X-Priority`, `Importance`, `List-Unsubscribe`, `Reply-To`, `Message-ID`). Expected result (v1.4.7):
-
-```
-========== Dispatching test OTP email (institutional) ==========
-  from:     kushagragargdelhi@gmail.com
-  to:       992501030406@mail.jiit.ac.in
-
-[EMAIL SERVICE] OTP email accepted by SMTP | messageId=<1786640020999.7d55d326d83e776c261f66dc083c2ef3@gmail.com> | response="250 2.0.0 OK  1786640023 a92af1059eb24-141387ed5b1sm225810c88.8 - gsmtp" | accepted=["992501030406@mail.jiit.ac.in"] | rejected=[]
-
-  SMTP response codes:
-    raw response:   250 2.0.0 OK  1786640023 a92af1059eb24-141387ed5b1sm225810c88.8 - gsmtp
-    accepted:       ["992501030406@mail.jiit.ac.in"]
-    rejected:       []
-    pending:        []
-    envelope:       {"from":"kushagragargdelhi@gmail.com","to":["992501030406@mail.jiit.ac.in"]}
-    messageId:      <1786640020999.7d55d326d83e776c261f66dc083c2ef3@gmail.com>
-
-  Message headers (as sent):
-    X-CICR-Mailer: CICR-Inventory/v1.4.7
-    X-Mailer-Type: borrow-otp
-    X-Priority: 1 (Highest)
-    Importance: High
-    List-Unsubscribe: <mailto:kushagragargdelhi@gmail.com?subject=unsubscribe>
-    Reply-To: kushagragargdelhi@gmail.com
-    Message-ID: <1786640020999.7d55d326d83e776c261f66dc083c2ef3@gmail.com>
-
-  Sender kushagragargdelhi@gmail.com -> 992501030406@mail.jiit.ac.in: ACCEPTED
-```
-
-> If SMTP accepts (`250 OK`, `rejected=[]`) but the inbox is empty, the mail is **sinkholed upstream** — the fix is SPF/DKIM alignment on the sending domain or moving to Resend/SES, not more SMTP retries.
+1. **Member Signup**: Dispatches an instant cyber notification to Superadmins with applicant name, enrollment ID, and registered email.
+2. **Account Approval**: Notifies the student that their registration has been approved by the admin team, unlocking access to the portal.
+3. **Hardware Request Alert**: Sent to Superadmins when a student requests a component, linking to the Admin Portal for review.
+4. **Loan Confirmation**: Emailed to the student upon approval with exact return deadlines and component care protocols.
+5. **Return Confirmation**: Issued immediately upon scanning/returning the item.
+6. **Due Reminders**: Automated daily sweeps scan for loans due tomorrow (`sendUpcomingReminder`) and items due today or overdue (`sendReturnReminder`).
 
 ---
 
 ## 🧮 Back-of-the-Envelope (BOTE) Estimation & Scalability
 
-Quick napkin math for the email pipeline. Full derivation lives in [`docs/BOTE_ESTIMATION.md`](./docs/BOTE_ESTIMATION.md).
+A detailed derivation is available in [`docs/BOTE_ESTIMATION.md`](./docs/BOTE_ESTIMATION.md). Key throughput limits for club operations:
 
-### Gmail daily throughput — the hard ceiling
+### Gmail Free Tier Quota
+- Gmail SMTP free tier allows up to **500 outbound emails/day/account**.
+- A standard hardware lifecycle consumes ~3 emails (request/approval + borrow receipt + return receipt).
+- **Daily Ceiling**:
+  $$\text{Max Workflows/Day} = \frac{500}{3} \approx 166 \text{ complete borrow workflows/day}$$
+- Sufficient for collegiate robotics club operations (~10–30 daily interactions).
 
-Gmail's free tier caps outbound mail at **500 emails/day/account**. A full borrow workflow now costs **3 emails** (admin OTP + borrow confirmation + return confirmation), so:
-
-```
-max_workflows/day = 500 ÷ 3 = ~166 full borrow workflows/day
-```
-
-| Metric | Value |
-|--------|-------|
-| Gmail free cap | 500 emails / day / account |
-| Emails per full borrow workflow | 3 (OTP + borrow + return) |
-| **Max full workflows / day** | **~166** |
-| Max workflows / month | ~4,980 |
-
-### Failure-rate analysis (deliverability)
-
-Email is the only external dependency on the borrow path, so delivery health matters:
-
-- **2–5% spam/delivery failure** on institutional domains (missing custom SPF/DKIM headers) → **≈93% end-to-end OTP delivery** on first send.
-- OTPs remain valid for **10 min** and re-requests are idempotent, so failures stall, never corrupt.
-- Production inbox needs SPF/DKIM (or an ESP) before OTP approval is relied on at scale.
-
-### Concurrency — 500–1000 web users
-
-The web tier (Express + Supabase PostgREST) comfortably serves **500–1000 concurrent users** with <1s p95 API latency — web concurrency scales horizontally. The **email tier** is the true ceiling: ~166 full workflows/day on a single Gmail inbox.
-
-### Latency — synchronous SMTP vs. async queue
-
-Current `emailService.ts` sends synchronously via Nodemailer; the reminder job (`reminderService.ts`) awaits each recipient **sequentially** (~1 s per email).
-
-| Scenario | Emails | Sequential `await` (current) | BullMQ workers (concurrency 25) |
-|----------|-------:|:---:|:---:|
-| Average club day | 20 | ~20 s | ~1 s |
-| Busy club day (Gmail-cap: 166 workflows) | 332 | ~5.5 min | ~13 s |
-| 10,000-user rollout | ~1,333 | ~22 min | ~53 s |
-
-```
-sequential_time = emails × 1 s        parallel_time = emails × 1 s / workers
-```
-
-### Memory at 10,000 students — a non-issue
-
-A BullMQ job is ~2 KB (metadata + payload). A full reminder batch:
-
-```
-10,000 jobs × 2 KB = ~20 MB queue memory footprint
-```
-
-10,000 students × 2 borrows/month × 3 emails/workflow = **~40,000 emails/month ≈ 1,333/day** — 3× over Gmail's cap, yet only ~20 MB of queue memory.
-
-### Provider comparison at 40,000 emails/month
-
-| Provider | Free tier | Price per 1,000 | Daily cap (free) | Cost @ 40k/mo |
-|----------|-----------|----------------:|:---:|:---:|
-| **Gmail SMTP** (current) | 500 emails/day | $0 | 500/day | $0 (❌ cap exceeded) |
-| **Resend** | 100 emails/day | ~$0.20 | 100/day | ~$8/mo |
-| **AWS SES** | 3,000 emails/day* | $0.10 | 3,000/day | ~$4/mo |
-
-\* New SES accounts start sandboxed (200/day); the 3,000/day trial applies to EC2-originated sending.
-
-**Bottom line:** Gmail's ~166 workflows/day is plenty for club scale. At ~10,000 students, switch `emailService.ts` to the **Resend** or **AWS SES** SDK and run reminders through a **BullMQ/Redis** worker pool before the daily cap becomes the bottleneck.
+### Concurrency & Performance
+- **Web API Tier**: Express 4 + Supabase PostgREST connection pooling supports **500–1,000 concurrent active users** with $p95 < 1\text{s}$.
+- **Memory Footprint**: Redis queue job size is ~2 KB. Tracking 10,000 reminder jobs requires only **~20 MB** of queue memory.
+- **Enterprise Escape Hatch**: For campus-wide scaling (>10,000 students), transition `emailService.ts` from Nodemailer/Gmail to **AWS SES** or **Resend** ($0.10 per 1,000 emails).
 
 ---
 
 ## ⚖️ "Crack vs Smooth Surface" — System Analysis
 
-A two-sided engineering read of the CICR Inventory stack.
+### 🟩 The Smooth Surface (Scales Effortlessly)
+- **Database & Read Replica**: Supabase PostgreSQL effortlessly handles catalog search, item metadata, and historical records.
+- **Stateless REST Layer**: Express API instances can be scaled horizontally behind Render's load balancers.
+- **Fast In-Memory Lookups**: Multi-tier cache layer resolves frequent catalog requests with sub-millisecond response times.
 
-### 🟩 The Smooth Surface (what scales fine)
-
-- **API tier: 500–1000 concurrent web users** with <1s p95 latency. Express + Supabase (PostgREST) are stateless, connection-pooled, and scale horizontally by adding Render/Vercel instances — no rework needed.
-- **OTP store & verification** are in-memory `Map` lookups (O(1), 10-min TTL) — effectively unlimited throughput.
-- **Postgres / Supabase** handles thousands of inventory rows and audit entries trivially; queue memory for a 10,000-student reminder batch is only **~20 MB**.
-- **The whole web path** (auth, inventory CRUD, borrow/return, dashboard stats) has no daily cap.
-
-### 🟥 The Crack (what doesn't)
-
-- **Free Gmail SMTP caps outbound mail at 500 emails/day** — the single hard bottleneck. That fixes daily borrowing at **~166 full workflows/day** (3 emails each: OTP + borrow + return). Everything else can scale; email cannot.
-- **2–5% spam/delivery failure rate** on institutional domains (missing custom SPF/DKIM headers) → ~93% OTP delivery on first send. Email is the *only* external dependency on the borrow path, so a delivery miss directly stalls a workflow.
-- **Reminders share the same 500/day pool** — a busy day's confirmation emails and the 09:00 reminder batch compete for the same budget.
-
-### 🛠️ The Escape Hatch (migration path)
-
-| Trigger | Action |
-|---------|--------|
-| Workflows/day approach ~166 | Move `emailService.ts` to **Resend** or **AWS SES** SDK (≈$4/mo at 40k emails) |
-| Reminder batch > ~100 emails | Introduce **BullMQ/Redis** async workers (25 concurrent → ~13 s for the busy-day batch) |
-| OTP deliverability matters | Configure SPF/DKIM on the sending domain or switch to an ESP |
-
-> **TL;DR:** the web surface is smooth (500–1000 concurrent users), the email crack is real (~166 workflows/day + 2–5% spam loss on Gmail). The fix is small and contained: swap the SMTP layer and queue the reminders.
+### 🟥 The Crack (Bottlenecks to Monitor)
+- **Gmail 500/day SMTP Quota**: The single hard ceiling. High burst volumes during club recruiting drives could saturate the daily quota.
+- **Institutional Spam Filtering**: `.ac.in` gateways occasionally sinkhole external HTML-only mail. Solved via plain-text fallbacks, explicit RFC 2822 Message-IDs, and sender reputation alignment.
 
 ---
 
 ## ⛓️ Third-Party Integration Bottlenecks & Rate Limits
 
-Full derivation lives in [`docs/BOTE_ESTIMATION.md`](./docs/BOTE_ESTIMATION.md) §5. Summary of the two hard external ceilings:
-
-### Gmail SMTP (current email pipeline)
-
-| Limit | Value | Effect when exceeded |
-|-------|:---:|-------|
-| Sustained send rate | **~20–30 emails/min** | SMTP `421` "temporary rate limit" → sends slow/queue |
-| Concurrent SMTP connections | **~10–15** | Extra connections refused |
-| Daily recipients | **500 / account / day** | Hard stop — further sends fail |
-| Full borrow workflows/day | **~166** (3 emails each) | The real product ceiling |
-
-**Burst behavior under 250–300 requests/min:** that rate is ~10× Gmail's sustainable ~25/min throughput. Gmail replies with retryable `421` errors (not hard bounces), so a **BullMQ/Redis queue with rate-limiting to ~25/min + retries** absorbs the burst — the API stays responsive, mail doesn't silently drop. This is a **threshold to plan for, not a crash**.
-
-### Supabase free tier
-
-| Limit | Free cap |
-|-------|:---:|
-| Direct DB connections | **60** (keep the Node `pg` pool ≤ 40; use pooler port `6543`) |
-| Database storage | **500 MB** |
-| Monthly active users | **50,000** |
-| Edge/API requests | 500k / mo |
-
-### "Pay now" thresholds
-
-| Symptom | Fix | Cost |
-|---------|-----|------|
-| Send rate > ~25/min sustained, or >100-email burst in 1 min | **Resend** (50k msgs) or **AWS SES** | ~$20/mo · ~$4–5/mo |
-| DB > 500 MB, or > 60 pooled connections, or > 50k MAU | **Supabase Pro** | $25/mo |
-| Both at once (true production scale) | Resend/SES + Supabase Pro | ~$45–50/mo |
-
-> **Bottom line:** v1.4.5 is a **pre-release** that runs comfortably on free tiers for club scale (a few dozen borrows/day). Production scaling needs **Resend/SES (~$20/mo)** once email volume grows and **Supabase Pro ($25/mo)** once the DB/connections grow — whichever hits first.
+| Service | Tier Limit | Consequence when Exceeded | Architectural Mitigation |
+|---------|:----------:|---------------------------|--------------------------|
+| **Gmail SMTP** | 500 emails/day | `550 Quota exceeded` | BullMQ Redis queue rate-limiting; migration to AWS SES / Resend. |
+| **Gmail Burst** | ~25–30 emails/min | `421 Temporary rate limit` | BullMQ async retry worker with exponential backoff. |
+| **Supabase Free** | 60 direct connections | Connection exhaustion | Node connection pool capped at 40; transaction pooler on port 6543. |
+| **Supabase DB** | 500 MB storage | Read-only mode | Regular vacuuming and archival of old audit logs. |
 
 ---
 
 ## 🗄️ Database Schema
 
-Tables: `users`, `inventory`, `borrow_records`, `audit_logs`.
-
-### Schema diagram
+### Entity-Relationship Overview
 
 ```
 users ─────────────────────────────┐
-  id UUID PK                       │ user_id (no FK)      borrow_records
+  id UUID PK                       │ (Logical Link)       borrow_records
   name TEXT                        │                     ├─ id UUID PK
   email TEXT UNIQUE                │                     ├─ inventory_id UUID FK ──► inventory
   password_hash TEXT               │                     ├─ borrower_name TEXT        id UUID PK
   roll_number TEXT                 ├────────────────────►├─ roll_number TEXT          name TEXT
-  role TEXT (ADMIN|MEMBER)         │                     ├─ purpose TEXT              description TEXT
-  created_at TIMESTAMPTZ           │                     ├─ quantity INT              category TEXT
-                                   │                     ├─ borrowed_at TIMESTAMPTZ  quantity INT
-audit_logs                         │                     ├─ returned_at TIMESTAMPTZ  available_quantity INT
-  id UUID PK                       ├──── user_id (FK)    ├─ status TEXT (BORROWED|RETURNED) location TEXT
-  action TEXT                      │                     └─ due_date TIMESTAMPTZ     tags, image, status...
+  role TEXT (ADMIN|MEMBER)         │                     ├─ purpose TEXT              category TEXT
+  created_at TIMESTAMPTZ           │                     ├─ quantity INT              quantity INT
+                                   │                     ├─ borrowed_at TIMESTAMPTZ  available_quantity INT
+audit_logs                         │                     ├─ returned_at TIMESTAMPTZ  location TEXT
+  id UUID PK                       ├──── user_id (FK)    ├─ status TEXT (BORROWED...) status TEXT
+  action TEXT                      │                     └─ due_date TIMESTAMPTZ     created_at TIMESTAMPTZ
   item_id UUID (FK) ► inventory ───┘
   description TEXT
   timestamp TIMESTAMPTZ
 ```
 
-### DDL — run in the Supabase SQL Editor
-
-The full schema lives in `backend/migrations/000_create_tables.sql`. Run it first, then apply `001_add_due_date_to_borrow_records.sql` and `002_seed_test_users.sql`.
+### Core PostgreSQL DDL
 
 ```sql
 -- ============ users ============
@@ -711,7 +636,7 @@ CREATE TABLE IF NOT EXISTS public.inventory (
 -- ============ borrow_records ============
 CREATE TABLE IF NOT EXISTS public.borrow_records (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id       UUID,                     -- logical link to users; NO FK constraint
+  user_id       UUID,
   inventory_id  UUID REFERENCES public.inventory (id),
   borrower_name TEXT,
   roll_number   TEXT,
@@ -719,12 +644,9 @@ CREATE TABLE IF NOT EXISTS public.borrow_records (
   quantity      INT  NOT NULL DEFAULT 1,
   borrowed_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   returned_at   TIMESTAMPTZ,
+  due_date      TIMESTAMPTZ,
   status        TEXT NOT NULL DEFAULT 'BORROWED' CHECK (status IN ('BORROWED', 'RETURNED'))
 );
-
--- ============ due_date (v0.0.2 migration) ============
-ALTER TABLE public.borrow_records
-  ADD COLUMN IF NOT EXISTS due_date TIMESTAMPTZ;
 
 -- ============ audit_logs ============
 CREATE TABLE IF NOT EXISTS public.audit_logs (
@@ -736,206 +658,108 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
   timestamp   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_borrow_inventory  ON public.borrow_records (inventory_id);
-CREATE INDEX IF NOT EXISTS idx_borrow_user       ON public.borrow_records (user_id);
-CREATE INDEX IF NOT EXISTS idx_borrow_status     ON public.borrow_records (status);
-CREATE INDEX IF NOT EXISTS idx_borrow_due_date   ON public.borrow_records (due_date);
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_borrow_inventory ON public.borrow_records (inventory_id);
+CREATE INDEX IF NOT EXISTS idx_borrow_user      ON public.borrow_records (user_id);
+CREATE INDEX IF NOT EXISTS idx_borrow_status    ON public.borrow_records (status);
+CREATE INDEX IF NOT EXISTS idx_borrow_due_date  ON public.borrow_records (due_date);
 ```
-
-### Notes
-
-- `borrow_records.user_id` intentionally has **no FK** — PostgREST embedding on a missing FK breaks, so the backend resolves names/emails manually in `getBorrowHistory` and `reminderService`.
-- **RLS:** anonymous-key deletes on `public.users` are blocked by RLS. Use the Supabase SQL Editor for user cleanup (e.g. `DELETE FROM public.users WHERE email LIKE '%@cicr.test';`).
-- Backfill: if `available_quantity` was ever out of sync, recompute via `UPDATE public.inventory i SET available_quantity = i.quantity - COALESCE((SELECT SUM(b.quantity) FROM public.borrow_records b WHERE b.inventory_id = i.id AND b.status = 'BORROWED'), 0);`
-
----
-
-## 🔍 System Audit & Health Check (v1.4.5)
-
-### Route audit — complete Express endpoint inventory
-
-All routes are TypeScript, mounted from `backend/src`:
-
-| Mount | Route file | Method | Path | Auth |
-|-------|-----------|--------|------|------|
-| `/api/auth` | `modules/auth/auth.routes.ts` | `POST` | `/register` | Public |
-| | | `POST` | `/login` | Public |
-| | | `GET` | `/profile` | Bearer |
-| `/api/items` | `modules/inventory/inventory.routes.ts` | `GET` | `/` | Public |
-| | | `GET` | `/categories` | Public |
-| | | `GET` | `/:id` | Public |
-| | | `POST` | `/` | Bearer + Admin |
-| | | `PATCH` | `/:id` | Bearer + Admin |
-| | | `DELETE` | `/:id` | Bearer + Admin |
-| `/api/borrow` | `modules/borrow/borrow.routes.ts` | `GET` | `/admins` | Bearer |
-| | | `POST` | `/` | Bearer |
-| | | `POST` | `/request-otp` | Bearer |
-| | | `POST` | `/verify-otp` | Bearer |
-| | | `POST` | `/return` | Bearer |
-| | | `GET` | `/history` | Bearer |
-| `/api` | `modules/dashboard/dashboard.routes.ts` | `GET` | `/stats` | Public |
-| | | `GET` | `/audit` | Bearer |
-| `/api/system` | `routes/system.routes.ts` | `GET` | `/bote-metrics` | Public |
-| | | `GET` | `/simulate-scale` | Public |
-| — | `app.ts` | `GET` | `/api/health` | Public |
-
-Audit notes:
-
-- **Rental cap** is enforced in `modules/borrow/borrow.controller.ts` via `parseRentalDays` — `duration_days` must be an integer in **[1, 30]**, defaulting to **5**.
-- **Admin OTP directory** is restricted to a single entry in `modules/borrow/adminDirectory.ts`: Admin **KUSH** (`kushagragargdelhi@gmail.com`).
-- **Mounting quirk:** `/api/system` is mounted in `server.ts` (the listen entry point), **not** in `app.ts` — so unit/integration tests that import the bare `app` must mount `systemRoutes` themselves (the health-check script below does this).
-
-### Health-check script
-
-```bash
-cd backend
-npm run build
-node test/system-health-check.cjs
-```
-
-`test/system-health-check.cjs` is a **diagnostic** script (deliberately not named `*.test.cjs`, so `npm test` never runs it — it performs live DB + SMTP calls). It verifies:
-
-1. `GET /api/system/bote-metrics` and `GET /api/system/simulate-scale` (valid + invalid inputs).
-2. Admin directory contains **KUSH**; seeded student **`kush`** (`kushgdhi@gmail.com`) exists as `MEMBER`.
-3. **1–30 day rental cap** — live API checks: `duration_days` 31 → 400, 0 → 400, 1 → 201, 30 → 201 (with its own temp users/item, cleaned up after).
-4. **Live Nodemailer SMTP** transport to `kushagragargdelhi@gmail.com`, logging the SMTP response status code.
-
-### Live email test log (v1.4.5 audit run)
-
-```
-== (c) Live Nodemailer SMTP transport ==
-  SMTP response status code: 250 2.0.0 OK  1786632754 98e67ed59e1d1-3931f2a7b8bsm3362246a91.7 - gsmtp
-  accepted=["kushagragargdelhi@gmail.com"] rejected=[]
-PASS | live SMTP transport to kushagragargdelhi@gmail.com | SMTP 250 messageId=<07647618-1a25-f294-3b4f-8981008ea43b@gmail.com>
-
-========== System Health Check Summary ==========
-  23/23 checks passed.
-```
-
-> Gmail accepted the probe (`250 2.0.0 OK`, `rejected=[]`) — the same response line the `emailService.ts` `logDelivery()` helper prints on every transactional send. As documented in the sinkhole section, `250 OK` proves SMTP acceptance, not inbox landing; verify the subject line `[CICR Inventory] System Health Check (v1.4.5) OTP: …` in the admin Gmail inbox.
-
-### Test OTP mail routing log (v1.4.6)
-
-As of **v1.4.6** the sender is **`CICR Inventory Admin <kushagragargdelhi@gmail.com>`** and the default OTP test recipient is **`kushgdhi@gmail.com`**. Live `test/test-email.cjs` run:
-
-```
-== (a) Live OTP via real SMTP transport ==
-  OTP email sent successfully!
-  From:      kushagragargdelhi@gmail.com
-  To:        [ 'kushgdhi@gmail.com' ]
-  envelope:  { from: 'kushagragargdelhi@gmail.com', to: [ 'kushgdhi@gmail.com' ] }
-  accepted:  [ 'kushgdhi@gmail.com' ]
-  rejected:  []
-  response:  250 2.0.0 OK  1786638983 f5sm15541665plv.7 - gsmtp
-  messageId: <1786638977721.ff01abc2c7fddbf3@cicr-inventory.local>
-```
-
-Routing verified: `kushagragargdelhi@gmail.com → kushgdhi@gmail.com` accepted with **no third-party sinkhole**; OTP lands in the `kushgdhi@gmail.com` inbox (subject `[CICR Inventory] OTP: …`).
-
-### Institutional Email Support log (v1.4.7)
-
-As of **v1.4.7** the sender is **`CICR Inventory Support <kushagragargdelhi@gmail.com>`** with `Reply-To: kushagragargdelhi@gmail.com`; Message-IDs are **RFC 2822 dynamic** (`<unix-ms.hex@gmail.com>`, id-right derived from `SMTP_HOST`). Live `test/test-email.cjs` run to the numeric institutional inbox **`992501030406@mail.jiit.ac.in`**:
-
-```
-[EMAIL SERVICE] OTP email accepted by SMTP | messageId=<1786640020999.7d55d326d83e776c261f66dc083c2ef3@gmail.com> | response="250 2.0.0 OK  1786640023 a92af1059eb24-141387ed5b1sm225810c88.8 - gsmtp" | accepted=["992501030406@mail.jiit.ac.in"] | rejected=[]
-
-  SMTP response codes:
-    raw response:   250 2.0.0 OK  1786640023 a92af1059eb24-141387ed5b1sm225810c88.8 - gsmtp
-    accepted:       ["992501030406@mail.jiit.ac.in"]
-    rejected:       []
-    envelope:       {"from":"kushagragargdelhi@gmail.com","to":["992501030406@mail.jiit.ac.in"]}
-    messageId:      <1786640020999.7d55d326d83e776c261f66dc083c2ef3@gmail.com>
-
-  Message headers (as sent):
-    X-CICR-Mailer: CICR-Inventory/v1.4.7
-    X-Mailer-Type: borrow-otp
-    X-Priority: 1 (Highest)
-    Importance: High
-    Reply-To: kushagragargdelhi@gmail.com
-
-  Sender kushagragargdelhi@gmail.com -> 992501030406@mail.jiit.ac.in: ACCEPTED
-```
-
-> Routing verified: `kushagragargdelhi@gmail.com → 992501030406@mail.jiit.ac.in` accepted with **no third-party sinkhole**; the OTP (subject `[CICR Inventory] Borrow Approval OTP: …`) lands in the numeric institutional inbox. `register` accepts this 12-digit numeric ID via `validators/email.validator.ts` (`^[0-9]{12}@mail\.jiit\.ac\.in$`).
 
 ---
 
 ## 🧪 Testing
 
+Run backend unit and integration suites using Node's native test runner:
+
 ```bash
 cd backend
-npm test          # node --test "test/*.test.cjs" — 72 tests
+npm test          # Runs all test suites (*.test.cjs)
 ```
 
-- `test/auth.middleware.test.cjs` — 6 unit tests for JWT auth middleware.
-- `test/otp.unit.test.cjs` — 4 unit tests for the admin-OTP store (generation, verify, consume).
-- `test/api.integration.test.cjs` — 45 integration tests against the live Supabase project (health, auth, inventory, borrow/return, admin-OTP approval, rental-duration cap, audit).
-- `test/bote.test.cjs` — 17 unit tests for the BOTE capacity/latency math.
-- `test/system-health-check.cjs` — diagnostic health check (BOTE endpoints, admin directory, seeded student, 1–30 day cap, live SMTP). Not part of `npm test`; run manually with `node test/system-health-check.cjs` (see [System Audit & Health Check](#-system-audit--health-check-v145)).
-
-> Integration tests register `*@cicr.test` users. RLS prevents anonymous deletion, so leftovers accumulate — clean them via the SQL Editor.
+- **`test/auth.middleware.test.cjs`**: Validates JWT token verification, expiration handling, and RBAC admin route guards.
+- **`test/api.integration.test.cjs`**: End-to-end integration tests hitting auth endpoints, catalog CRUD, request-to-borrow conversions, and stock consistency.
+- **`test/bote.test.cjs`**: Verifies Back-of-the-Envelope mathematical models and capacity estimation logic.
+- **`test/system-health-check.cjs`**: Diagnostic verification script validating database connectivity, admin directory configuration, and live SMTP transport.
 
 ---
 
-## 🚢 Deployment
+## 🚢 Production Deployment
 
-### Backend → Render
+The platform is structured for independent zero-downtime deployment:
 
+### 1. Frontend → Vercel
+
+The frontend is configured via [`vercel.json`](./vercel.json):
+- Framework: `vite`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- Single Page Application rewrites route all incoming requests to `/index.html`.
+
+Deploy using the Vercel CLI or Git integration:
 ```bash
-# Build produces dist/ via tsc
-cd backend
 npm run build
-npm start         # node dist/server.js
+vercel --prod
 ```
 
-Render free tier will run `startReminderScheduler()` on boot (boot-time due/overdue check + daily 09:00 job). Set the env vars from `.env.example` in the Render dashboard.
+### 2. Backend → Render
 
-### Frontend → Vercel
+The backend is configured via [`render.yaml`](./render.yaml):
+- Service Type: `web`
+- Environment: `node`
+- Root Directory: `backend`
+- Build Command: `npm install && npm run build`
+- Start Command: `npm start`
+- Auto-starts the Express REST API and spins up the cron reminder scheduler on startup.
 
-```bash
-npm run build     # tsc && vite build → dist/
-npm run preview   # verify
-```
+Configure environment variables in the Render Dashboard matching `backend/.env.example`.
 
-The built frontend reads `API_BASE` from `src/main.ts:11` — v1.5.0 defaults to `http://localhost:5000/api` (local backend); point it at the Render backend URL for production. Use `credentials: 'include'` on all `fetch` calls to leverage the Redis-backed session cookie.
+---
+
+## 👥 Mentors & Core Team
+
+### Under The Guidance of
+- **Gunjan Pal** — Management Head, CICR
+- **Dhruvi Gupta** — Management Head, CICR
+
+### Core Engineering Team
+- **Vardaan Saxena** — Full-Stack Architecture, Superadmin Engine & Backend Hardening
+- **Kushagra Garg** — Core Team Developer & API Integration
+- **Mahak Katahara** — Core Team Developer & Frontend UI/Themes
+- **Divyam Jain** — Core Team Developer & Systems Verification
 
 ---
 
 ## ⚠️ Known Issues & Roadmap
 
-**Known issues (v1.7.0):**
+### Completed Milestones
+- [x] Dual superadmin role lock (`vardaansaxena096@gmail.com` and `cicrinventory@gmail.com`).
+- [x] Institutional student email validation (`@mail.jiit.ac.in`).
+- [x] Mandatory admin approval gate for newly registered student accounts.
+- [x] Hardware Issue Requests queue with multi-tier persistence.
+- [x] Cyber-aesthetic transactional email redesign with instant admin CCs.
+- [x] 60 FPS Sakura falling leaves engine and Avengers Assemble cinematic HUD.
+- [x] Dynamic API URL resolution (automatic local vs. production routing).
+- [x] Production deployment configuration on Vercel and Render.
+- [x] Direct in-app inventory item deletion with cascading database removal and superadmin telemetry alerts.
+- [x] Real-time System Audit & Activity Logs Center with category filters and instant search.
+- [x] Automated 6-second background auto-synchronization between client and PostgreSQL.
+- [x] Complete database mock data purge retaining strictly authentic vault inventory and authorized administrators.
 
-- `register` accepts `role: 'ADMIN'` from the client (role spoofing).
-- `createItem` accepts negative `quantity`.
-- `GET /api/stats` is public; `GET /api/audit` is visible to any authenticated member.
-- Real email delivery requires a valid Gmail App Password; placeholders produce `535 BadCredentials`.
-
-**Roadmap:**
-
-- [x] Role-based access (admin vs. member) — v1.5.0 (JWT + RBAC middleware)
-- [x] Overdue-loan notifications — v1.4.3 (node-cron reminders)
-- [x] Admin OTP approval workflow — v1.4.3 (`request-otp` / `verify-otp`)
-- [x] Redis session store + API caching — v1.5.0 (`connect-redis`, `cacheGetJSON`)
-- [x] DB read/write splitting — v1.5.0 (`dbRead` / `dbWrite`)
-- [x] BullMQ async email queue — v1.5.0 (Redis-backed, 5 concurrency)
-- [x] Atomic SQL guards for concurrency — v1.7.0 (`finalizeBorrow`, `returnItem`)
-- [x] Hardened JWT config (no fallback secret) — v1.7.0
-- [x] Base migration (`000_create_tables.sql`) — v1.7.0
-- [ ] Frontend session-aware fetch wrapper + OTP entry UI
-- [ ] QR-code component tagging for instant lookup
-- [ ] Export vault data (CSV / PDF reports)
+### Future Roadmap
+- [ ] **QR Code Component Tagging**: Dynamic QR generation for instant hardware scanning on mobile devices.
+- [ ] **Automated Export Engine**: CSV and PDF vault inventory reporting for annual club audits.
+- [ ] **WebPush Notifications**: Browser-native push alerts for upcoming return deadlines.
 
 ---
 
 ## 📜 License
 
-Distributed under the MIT License. Built with 🧠 + 🔧 by the Creative & Innovative Cell in Robotics, JIIT-128.
+Distributed under the **MIT License**. Built with 🧠 + 🔧 by the **Creative & Innovative Cell in Robotics (CICR)**, JIIT-128.
 
 <div align="center">
 
 **© 2026 CICR Inventory Hub — Creative & Innovative Cell in Robotics**
 
-[![Live Demo](https://img.shields.io/badge/VISIT-VAULT-00f0ff?style=for-the-badge)](https://cicrinventory.vercel.app/)
+[![Visit Vault](https://img.shields.io/badge/VISIT-VAULT-00f0ff?style=for-the-badge)](https://cicrinventory.vercel.app/)
 
 </div>
-

@@ -328,9 +328,17 @@ class DatabaseManager {
         const storedRequests = localStorage.getItem('cicr_requests');
         if (storedRequests) {
             try {
-                requests = JSON.parse(storedRequests);
+                const parsed = JSON.parse(storedRequests);
+                // Purge any stale mock/test records (e.g. purpose containing "Testing" or "Robo Soccer")
+                requests = (parsed || []).filter((r: any) => 
+                    r && r.purpose && 
+                    !r.purpose.toLowerCase().includes('testing') && 
+                    !r.purpose.toLowerCase().includes('robo soccer')
+                );
+                localStorage.setItem('cicr_requests', JSON.stringify(requests));
             } catch {
                 requests = [];
+                localStorage.removeItem('cicr_requests');
             }
         } else {
             requests = [];
@@ -494,10 +502,20 @@ class DatabaseManager {
         }
     }
 
-    static startAutoSync(intervalMs = 15000) {
-        if ((window as any)._cicrAutoSyncTimer) return;
-        (window as any)._cicrAutoSyncTimer = setInterval(() => {
-            this.syncFromBackend();
+    static startAutoSync(intervalMs = 6000) {
+        if ((window as any)._cicrAutoSyncTimer) {
+            clearInterval((window as any)._cicrAutoSyncTimer);
+        }
+        (window as any)._cicrAutoSyncTimer = setInterval(async () => {
+            await this.syncFromBackend();
+            const role = ModalManager.getCurrentRole();
+            if (role === 'ADMIN') {
+                if (typeof AdminManager !== 'undefined') {
+                    AdminManager.loadHardwareRequests();
+                    AdminManager.loadUsers();
+                    AdminManager.loadAuditLogs();
+                }
+            }
         }, intervalMs);
     }
 
@@ -714,6 +732,8 @@ class DashboardManager {
                     return;
                 }
                 AdminManager.loadUsers();
+                AdminManager.loadHardwareRequests();
+                AdminManager.loadAuditLogs();
             }
 
             closeMobileSidebar();
@@ -1033,8 +1053,15 @@ class DashboardManager {
             tools: "Lab Tool"
         };
         const categoryLabel = catMap[item.category] || item.category;
+        const isAdmin = ModalManager.getCurrentRole() === 'ADMIN';
+        const deleteBtnHtml = isAdmin ? `
+            <button class="btn-card-delete-item" data-id="${item.id}" data-name="${item.name}" title="Delete Component from Inventory">
+                <i data-lucide="trash-2"></i>
+            </button>
+        ` : '';
 
         card.innerHTML = `
+            ${deleteBtnHtml}
             <div class="card-header">
                 <span class="card-category">${categoryLabel}</span>
                 <span class="status-indicator ${statusClass}">${statusText}</span>
@@ -1052,6 +1079,16 @@ class DashboardManager {
                 </div>
             </div>
         `;
+
+        if (isAdmin) {
+            const delBtn = card.querySelector('.btn-card-delete-item');
+            if (delBtn) {
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    AdminManager.promptDeleteItem(item.id, item.name);
+                });
+            }
+        }
 
         card.addEventListener('click', () => {
             ModalManager.openDetailModal(item);
@@ -1390,6 +1427,15 @@ class ModalManager {
             returnBtn.style.display = 'inline-flex';
         } else {
             returnBtn.style.display = 'none';
+        }
+
+        const deleteItemBtn = document.getElementById('btn-modal-delete-item') as HTMLButtonElement;
+        if (deleteItemBtn) {
+            deleteItemBtn.style.display = role === 'ADMIN' ? 'inline-flex' : 'none';
+            deleteItemBtn.onclick = () => {
+                ModalManager.closeAll();
+                AdminManager.promptDeleteItem(item.id, item.name);
+            };
         }
 
         if (role === 'ADMIN') {
@@ -2386,6 +2432,9 @@ interface AdminHardwareRequest {
 class AdminManager {
     private static users: AdminUserRecord[] = [];
     private static hardwareRequests: AdminHardwareRequest[] = [];
+    private static auditLogs: any[] = [];
+    private static activeAuditCategory = 'all';
+    private static auditSearchTerm = '';
     private static isInitialized = false;
 
     static init() {
@@ -2412,6 +2461,31 @@ class AdminManager {
                 this.renderUsersTable(this.filterUsers(searchInput.value));
             });
         }
+
+        const auditRefreshBtn = document.getElementById('admin-audit-refresh-btn');
+        if (auditRefreshBtn) {
+            auditRefreshBtn.addEventListener('click', () => {
+                this.loadAuditLogs();
+            });
+        }
+
+        const auditSearch = document.getElementById('admin-audit-search') as HTMLInputElement;
+        if (auditSearch) {
+            auditSearch.addEventListener('input', () => {
+                this.auditSearchTerm = auditSearch.value.trim().toLowerCase();
+                this.renderAuditLogs();
+            });
+        }
+
+        const auditPills = document.querySelectorAll('#admin-audit-pills .audit-pill');
+        auditPills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                auditPills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                this.activeAuditCategory = (pill as HTMLElement).dataset.auditCat || 'all';
+                this.loadAuditLogs();
+            });
+        });
 
         // Attach window methods for onclick handlers
         window.adminApprove = (id: string) => this.approveUser(id);
@@ -2700,6 +2774,7 @@ class AdminManager {
                 ToastManager.show('Request Authorized', 'Component issue approved. Stock updated and verification dispatched.', 'success');
                 DatabaseManager.addLog('approve', `Admin authorized hardware issue request #${id.slice(0, 8)}`);
                 await this.loadHardwareRequests();
+                await this.loadAuditLogs();
                 await DatabaseManager.syncFromBackend();
             } else {
                 const err = await res.json().catch(() => ({}));
@@ -2735,6 +2810,7 @@ class AdminManager {
                 ToastManager.show('Request Declined', 'Hardware issue request has been declined.', 'info');
                 DatabaseManager.addLog('reject', `Admin declined hardware issue request #${id.slice(0, 8)}`);
                 await this.loadHardwareRequests();
+                await this.loadAuditLogs();
                 await DatabaseManager.syncFromBackend();
             } else {
                 const err = await res.json().catch(() => ({}));
@@ -2862,6 +2938,7 @@ class AdminManager {
                 ToastManager.show('User Approved', `Member ${data.user?.name || id} has been granted access.`, 'success');
                 DatabaseManager.addLog('system', `Admin approved membership for ${data.user?.name || id} (${data.user?.email || ''})`);
                 await this.loadUsers();
+                await this.loadAuditLogs();
                 DatabaseManager.updateNotificationBadges();
             } else {
                 const err = await res.json().catch(() => ({}));
@@ -2884,6 +2961,7 @@ class AdminManager {
                 ToastManager.show('User Rejected', 'Membership request was rejected.', 'warning');
                 DatabaseManager.addLog('system', `Admin rejected membership request for user ID ${id}`);
                 await this.loadUsers();
+                await this.loadAuditLogs();
                 DatabaseManager.updateNotificationBadges();
             } else {
                 const err = await res.json().catch(() => ({}));
@@ -2910,6 +2988,7 @@ class AdminManager {
                 ToastManager.show('Role Updated', `User permissions changed to ${role}.`, 'info');
                 DatabaseManager.addLog('system', `User ${id} role updated to ${role}`);
                 await this.loadUsers();
+                await this.loadAuditLogs();
             } else {
                 const err = await res.json().catch(() => ({}));
                 ToastManager.show('Update Failed', err.message || 'Could not update user role', 'error');
@@ -2932,6 +3011,7 @@ class AdminManager {
                 ToastManager.show('User Deleted', `User ${name} has been removed.`, 'warning');
                 DatabaseManager.addLog('system', `Admin deleted user profile "${name}" (${id})`);
                 await this.loadUsers();
+                await this.loadAuditLogs();
                 DatabaseManager.updateNotificationBadges();
             } else {
                 const err = await res.json().catch(() => ({}));
@@ -2941,6 +3021,185 @@ class AdminManager {
             console.error('Error deleting user:', e);
             ToastManager.show('Network Error', 'Failed to delete user', 'error');
         }
+    }
+
+    static promptDeleteItem(itemId: string, itemName: string) {
+        const modal = document.getElementById('delete-confirm-modal');
+        const targetName = document.getElementById('delete-item-target-name');
+        const confirmBtn = document.getElementById('btn-confirm-delete') as HTMLButtonElement;
+        const cancelBtn = document.getElementById('btn-cancel-delete');
+        const closeBtn = document.getElementById('close-delete-confirm');
+
+        if (!modal) return;
+        if (targetName) targetName.innerText = itemName;
+
+        modal.style.display = 'flex';
+
+        const closeModal = () => {
+            modal.style.display = 'none';
+        };
+
+        if (cancelBtn) cancelBtn.onclick = closeModal;
+        if (closeBtn) closeBtn.onclick = closeModal;
+        modal.onclick = (e) => {
+            if (e.target === modal) closeModal();
+        };
+
+        if (confirmBtn) {
+            confirmBtn.onclick = async () => {
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Deleting...';
+                try {
+                    const token = localStorage.getItem('cicr_token');
+                    const res = await fetch(`${API_BASE}/items/${itemId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    const json = await res.json();
+                    if (res.ok) {
+                        ToastManager.show('Item Removed', `"${itemName}" was permanently deleted from the vault.`, 'warning');
+                        closeModal();
+                        await DatabaseManager.syncFromBackend();
+                        await AdminManager.loadAuditLogs();
+                    } else {
+                        ToastManager.show('Delete Error', json.message || 'Failed to delete item.', 'error');
+                    }
+                } catch (err: any) {
+                    console.error('Delete item error:', err);
+                    ToastManager.show('Network Error', 'Failed to reach backend API.', 'error');
+                } finally {
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = '<i data-lucide="trash-2"></i> Confirm Delete';
+                    lucide.createIcons();
+                }
+            };
+        }
+        lucide.createIcons();
+    }
+
+    static async loadAuditLogs() {
+        const token = localStorage.getItem('cicr_token');
+        if (!token) return;
+
+        try {
+            const url = `${API_BASE}/audit?limit=100&category=${this.activeAuditCategory}`;
+            const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const json = await res.json();
+                this.auditLogs = json.data || [];
+                this.renderAuditLogs();
+            }
+        } catch (err) {
+            console.warn('[ADMIN] Failed to load audit logs:', err);
+        }
+    }
+
+    static renderAuditLogs() {
+        const container = document.getElementById('admin-audit-stream');
+        const countTag = document.getElementById('admin-audit-count-tag');
+        const totalStat = document.getElementById('admin-stat-total-logs');
+        if (!container) return;
+
+        let filtered = this.auditLogs;
+        if (this.auditSearchTerm) {
+            filtered = filtered.filter(l => 
+                (l.action && l.action.toLowerCase().includes(this.auditSearchTerm)) ||
+                (l.description && l.description.toLowerCase().includes(this.auditSearchTerm)) ||
+                (l.users?.name && l.users.name.toLowerCase().includes(this.auditSearchTerm)) ||
+                (l.users?.email && l.users.email.toLowerCase().includes(this.auditSearchTerm))
+            );
+        }
+
+        if (countTag) countTag.innerText = `${filtered.length} EVENTS`;
+        if (totalStat) totalStat.innerText = String(this.auditLogs.length);
+
+        if (filtered.length === 0) {
+            container.innerHTML = `
+                <div class="admin-empty-state">
+                    <i data-lucide="check-circle-2"></i>
+                    <p>No audit log events found matching the criteria.</p>
+                </div>
+            `;
+            lucide.createIcons();
+            return;
+        }
+
+        container.innerHTML = filtered.map(log => {
+            const action = log.action || 'System Event';
+            let badgeClass = 'action-cyan';
+            let iconName = 'activity';
+
+            if (['Item Added', 'Hardware Approved', 'User Approved', 'Returned', 'Item Returned'].includes(action)) {
+                badgeClass = 'action-green';
+                iconName = 'check-circle';
+            } else if (['Item Deleted', 'Hardware Rejected', 'User Rejected', 'User Deleted'].includes(action)) {
+                badgeClass = 'action-red';
+                iconName = 'alert-octagon';
+            } else if (['Sign In', 'Sign Up', 'Role Changed'].includes(action)) {
+                badgeClass = 'action-purple';
+                iconName = action === 'Sign In' ? 'log-in' : 'user-plus';
+            } else if (['Borrowed', 'Item Borrowed', 'OTP Requested'].includes(action)) {
+                badgeClass = 'action-yellow';
+                iconName = 'package';
+            } else if (['Hardware Requested', 'Item Edited'].includes(action)) {
+                badgeClass = 'action-cyan';
+                iconName = 'cpu';
+            }
+
+            const rawTime = log.timestamp || log.created_at || new Date().toISOString();
+            const timeAgo = this.formatTimeAgo(rawTime);
+            const exactTime = new Date(rawTime).toLocaleTimeString('en-IN', { hour12: true });
+
+            const actorName = log.users?.name || (log.user_id ? 'Member' : 'System');
+            const actorEmail = log.users?.email || '';
+
+            return `
+                <div class="audit-log-card">
+                    <div class="audit-left-col">
+                        <span class="audit-action-badge ${badgeClass}">
+                            <i data-lucide="${iconName}" style="width: 11px; height: 11px;"></i>
+                            ${action}
+                        </span>
+                        <div class="audit-content-block">
+                            <span class="audit-desc-text">${this.escapeHtml(log.description || 'Action recorded')}</span>
+                            <div class="audit-meta-chips">
+                                <span class="audit-actor-chip"><i data-lucide="user" style="width: 11px; height: 11px;"></i> <strong>${actorName}</strong> ${actorEmail ? `(${actorEmail})` : ''}</span>
+                                ${log.inventory?.name ? `<span class="audit-actor-chip" style="color: #00f0ff;"><i data-lucide="box" style="width: 11px; height: 11px;"></i> ${log.inventory.name}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="audit-right-col">
+                        <span class="audit-time-ago">${timeAgo}</span>
+                        <span class="audit-time-exact">${exactTime}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        lucide.createIcons();
+    }
+
+    static formatTimeAgo(dateStr: string): string {
+        const d = new Date(dateStr).getTime();
+        if (isNaN(d)) return 'Recently';
+        const diff = Math.floor((Date.now() - d) / 1000);
+        if (diff < 30) return 'JUST NOW';
+        if (diff < 60) return `${diff}S AGO`;
+        if (diff < 3600) return `${Math.floor(diff / 60)}M AGO`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}H AGO`;
+        return `${Math.floor(diff / 86400)}D AGO`;
+    }
+
+    static escapeHtml(str: string): string {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 }
 
@@ -3758,6 +4017,8 @@ document.addEventListener('DOMContentLoaded', () => {
     DatabaseManager.init();
     ModalManager.init();
     AuthManager.init();
+    AdminManager.init();
+    DatabaseManager.startAutoSync(6000);
     lucide.createIcons();
 
     // Global mouse-coordinate spotlight tracker for interactive cyber gridlines

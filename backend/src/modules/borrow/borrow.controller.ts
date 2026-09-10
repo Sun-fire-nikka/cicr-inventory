@@ -22,20 +22,21 @@ export const MAX_RENTAL_DAYS = 30;
 export const DEFAULT_RENTAL_DAYS = 5;
 
 // Fire-and-forget wrapper: catches and logs errors without blocking the response.
+import { logAuditEvent } from '../../services/auditService';
+
 function dispatchBackground(label: string, promise: Promise<unknown>): void {
   promise.catch((err) => console.error(`[BACKGROUND] ${label} failed:`, err));
 }
 
 // Helper function to insert into audit_logs
 async function logAudit(action: string, userId: string | undefined, itemId: string | null, description: string) {
-  try {
-    const isUUID = (str?: string | null) => Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
-    await supabase.from('audit_logs').insert([
-      { action, user_id: isUUID(userId) ? userId : null, item_id: isUUID(itemId) ? itemId : null, description }
-    ]);
-  } catch (err) {
-    console.error('Audit log failed:', err);
-  }
+  const isUUID = (str?: string | null) => Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
+  await logAuditEvent({
+    action,
+    userId: isUUID(userId) ? userId : null,
+    itemId: isUUID(itemId) ? itemId : null,
+    description
+  });
 }
 
 const parseRentalDays = (value: any): number | null => {
@@ -570,6 +571,13 @@ export const createHardwareRequestHandler = async (req: AuthRequest, res: Respon
       dueDate
     });
 
+    logAudit(
+      'Hardware Requested',
+      userId,
+      itemId,
+      `${userName} (${userEmail}) requested ${quantity}x "${requestRecord.itemName || 'hardware'}" for purpose: ${purpose}`
+    );
+
     return res.status(201).json({
       status: 'success',
       message: 'Component issue request queued for Admin approval.',
@@ -608,6 +616,13 @@ export const approveHardwareRequestHandler = async (req: AuthRequest, res: Respo
       return res.status(400).json({ status: 'error', message: result.error });
     }
 
+    logAudit(
+      'Hardware Approved',
+      req.user?.id,
+      result.request?.itemId || null,
+      `Admin ${adminName} approved hardware issue for ${result.request?.borrowerName} (${result.request?.itemName || 'item'} x${result.request?.quantity})`
+    );
+
     return res.status(200).json({
       status: 'success',
       message: `Hardware request ${id} approved and checked out.`,
@@ -631,6 +646,13 @@ export const rejectHardwareRequestHandler = async (req: AuthRequest, res: Respon
     if (!result.success) {
       return res.status(400).json({ status: 'error', message: result.error });
     }
+
+    logAudit(
+      'Hardware Rejected',
+      req.user?.id,
+      result.request?.itemId || null,
+      `Admin ${adminName} rejected hardware issue for ${result.request?.borrowerName} (${result.request?.itemName || 'item'}). Reason: ${reason || 'Not specified'}`
+    );
 
     return res.status(200).json({
       status: 'success',

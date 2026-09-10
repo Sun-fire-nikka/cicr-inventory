@@ -6517,6 +6517,12 @@ body.theme-light .devs-clean-divider {
 }
 .admin-stat-box.stat-cyan .admin-stat-num { color: #00f0ff; }
 
+.admin-stat-box.stat-yellow {
+    border-color: rgba(250, 204, 21, 0.25);
+    background: rgba(250, 204, 21, 0.06);
+}
+.admin-stat-box.stat-yellow .admin-stat-num { color: #facc15; }
+
 .admin-stat-num {
     font-family: 'Orbitron', sans-serif;
     font-size: 15px;
@@ -7453,6 +7459,292 @@ body.theme-light .devs-clean-divider {
     margin: 18px 0 10px 0;
     padding-bottom: 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ====================================================
+   SYSTEM AUDIT & ACTIVITY LOGS SECTION
+   ==================================================== */
+.admin-audit-header-wrap {
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.admin-audit-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.admin-audit-filter-pills {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(13, 21, 39, 0.6);
+    padding: 3px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.audit-pill {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    padding: 4px 9px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.audit-pill:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.audit-pill.active {
+    background: rgba(0, 240, 255, 0.15);
+    color: #00f0ff;
+    border: 1px solid rgba(0, 240, 255, 0.4);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+}
+
+.admin-audit-stream-container {
+    max-height: 480px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 6px;
+    margin-top: 10px;
+}
+
+.admin-audit-stream-container::-webkit-scrollbar {
+    width: 5px;
+}
+
+.admin-audit-stream-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.admin-audit-stream-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 240, 255, 0.3);
+    border-radius: 4px;
+}
+
+.audit-log-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(13, 21, 39, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(8px);
+    transition: all 0.2s ease;
+}
+
+.audit-log-card:hover {
+    background: rgba(13, 21, 39, 0.7);
+    border-color: rgba(0, 240, 255, 0.25);
+    transform: translateX(2px);
+}
+
+.audit-left-col {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex: 1;
+}
+
+.audit-action-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 8.5px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.audit-action-badge.action-green {
+    background: rgba(57, 255, 20, 0.1);
+    color: #39ff14;
+    border: 1px solid rgba(57, 255, 20, 0.3);
+}
+
+.audit-action-badge.action-red {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.audit-action-badge.action-cyan {
+    background: rgba(0, 240, 255, 0.1);
+    color: #00f0ff;
+    border: 1px solid rgba(0, 240, 255, 0.3);
+}
+
+.audit-action-badge.action-purple {
+    background: rgba(168, 85, 247, 0.1);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.audit-action-badge.action-yellow {
+    background: rgba(250, 204, 21, 0.1);
+    color: #facc15;
+    border: 1px solid rgba(250, 204, 21, 0.3);
+}
+
+.audit-content-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.audit-desc-text {
+    font-size: 12.5px;
+    color: #e2e8f0;
+    line-height: 1.4;
+}
+
+.audit-meta-chips {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 10.5px;
+}
+
+.audit-actor-chip {
+    color: #94a3b8;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.audit-actor-chip strong {
+    color: #ffffff;
+}
+
+.audit-right-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    min-width: 100px;
+}
+
+.audit-time-ago {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    color: #00f0ff;
+    letter-spacing: 0.5px;
+}
+
+.audit-time-exact {
+    font-size: 9.5px;
+    color: #64748b;
+    font-family: monospace;
+}
+
+/* Item Card Delete Button */
+.btn-card-delete-item {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #ef4444;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 5;
+}
+
+.btn-card-delete-item:hover {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #f87171;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+}
+
+.btn-card-delete-item i {
+    width: 13px;
+    height: 13px;
+}
+
+.btn-modal-delete {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+
+.btn-modal-delete:hover {
+    background: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.5);
+}
+
+/* Delete Warning Box inside confirmation modal */
+.delete-warning-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.delete-warning-icon {
+    color: #facc15;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    .admin-audit-header-wrap {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .admin-audit-controls {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .admin-audit-filter-pills {
+        overflow-x: auto;
+        width: 100%;
+    }
+    .admin-audit-search-wrap {
+        width: 100%;
+    }
+    .audit-log-card {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .audit-right-col {
+        align-items: flex-start;
+    }
 }
 
 

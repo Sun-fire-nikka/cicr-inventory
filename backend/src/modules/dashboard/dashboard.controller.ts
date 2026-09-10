@@ -34,15 +34,38 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 // GET /api/audit (Audit Logs List)
 export const getAuditLogs = async (req: Request, res: Response) => {
   try {
-    const { data: logs, error } = await dbRead
+    const { category, search, limit } = req.query;
+    const maxLimit = Math.min(Math.max(Number(limit) || 100, 1), 250);
+
+    let query = dbRead
       .from('audit_logs')
-      .select('*, users(name, email), inventory(name)')
+      .select('*, users(name, email, role), inventory(name, category)')
       .order('timestamp', { ascending: false })
-      .limit(50);
+      .limit(maxLimit);
+
+    if (category && typeof category === 'string' && category !== 'all') {
+      const cat = category.toLowerCase();
+      if (cat === 'auth') {
+        query = query.in('action', ['Sign In', 'Sign Up', 'User Approved', 'User Rejected', 'Role Changed', 'User Deleted']);
+      } else if (cat === 'inventory') {
+        query = query.in('action', ['Item Added', 'Item Edited', 'Item Deleted']);
+      } else if (cat === 'hardware') {
+        query = query.in('action', ['Hardware Requested', 'Hardware Approved', 'Hardware Rejected']);
+      } else if (cat === 'loans') {
+        query = query.in('action', ['Borrowed', 'Returned', 'OTP Requested', 'Item Borrowed', 'Item Returned']);
+      }
+    }
+
+    if (search && typeof search === 'string' && search.trim()) {
+      const term = search.trim();
+      query = query.or(`action.ilike.%${term}%,description.ilike.%${term}%`);
+    }
+
+    const { data: logs, error } = await query;
 
     if (error) throw error;
 
-    return res.status(200).json({ status: 'success', count: logs.length, data: logs });
+    return res.status(200).json({ status: 'success', count: logs?.length || 0, data: logs || [] });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
   }

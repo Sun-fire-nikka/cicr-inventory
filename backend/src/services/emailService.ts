@@ -1696,8 +1696,14 @@ export const sendAdminItemCreatedNotification = async (
       timeStyle: 'short'
     });
 
-    const tagsHtml = (context.tags && context.tags.length)
-      ? context.tags.map(t => `<span style="display:inline-block;padding:2px 8px;margin:2px;background:#0d1527;border:1px solid #00f0ff;border-radius:3px;color:#00f0ff;font-size:11px;font-family:'SFMono-Regular',Consolas,monospace;">#${t}</span>`).join(' ')
+    const rawTags: any = context.tags;
+    const tagsArray: string[] = Array.isArray(rawTags)
+      ? rawTags
+      : (typeof rawTags === 'string' && rawTags.trim()
+          ? (rawTags.startsWith('[') ? (() => { try { return JSON.parse(rawTags); } catch { return []; } })() : rawTags.split(',').map((s: string) => s.trim()))
+          : []);
+    const tagsHtml = (tagsArray && tagsArray.length)
+      ? tagsArray.map((t: string) => `<span style="display:inline-block;padding:2px 8px;margin:2px;background:#0d1527;border:1px solid #00f0ff;border-radius:3px;color:#00f0ff;font-size:11px;font-family:'SFMono-Regular',Consolas,monospace;">#${t}</span>`).join(' ')
       : '<span style="color:#64748b;">None</span>';
 
     const contentHtml = `
@@ -1800,5 +1806,112 @@ export const sendAdminItemCreatedNotification = async (
   }
 };
 
+export interface ItemDeletedEmailContext {
+  itemName: string;
+  category: string;
+  quantity: number;
+  location?: string;
+  deletedByAdminName: string;
+  deletedByAdminEmail: string;
+  deletedAt?: Date | string;
+}
 
+export const sendAdminItemDeletedNotification = async (
+  context: ItemDeletedEmailContext
+) => {
+  try {
+    const deletedTimeStr = new Date(context.deletedAt || new Date()).toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
 
+    const contentHtml = `
+      <div style="background:#090c13;border:1px solid #ef4444;border-radius:4px;padding:18px;margin-bottom:18px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;width:130px;font-family:'SFMono-Regular',Consolas,monospace;">PURGED ITEM:</td>
+            <td style="padding:6px 0;color:#ef4444;font-weight:700;font-size:14px;">${context.itemName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">CATEGORY:</td>
+            <td style="padding:6px 0;color:#00f0ff;font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">${(context.category || 'General').toUpperCase()}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">REMOVED UNITS:</td>
+            <td style="padding:6px 0;color:#facc15;font-weight:700;font-family:'SFMono-Regular',Consolas,monospace;">${context.quantity} unit(s)</td>
+          </tr>
+          ${context.location ? `
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">PREVIOUS LOCATION:</td>
+            <td style="padding:6px 0;color:#e2e8f0;font-family:'SFMono-Regular',Consolas,monospace;">${context.location}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">DELETED BY:</td>
+            <td style="padding:6px 0;color:#ffffff;font-weight:600;">${context.deletedByAdminName} <span style="color:#00f0ff;font-size:12px;">(${context.deletedByAdminEmail})</span></td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">TIMESTAMP:</td>
+            <td style="padding:6px 0;color:#facc15;font-family:'SFMono-Regular',Consolas,monospace;">${deletedTimeStr} IST</td>
+          </tr>
+        </table>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        This hardware component has been permanently deleted from the active inventory catalog and Supabase database by an authorized administrator.
+      </p>
+    `;
+
+    const adminRecipients = Array.from(new Set([context.deletedByAdminEmail, ...SUPER_ADMIN_EMAILS]));
+
+    const mailOptions = {
+      from: getFromAddress(),
+      replyTo: getReplyToAddress(),
+      to: context.deletedByAdminEmail,
+      cc: SUPER_ADMIN_EMAILS.filter(e => e.toLowerCase() !== context.deletedByAdminEmail.toLowerCase()).join(', '),
+      subject: `[CICR Admin] Hardware Component Deleted: ${context.itemName}`,
+      messageId: generateMessageId(),
+      headers: buildHeaders('item-deleted-telemetry', 'high'),
+      priority: 'high' as const,
+      text: [
+        `CICR ADMIN // HARDWARE COMPONENT PURGED`,
+        `================================================`,
+        `Component: ${context.itemName} [${(context.category || 'General').toUpperCase()}]`,
+        `Units Removed: ${context.quantity} unit(s)`,
+        `Deleted By: ${context.deletedByAdminName} (${context.deletedByAdminEmail})`,
+        `Timestamp: ${deletedTimeStr} IST`,
+        ``,
+        `This component has been permanently deleted from the database.`,
+        ``,
+        `Regards,`,
+        `CICR Automated Inventory Engine`
+      ].filter(Boolean).join('\n'),
+      html: renderCyberEmail({
+        badgeText: 'VAULT // COMPONENT REMOVED',
+        badgeType: 'danger',
+        title: `Component Deleted: ${context.itemName}`,
+        subtitle: `Removed from CICR Inventory by ${context.deletedByAdminName}.`,
+        contentHtml,
+        actionButton: {
+          text: 'Open Admin Portal',
+          url: 'https://cicr-inventory.vercel.app/'
+        }
+      })
+    };
+
+    if (!isSmtpConfigured()) {
+      console.log(`[MOCK EMAIL SERVICE] Item deletion alert dispatched to ${adminRecipients.join(', ')}`);
+      return { success: true, mocked: true };
+    }
+
+    if (await enqueueEmail('item-deleted-telemetry', mailOptions)) {
+      return { success: true, queued: true };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    logDelivery('Item deleted telemetry email', info);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error(`[EMAIL SERVICE ERROR] Failed to send item deletion email:`, formatSmtpError(error));
+    return { success: false, error: formatSmtpError(error) };
+  }
+};

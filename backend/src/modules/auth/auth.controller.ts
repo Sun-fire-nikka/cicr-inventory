@@ -25,6 +25,7 @@ import {
   sendAdminUserStatusAlert,
   sendLoginSecurityAlertEmail
 } from '../../services/emailService';
+import { logAuditEvent } from '../../services/auditService';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -95,6 +96,14 @@ export const register = async (req: Request, res: Response) => {
 
     // Track approval status: all students and non-admins strictly set to PENDING
     setUserApproval(normEmail, initialStatus, isMasterAdmin ? 'SYSTEM' : undefined);
+
+    // Record in system audit trail
+    logAuditEvent({
+      action: 'Sign Up',
+      userId: newUser.id,
+      itemId: null,
+      description: `New ${isMasterAdmin ? 'Admin' : 'Student'} registration: ${name.trim()} (${normEmail}) [Status: ${initialStatus}]`
+    }).catch(() => {});
 
     // Send instant email notification to Admins if non-master-admin registers
     if (!isMasterAdmin) {
@@ -217,6 +226,13 @@ export const login = async (req: Request, res: Response) => {
       loginTime: new Date()
     }).catch((e) => console.error('[EMAIL ERROR] Failed to send login alert:', e));
 
+    logAuditEvent({
+      action: 'Sign In',
+      userId: user.id,
+      itemId: null,
+      description: `User authenticated: ${user.name} (${user.email}) [Role: ${effectiveRole}]`
+    }).catch(() => {});
+
     return res.status(200).json({
       status: 'success',
       token,
@@ -274,6 +290,7 @@ export const listUsersForAdmin = async (req: AuthRequest, res: Response) => {
     const allApprovals = getAllUserApprovals();
 
     const userList = (users || [])
+      .filter((u) => !isPurgedUser(u.email) && !u.email.endsWith('.test'))
       .map((u) => {
         const normEmail = u.email.toLowerCase();
         const isMasterAdmin = isSuperAdminEmail(normEmail);
@@ -318,6 +335,13 @@ export const approveUser = async (req: AuthRequest, res: Response) => {
       console.error('[EMAIL ERROR] Failed to send admin status alert:', e)
     );
 
+    logAuditEvent({
+      action: 'User Approved',
+      userId: req.user?.id,
+      itemId: null,
+      description: `Admin ${approver} approved user account ${user.name} (${user.email})`
+    }).catch(() => {});
+
     return res.status(200).json({
       status: 'success',
       message: `User ${user.name} approved successfully.`,
@@ -348,6 +372,13 @@ export const rejectUser = async (req: AuthRequest, res: Response) => {
       console.error('[EMAIL ERROR] Failed to send admin status alert:', e)
     );
 
+    logAuditEvent({
+      action: 'User Rejected',
+      userId: req.user?.id,
+      itemId: null,
+      description: `Admin ${rejector} rejected registration for ${user.name} (${user.email})`
+    }).catch(() => {});
+
     return res.status(200).json({ status: 'success', message: `User ${user.name} registration rejected.`, data: updated });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
@@ -372,6 +403,14 @@ export const changeUserRole = async (req: AuthRequest, res: Response) => {
 
     const updated = setUserRole(user.email, role);
     await supabase.from('users').update({ role }).eq('id', id);
+
+    logAuditEvent({
+      action: 'Role Changed',
+      userId: req.user?.id,
+      itemId: null,
+      description: `Admin ${req.user?.name || 'Admin'} updated role for ${user.name} (${user.email}) to ${role}`
+    }).catch(() => {});
+
     return res.status(200).json({ status: 'success', message: `Role for ${user.name} changed to ${role}.`, data: updated });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
@@ -390,6 +429,13 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
 
     deleteUserApproval(user.email);
     await supabase.from('users').delete().eq('id', id);
+
+    logAuditEvent({
+      action: 'User Deleted',
+      userId: req.user?.id,
+      itemId: null,
+      description: `Admin ${req.user?.name || 'Admin'} deleted user ${user.name} (${user.email})`
+    }).catch(() => {});
 
     return res.status(200).json({ status: 'success', message: `User ${user.name} deleted.` });
   } catch (err: any) {

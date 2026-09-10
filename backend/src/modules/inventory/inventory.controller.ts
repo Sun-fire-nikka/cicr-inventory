@@ -3,7 +3,8 @@ import { supabase } from '../../app';
 import { dbRead } from '../../config/database';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { cacheGetJSON, cacheSetJSON, cacheInvalidate, cacheInvalidatePattern } from '../../config/redis';
-import { sendAdminItemCreatedNotification } from '../../services/emailService';
+import { sendAdminItemCreatedNotification, sendAdminItemDeletedNotification } from '../../services/emailService';
+import { logAuditEvent } from '../../services/auditService';
 
 const ITEMS_LIST_CACHE_TTL = 30; // seconds
 const ITEMS_ITEM_CACHE_TTL = 30;
@@ -20,13 +21,7 @@ export const invalidateItemsCache = async (id?: string): Promise<void> => {
 
 // Helper function to log actions in audit_logs
 async function logAudit(action: string, userId: string | undefined, itemId: string | null, description: string) {
-  try {
-    await supabase.from('audit_logs').insert([
-      { action, user_id: userId || null, item_id: itemId, description }
-    ]);
-  } catch (err) {
-    console.error('Audit log failed:', err);
-  }
+  await logAuditEvent({ action, userId, itemId, description });
 }
 
 // GET /api/items (Search, Filter by Category, Get All) — cached 30s, read pool
@@ -198,16 +193,42 @@ export const deleteItem = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const { data: item } = await dbRead.from('inventory').select('name').eq('id', id).single();
+    const { data: item, error: fetchErr } = await dbRead.from('inventory').select('*').eq('id', id).single();
+    if (fetchErr || !item) {
+      return res.status(404).json({ status: 'error', message: 'Item not found in inventory.' });
+    }
+
+    // Clean up any historical borrow records referencing this item so foreign key won't fail
+    await supabase.from('borrow_records').delete().eq('inventory_id', id);
 
     const { error } = await supabase.from('inventory').delete().eq('id', id);
     if (error) throw error;
 
-    // Log to Audit
-    await logAudit('Deleted', req.user?.id, null, `Deleted item "${item?.name || id}"`);
     await invalidateItemsCache(id);
 
-    return res.status(200).json({ status: 'success', message: 'Item deleted successfully!' });
+    const adminName = req.user?.name || req.user?.email || 'Admin';
+    const adminEmail = req.user?.email || 'cicrinventory@gmail.com';
+
+    // Log to Audit
+    await logAuditEvent({
+      action: 'Item Deleted',
+      userId: req.user?.id,
+      itemId: null,
+      description: `Admin ${adminName} permanently deleted item "${item.name}" [${(item.category || 'General').toUpperCase()}] (Removed ${item.quantity} units)`
+    });
+
+    // Send email alert to Superadmins
+    sendAdminItemDeletedNotification({
+      itemName: item.name,
+      category: item.category || 'General',
+      quantity: item.quantity || 0,
+      location: item.location || 'Unknown',
+      deletedByAdminName: adminName,
+      deletedByAdminEmail: adminEmail,
+      deletedAt: new Date().toISOString()
+    }).catch((e) => console.error('[EMAIL ERROR] Failed to send item deletion email:', e));
+
+    return res.status(200).json({ status: 'success', message: `Item "${item.name}" deleted successfully!` });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
   }

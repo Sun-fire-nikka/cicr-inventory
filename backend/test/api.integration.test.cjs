@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { default: app, supabase } = require('../dist/app.js');
@@ -382,12 +383,12 @@ test('POST /api/borrow accepts duration_days = 30 (maximum)', async () => {
 });
 
 // ---------- Admin OTP approval workflow ----------
-test('GET /api/borrow/admins lists admin directory including KUSH', async () => {
+test('GET /api/borrow/admins lists admin directory including Vardaan', async () => {
   const { status, json } = await api('/api/borrow/admins', { token: memberToken });
   assert.equal(status, 200);
-  const kush = json.data.find((a) => a.email === 'kushagragargdelhi@gmail.com');
-  assert.ok(kush, 'KUSH admin should be in the directory');
-  assert.equal(kush.name, 'KUSH');
+  const vardaan = json.data.find((a) => a.email === 'vardaansaxena096@gmail.com');
+  assert.ok(vardaan, 'Vardaan admin should be in the directory');
+  assert.equal(vardaan.name, 'Vardaan');
 });
 
 test('POST /api/borrow/request-otp missing fields returns 400', async () => {
@@ -409,11 +410,11 @@ test('POST /api/borrow/request-otp unknown admin returns 404', async () => {
 test('POST /api/borrow/request-otp happy path sends OTP to selected admin', async () => {
   const { status, json } = await api('/api/borrow/request-otp', {
     method: 'POST', token: memberToken,
-    body: { item_id: itemId, quantity: 1, purpose: 'OTP integration test', duration_days: 5, selected_admin_id: 'kush' }
+    body: { item_id: itemId, quantity: 1, purpose: 'OTP integration test', duration_days: 5, selected_admin_id: 'master-vardaan' }
   });
   assert.equal(status, 200);
   assert.equal(json.data.expires_in_seconds, 600);
-  assert.equal(json.data.selected_admin.email, 'kushagragargdelhi@gmail.com');
+  assert.equal(json.data.selected_admin.email, 'vardaansaxena096@gmail.com');
 });
 
 test('POST /api/borrow/verify-otp missing otp returns 400', async () => {
