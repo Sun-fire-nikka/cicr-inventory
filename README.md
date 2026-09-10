@@ -715,6 +715,7 @@ The frontend is configured via [`vercel.json`](./vercel.json):
 - Framework: `vite`
 - Build Command: `npm run build`
 - Output Directory: `dist`
+- API Proxy Rewrites: Seamlessly proxies `/api/(.*)` to `https://cicr-inventory-backend.onrender.com/api/$1` to avoid cross-origin overhead.
 - Single Page Application rewrites route all incoming requests to `/index.html`.
 
 Deploy using the Vercel CLI or Git integration:
@@ -756,12 +757,14 @@ Configure environment variables in the Render Dashboard matching `backend/.env.e
 ### Completed Milestones
 - [x] Dual superadmin role lock (`vardaansaxena096@gmail.com` and `cicrinventory@gmail.com`).
 - [x] Institutional student email validation (`@mail.jiit.ac.in`).
-- [x] Mandatory admin approval gate for newly registered student accounts.
+- [x] Mandatory admin approval gate barring unapproved student accounts from accessing dashboard or website.
+- [x] Two-Factor Authentication (2FA) single-use 6-digit login verification OTP popup with 5-minute expiry.
+- [x] Student lab section batches (e.g. F1, F2, B3) in registration with futuristic aesthetic placeholders.
+- [x] Vercel same-origin API proxy rewrites resolving mixed-origin connectivity and CORS latency.
 - [x] Hardware Issue Requests queue with multi-tier persistence.
 - [x] Cyber-aesthetic transactional email redesign with instant admin CCs.
 - [x] 60 FPS Sakura falling leaves engine and Avengers Assemble cinematic HUD.
 - [x] Dynamic API URL resolution (automatic local vs. production routing).
-- [x] Production deployment configuration on Vercel and Render.
 - [x] Direct in-app inventory item deletion with cascading database removal and superadmin telemetry alerts.
 - [x] Real-time System Audit & Activity Logs Center with category filters and instant search.
 - [x] Automated 6-second background auto-synchronization between client and PostgreSQL.

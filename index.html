@@ -62,14 +62,14 @@
                     <label for="login-username">Email, Username, or Name</label>
                     <div class="input-icon-wrapper">
                         <i data-lucide="user" class="input-icon"></i>
-                        <input type="text" id="login-username" required placeholder="Enter Email, Username, or Name">
+                        <input type="text" id="login-username" required placeholder="⚡ Email, @username, or Full Name">
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="login-password">Password</label>
                     <div class="input-icon-wrapper">
                         <i data-lucide="lock" class="input-icon"></i>
-                        <input type="password" id="login-password" required placeholder="Enter password">
+                        <input type="password" id="login-password" required placeholder="•••••••••••• (Secure Passphrase)">
                         <button type="button" class="password-toggle-btn" id="login-password-toggle" title="Toggle password visibility">
                             <i data-lucide="eye"></i>
                         </button>
@@ -90,14 +90,14 @@
                     <label for="signup-name">Full Name</label>
                     <div class="input-icon-wrapper">
                         <i data-lucide="user" class="input-icon"></i>
-                        <input type="text" id="signup-name" required placeholder="e.g. Vardaan Saxena">
+                        <input type="text" id="signup-name" required placeholder="✨ e.g. Vardaan Saxena">
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="signup-email">College Email (@mail.jiit.ac.in)</label>
                     <div class="input-icon-wrapper">
                         <i data-lucide="mail" class="input-icon"></i>
-                        <input type="email" id="signup-email" required placeholder="e.g. 992501030399@mail.jiit.ac.in">
+                        <input type="email" id="signup-email" required placeholder="📧 992501030399@mail.jiit.ac.in">
                     </div>
                     <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block;">Official JIIT email format (enrollmentnumber@mail.jiit.ac.in)</span>
                 </div>
@@ -105,28 +105,29 @@
                     <label for="signup-username">Username</label>
                     <div class="input-icon-wrapper">
                         <i data-lucide="at-sign" class="input-icon"></i>
-                        <input type="text" id="signup-username" required placeholder="e.g. vardaan_09">
+                        <input type="text" id="signup-username" required placeholder="👾 e.g. vardaan_09">
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="signup-enrollment">Enrollment Number</label>
                     <div class="input-icon-wrapper">
                         <i data-lucide="hash" class="input-icon"></i>
-                        <input type="text" id="signup-enrollment" required placeholder="e.g. 992501030399">
+                        <input type="text" id="signup-enrollment" required placeholder="🆔 e.g. 992501030399">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="signup-batch">Batch</label>
+                    <label for="signup-batch">Batch / Lab Section (e.g. F1, F2, B3)</label>
                     <div class="input-icon-wrapper">
-                        <i data-lucide="calendar" class="input-icon"></i>
-                        <input type="text" id="signup-batch" required placeholder="e.g. 2022-2026 or 2024">
+                        <i data-lucide="users" class="input-icon"></i>
+                        <input type="text" id="signup-batch" required placeholder="🚀 e.g. F1, F2, B3">
                     </div>
+                    <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block;">Designated student lab section batch (e.g. F1, F2, B3)</span>
                 </div>
                 <div class="form-group">
                     <label for="signup-password">Choose Password</label>
                     <div class="input-icon-wrapper">
                         <i data-lucide="lock" class="input-icon"></i>
-                        <input type="password" id="signup-password" required placeholder="Pick a strong password">
+                        <input type="password" id="signup-password" required placeholder="🔐 Minimum 6 characters">
                         <button type="button" class="password-toggle-btn" id="signup-password-toggle" title="Toggle password visibility">
                             <i data-lucide="eye"></i>
                         </button>
@@ -809,9 +810,63 @@
                     </section>
 
              </main>
-           </div>
+        </div>
+    </div>
 
     <!-- Modals Section -->
+
+    <!-- Login 2FA OTP Verification Modal -->
+    <div class="modal-overlay" id="login-otp-modal" style="display: none;">
+        <div class="modal-content glass otp-modal-content">
+            <div class="modal-header" style="text-align: center; display: block; position: relative;">
+                <div class="otp-badge-pill">
+                    <i data-lucide="shield-check"></i>
+                    <span>AUTHENTICATION // 2FA VERIFICATION</span>
+                </div>
+                <h2 style="font-size: 22px; font-weight: 800; letter-spacing: 0.5px; margin-top: 10px; color: var(--text-primary);">
+                    Security Verification Code
+                </h2>
+                <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px; line-height: 1.5;">
+                    Enter the single-use 6-digit code transmitted to<br>
+                    <strong id="otp-user-email" style="color: var(--neon-cyan); font-family: monospace;">user@mail.jiit.ac.in</strong>
+                </p>
+                <div class="otp-countdown-wrap" style="margin-top: 10px;">
+                    <span class="otp-timer-badge" id="otp-timer-badge">
+                        <i data-lucide="clock" style="width: 14px; height: 14px;"></i>
+                        <span>Expires in: </span>
+                        <strong id="otp-countdown-clock">05:00</strong>
+                    </span>
+                </div>
+            </div>
+
+            <form id="login-otp-form" style="margin-top: 18px;">
+                <div class="form-group" style="text-align: center;">
+                    <label for="login-otp-code" style="text-transform: uppercase; font-size: 11px; letter-spacing: 1.5px; color: var(--text-muted); display: block; margin-bottom: 8px;">
+                        Enter 6-Digit OTP Code
+                    </label>
+                    <div class="otp-input-container">
+                        <input type="text" id="login-otp-code" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" required placeholder="••••••" autocomplete="one-time-code" autofocus>
+                    </div>
+                </div>
+
+                <div class="auth-error-msg" id="login-otp-error" style="display: none; margin-bottom: 14px;"></div>
+                <div class="auth-success-msg" id="login-otp-success" style="display: none; margin-bottom: 14px;"></div>
+
+                <button type="submit" class="btn btn-primary btn-block" id="btn-submit-login-otp" style="height: 46px; font-size: 14px; font-weight: 700; letter-spacing: 1px;">
+                    <i data-lucide="key"></i> Verify & Authenticate
+                </button>
+
+                <div class="otp-action-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 12px;">
+                    <button type="button" class="btn-text-link" id="btn-resend-login-otp" style="background: none; border: none; color: var(--neon-cyan); cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 0;">
+                        <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Resend Code
+                    </button>
+                    <button type="button" class="btn-text-link" id="btn-cancel-login-otp" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0;">
+                        Cancel Sign-In
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
     
     <!-- Item Detail Modal -->
     <div class="modal-overlay" id="detail-modal">
@@ -896,6 +951,9 @@
             </div>
         </div>
     </div>
+    
+    <!-- Borrow Form Modal -->
+    <div class="modal-overlay" id="borrow-form-modal">
         <div class="modal-content glass small-modal">
             <button class="close-modal"><i data-lucide="x"></i></button>
             <div class="modal-header">

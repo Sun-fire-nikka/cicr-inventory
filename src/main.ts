@@ -11,7 +11,7 @@ declare const lucide: {
 const API_BASE = (import.meta.env.VITE_API_BASE as string) ||
     (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
         ? 'http://localhost:5000/api'
-        : 'https://cicr-inventory-backend.onrender.com/api');
+        : '/api');
 
 const ADMIN_USERNAME = 'SRVKILLER09';
 
@@ -1961,6 +1961,20 @@ class AuthManager {
     private static navUsername: HTMLElement;
     private static navLogoutBtn: HTMLElement;
 
+    // 2FA OTP Modal Elements
+    private static loginOtpModal: HTMLElement;
+    private static loginOtpForm: HTMLFormElement;
+    private static loginOtpInp: HTMLInputElement;
+    private static loginOtpErr: HTMLElement;
+    private static loginOtpSuccess: HTMLElement;
+    private static otpUserEmailEl: HTMLElement;
+    private static otpCountdownClockEl: HTMLElement;
+    private static btnResendOtp: HTMLElement;
+    private static btnCancelOtp: HTMLElement;
+    private static pendingOtpEmail: string = '';
+    private static otpTimerInterval: any = null;
+    private static otpSecondsRemaining: number = 300;
+
     static init() {
         this.loginForm = document.getElementById('login-form') as HTMLFormElement;
         this.signupForm = document.getElementById('signup-form') as HTMLFormElement;
@@ -1983,6 +1997,17 @@ class AuthManager {
 
         this.navUsername = document.getElementById('nav-username')!;
         this.navLogoutBtn = document.getElementById('nav-logout')!;
+
+        // 2FA OTP Modal Selectors
+        this.loginOtpModal = document.getElementById('login-otp-modal')!;
+        this.loginOtpForm = document.getElementById('login-otp-form') as HTMLFormElement;
+        this.loginOtpInp = document.getElementById('login-otp-code') as HTMLInputElement;
+        this.loginOtpErr = document.getElementById('login-otp-error')!;
+        this.loginOtpSuccess = document.getElementById('login-otp-success')!;
+        this.otpUserEmailEl = document.getElementById('otp-user-email')!;
+        this.otpCountdownClockEl = document.getElementById('otp-countdown-clock')!;
+        this.btnResendOtp = document.getElementById('btn-resend-login-otp')!;
+        this.btnCancelOtp = document.getElementById('btn-cancel-login-otp')!;
 
         const sideLogoutBtn = document.getElementById('sidebar-logout-btn');
         if (sideLogoutBtn) {
@@ -2029,6 +2054,27 @@ class AuthManager {
             e.preventDefault();
             this.handleLogout();
         });
+
+        if (this.loginOtpForm) {
+            this.loginOtpForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleVerifyOtp();
+            });
+        }
+
+        if (this.btnResendOtp) {
+            this.btnResendOtp.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.handleResendOtp();
+            });
+        }
+
+        if (this.btnCancelOtp) {
+            this.btnCancelOtp.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.hideOtpModal();
+            });
+        }
 
         // Password visibility toggles
         const loginToggle = document.getElementById('login-password-toggle')!;
@@ -2140,6 +2186,12 @@ class AuthManager {
 
             const data = await res.json();
 
+            if (data.status === 'otp_required') {
+                this.showOtpModal(data.email || identifier, data.name);
+                ToastManager.show('Verification Code Sent', 'A 6-digit verification code (valid for 5 minutes) was dispatched to your email.', 'info');
+                return;
+            }
+
             if (res.ok && data.token) {
                 localStorage.setItem('cicr_token', data.token);
                 if (data.user) {
@@ -2174,6 +2226,128 @@ class AuthManager {
         this.loginErr.style.animation = 'none';
         this.loginErr.offsetHeight; 
         this.loginErr.style.animation = 'shake-error 0.4s ease';
+    }
+
+    private static showOtpModal(email: string, _name?: string) {
+        this.pendingOtpEmail = email;
+        if (this.otpUserEmailEl) this.otpUserEmailEl.innerText = email;
+        if (this.loginOtpInp) {
+            this.loginOtpInp.value = '';
+            setTimeout(() => this.loginOtpInp.focus(), 150);
+        }
+        if (this.loginOtpErr) this.loginOtpErr.style.display = 'none';
+        if (this.loginOtpSuccess) this.loginOtpSuccess.style.display = 'none';
+        if (this.loginOtpModal) {
+            this.loginOtpModal.style.removeProperty('display');
+            this.loginOtpModal.style.setProperty('display', 'flex', 'important');
+        }
+        this.startOtpTimer();
+    }
+
+    private static hideOtpModal() {
+        if (this.otpTimerInterval) clearInterval(this.otpTimerInterval);
+        if (this.loginOtpModal) {
+            this.loginOtpModal.style.setProperty('display', 'none', 'important');
+        }
+    }
+
+    private static startOtpTimer() {
+        this.otpSecondsRemaining = 300;
+        const updateClock = () => {
+            const mins = Math.floor(this.otpSecondsRemaining / 60).toString().padStart(2, '0');
+            const secs = (this.otpSecondsRemaining % 60).toString().padStart(2, '0');
+            if (this.otpCountdownClockEl) this.otpCountdownClockEl.innerText = `${mins}:${secs}`;
+            if (this.otpSecondsRemaining <= 0) {
+                clearInterval(this.otpTimerInterval);
+                this.showOtpError('Verification code expired. Please click "Resend Code" or cancel sign-in.');
+            } else {
+                this.otpSecondsRemaining--;
+            }
+        };
+        updateClock();
+        if (this.otpTimerInterval) clearInterval(this.otpTimerInterval);
+        this.otpTimerInterval = setInterval(updateClock, 1000);
+    }
+
+    private static showOtpError(msg: string) {
+        if (!this.loginOtpErr) return;
+        this.loginOtpErr.innerText = msg;
+        this.loginOtpErr.style.display = 'block';
+        if (this.loginOtpSuccess) this.loginOtpSuccess.style.display = 'none';
+        this.loginOtpErr.style.animation = 'none';
+        this.loginOtpErr.offsetHeight;
+        this.loginOtpErr.style.animation = 'shake-error 0.4s ease';
+    }
+
+    private static showOtpSuccess(msg: string) {
+        if (!this.loginOtpSuccess) return;
+        this.loginOtpSuccess.innerText = msg;
+        this.loginOtpSuccess.style.display = 'block';
+        if (this.loginOtpErr) this.loginOtpErr.style.display = 'none';
+    }
+
+    private static async handleVerifyOtp() {
+        const otp = (this.loginOtpInp ? this.loginOtpInp.value : '').trim();
+        if (!otp || otp.length !== 6) {
+            this.showOtpError('Please enter a valid 6-digit verification code.');
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/verify-login-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: this.pendingOtpEmail, otp })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.status === 'success' && data.token) {
+                if (this.otpTimerInterval) clearInterval(this.otpTimerInterval);
+                localStorage.setItem('cicr_token', data.token);
+                if (data.user) {
+                    localStorage.setItem('cicr_user', JSON.stringify(data.user));
+                }
+                this.hideOtpModal();
+                const resolvedName = data.user?.name || this.pendingOtpEmail;
+                const role = data.user?.role || 'MEMBER';
+                this.loginSuccess(resolvedName, role, data.user);
+                ToastManager.show('Authenticated', 'Access granted to CICR Inventory Vault.', 'success');
+                return;
+            }
+
+            this.showOtpError(data.message || 'Invalid verification code. Please check your email.');
+        } catch (err) {
+            this.showOtpError('Unable to connect to verification server. Please check your network.');
+        }
+    }
+
+    private static async handleResendOtp() {
+        if (!this.pendingOtpEmail) {
+            this.showOtpError('Session expired. Please close this modal and sign in again.');
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/resend-login-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: this.pendingOtpEmail })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.status === 'success') {
+                this.startOtpTimer();
+                this.showOtpSuccess(data.message || 'A fresh verification code has been dispatched to your email.');
+                ToastManager.show('Code Resent', 'A fresh verification code has been dispatched to your email.', 'info');
+                return;
+            }
+
+            this.showOtpError(data.message || 'Could not resend verification code. Please try again.');
+        } catch (err) {
+            this.showOtpError('Unable to connect to server. Please try again.');
+        }
     }
 
     private static loginSuccess(username: string, role: string = 'MEMBER', _userObj?: any) {
@@ -2357,7 +2531,7 @@ class AuthManager {
         }
 
         if (!batch) {
-            this.showSignupError("Please enter your batch (e.g. 2022-2026 or 2024).");
+            this.showSignupError("Please enter your lab section batch (e.g. F1, F2, B3).");
             return;
         }
 
