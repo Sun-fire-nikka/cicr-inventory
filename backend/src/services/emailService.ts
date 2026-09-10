@@ -465,7 +465,7 @@ export const sendLoginOtpEmail = async (
         </div>
       </div>
       <p style="font-size:12px;color:#94a3b8;line-height:1.5;margin:0;text-align:center;">
-        This verification code is valid for <strong>5 minutes</strong>. If you did not initiate this login attempt, please disregard this transmission.
+        This verification code is valid for <strong>10 minutes</strong>. If you did not initiate this login attempt, please disregard this transmission.
       </p>
     `;
 
@@ -484,7 +484,7 @@ export const sendLoginOtpEmail = async (
         ``,
         `Your login verification OTP is: ${otp}`,
         ``,
-        `Valid for 5 minutes. Do not share this code.`,
+        `Valid for 10 minutes. Do not share this code.`,
         ``,
         `Regards,`,
         `CICR Inventory Team`

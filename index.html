@@ -829,12 +829,13 @@
                 <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px; line-height: 1.5;">
                     Enter the single-use 6-digit code transmitted to<br>
                     <strong id="otp-user-email" style="color: var(--neon-cyan); font-family: monospace;">user@mail.jiit.ac.in</strong>
+                    <br><span style="font-size: 11.5px; color: #94a3b8;">Valid for 10 minutes &bull; 10-minute gap to regenerate</span>
                 </p>
                 <div class="otp-countdown-wrap" style="margin-top: 10px;">
                     <span class="otp-timer-badge" id="otp-timer-badge">
                         <i data-lucide="clock" style="width: 14px; height: 14px;"></i>
-                        <span>Expires in: </span>
-                        <strong id="otp-countdown-clock">05:00</strong>
+                        <span>Code expires in: </span>
+                        <strong id="otp-countdown-clock">10:00</strong>
                     </span>
                 </div>
             </div>
@@ -858,7 +859,8 @@
 
                 <div class="otp-action-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 12px;">
                     <button type="button" class="btn-text-link" id="btn-resend-login-otp" style="background: none; border: none; color: var(--neon-cyan); cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 0;">
-                        <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Resend Code
+                        <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i>
+                        <span id="btn-resend-label">Resend Code (10:00)</span>
                     </button>
                     <button type="button" class="btn-text-link" id="btn-cancel-login-otp" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0;">
                         Cancel Sign-In
