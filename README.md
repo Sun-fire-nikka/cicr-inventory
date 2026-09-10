@@ -67,9 +67,9 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v2.4.0** | ✅ Released | **Frontend Architecture & Roster.** Auto-detecting dynamic `API_BASE` (localhost vs. Render production); CORS configured for Vercel; added **Meet The Developers** team showcase, collapsible Vault Index sidebar navigation, out-of-stock indicators, and color-coded transaction logs. |
 | **v2.5.0** | ✅ Released | **CanvasFX Visual Engines.** Added 60 FPS physics-based **Sakura (Cherry Blossom)** falling petals engine and cinematic **Avengers Assemble** theme featuring vibrating Captain America Vibranium shield with radial gradients, Arc Reactor HUD, and ambient energy sparks. |
 | **v2.5.1** | ✅ Released | **Production Deployment & Security Hardening.** Dual-endpoint hardware request fallback, theme contrast optimizations, verified SMTP fallback for Render production (`render.yaml`), Vercel SPA build config (`vercel.json`), and purge of compiled build artifacts from source control. |
-| **v2.6.0** | ✅ Released | **Admin Item Deletion, Real-Time Audit Center & Database Hardening.** Full in-app item deletion with database cascade and emergency email alerts; cyber System Audit & Activity Logs center tracking all portal actions; 6-second background auto-synchronization; zero-mock-data sanitization. |
+| **v2.6.0** | ✅ Released | **5-Field Registration, Multi-Identifier Auth, 5-Min Login Alerts & Admin Audit Stream.** Comprehensive 5-field registration (`Name`, `Email`, `Username`, `Enrollment Number`, `Batch`), flexible sign-in via Email/Username/Name, user-only 5-minute login alert, real-time System Audit & Activity Logs stream (`#admin-audit-section`), in-app item deletion, 6-second auto-sync engine, zero mock data. |
 
-> The current active release is **v2.6.0 — System Audit, Item Deletion & Database Hardening**. Both the Vercel frontend and Render backend run in production with live database sync, multi-tier hardware queues, real-time activity auditing, and automated transactional telemetry.
+> The current active release is **v2.6.0 — 5-Field Registration, Multi-Identifier Auth, 5-Min Login Alert & Real-Time Audit Stream**. Both the Vercel frontend and Render backend run in production with live database sync, multi-tier hardware queues, real-time activity auditing, and automated transactional telemetry.
 
 ### 🏷️ Version Registry (Git Tags)
 
@@ -84,7 +84,7 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v2.4.0** | `v2.4.0` | ✅ Released | Developer Roster & Collapsible Navigation |
 | **v2.5.0** | `v2.5.0` | ✅ Released | Avengers & Sakura Canvas Engines |
 | **v2.5.1** | `v2.5.1` | ✅ Released | Production Deployments & Security Polish |
-| **v2.6.0** | `v2.6.0` | ✅ Released | Real-Time Audit Logs & Admin Item Deletion |
+| **v2.6.0** | `v2.6.0`, `v2.6` | ✅ Released | 5-Field Registration, Multi-ID Auth, 5-Min Security Notice & Audit Stream |
 
 ---
 
@@ -353,18 +353,30 @@ Administrative privileges and Admin Portal access are restricted to two authoriz
 
 Any login or registration from these identities is automatically granted `APPROVED` status with full `ADMIN` role persistence across restarts.
 
-### 2. Institutional Email Enforcement
-- Student registrations are strictly restricted to official JIIT student emails matching the 12-digit enrollment format:
-  ```regex
-  ^[a-zA-Z0-9._%+-]+@mail\.jiit\.ac\.in$
-  ```
-  *(e.g., `992501030399@mail.jiit.ac.in`)*.
-- General consumer email addresses (`@gmail.com`, `@yahoo.com`, `@outlook.com`) are rejected at the API validator level.
+### 2. Institutional 5-Field Student Registration
+Student registration enforces collection and validation of 5 required credentials:
+1. **Full Name** (`name`): Student's real identity (e.g., `Vardaan Saxena`).
+2. **College Email** (`email`): Official JIIT institutional email matching `^[a-zA-Z0-9._%+-]+@mail\.jiit\.ac\.in$` *(e.g., `992501030399@mail.jiit.ac.in`)*.
+3. **Username** (`username`): Unique alphanumeric handle for login and system tagging *(e.g., `vardaan_09`)*.
+4. **Enrollment Number** (`roll_number`): 12-digit university roll number *(e.g., `992501030399`)*.
+5. **Batch** (`batch`): Academic graduation cohort *(e.g., `2022-2026` or `2024`)*.
+6. **Password** (`password`): Strong hashed passphrase (bcrypt 10 rounds).
 
-### 3. Student Registration Approval Gate
-- When an eligible student registers, their account is initialized in **`PENDING`** status.
-- An instant notification email is dispatched to both Superadmins.
-- The student cannot log in until an administrator explicitly reviews and approves the account in the **Admin Portal**.
+### 3. Flexible Multi-Identifier Sign-In
+Users and administrators can authenticate via multiple identity vectors:
+- **Sign In Using**: `Email` OR `Username` OR `Full Name` + `Password`.
+- The authentication controller dynamically resolves the identifier across Supabase PostgreSQL records, username metadata lookups, and administrator aliases (`vardaan`, `vardaansaxena`, `cicradmin`, `CICR Admin`).
+
+### 4. User-Only 5-Minute Login Security Notice
+Upon every successful sign-in:
+- The system autogenerates a time-sensitive security transmission featuring a unique 6-digit session authorization code.
+- **Validity Window**: Strictly valid for **5 minutes only**.
+- **Privacy & Isolation**: Dispatched **strictly to the logging-in user's email only**. No administrators receive this login alert.
+
+### 5. Student Registration Approval Gate & Admin Alert
+- When an eligible student submits registration, their account enters **`PENDING`** status.
+- An immediate cyber telemetry alert is dispatched to both Superadmins displaying all 5 applicant credentials (`Name`, `Email`, `Username`, `Enrollment`, `Batch`).
+- The student cannot log in until an administrator reviews and approves the account in the **Admin Portal**.
 - Upon approval, the student receives an automated **Account Approved** welcome email detailing access guidelines.
 
 ---
@@ -528,14 +540,24 @@ Transactional emails are handled in `backend/src/services/emailService.ts`. All 
 └──────────────────┘            └──────────────────┘
 ```
 
-### Automated Triggers
+### Automated Triggers & Email Notification Matrix
 
-1. **Member Signup**: Dispatches an instant cyber notification to Superadmins with applicant name, enrollment ID, and registered email.
-2. **Account Approval**: Notifies the student that their registration has been approved by the admin team, unlocking access to the portal.
-3. **Hardware Request Alert**: Sent to Superadmins when a student requests a component, linking to the Admin Portal for review.
-4. **Loan Confirmation**: Emailed to the student upon approval with exact return deadlines and component care protocols.
-5. **Return Confirmation**: Issued immediately upon scanning/returning the item.
-6. **Due Reminders**: Automated daily sweeps scan for loans due tomorrow (`sendUpcomingReminder`) and items due today or overdue (`sendReturnReminder`).
+#### 👨‍💼 Admin Notification Matrix
+Administrators strictly receive automated notifications for all operational laboratory events:
+1. **Due Date Reminders (Other Borrowers & Own Issued Components)**: Automated sweeps scan for loans due tomorrow (`sendUpcomingReminder`) and items due today or overdue (`sendReturnReminder` / `sendDueReminder`). Notifications are dispatched to both the borrower and all superadmins, ensuring complete visibility over other students' and admins' own borrowed equipment.
+2. **New Account Registration Requests**: Instant cyber notification dispatched to all superadmins whenever a new student registers, containing full applicant telemetry: **Full Name**, **College Email**, **Username**, **Enrollment Number**, and **Batch**.
+3. **Component Issue Requests + Return Notifications**:
+   - **Issue Request**: Sent to superadmins whenever a student requests hardware from the catalog, detailing request ID, component, requested quantity, purpose, and estimated return date.
+   - **Checkout Confirmation**: Telemetry receipt dispatched upon admin approval.
+   - **Return Notification**: Immediate return notification sent to superadmins confirming that hardware has been returned and restocked in the vault.
+4. **Admin Inventory Add / Remove Component Alerts**:
+   - **Item Added**: When any admin vaults a new component, all superadmins receive an instant notification with initial stock, category, location, and registration details.
+   - **Item Deleted**: When any admin deletes an item, a high-priority telemetry alert is sent to all superadmins documenting the purged item name, quantity, category, and deleting admin credentials.
+
+#### 👤 User-Only Sign-In Notice
+- **Login Security Transmission**: Upon successful sign-in, an autogenerated email is dispatched **strictly to the account holder**.
+- **No administrators receive this transmission** (isolated for user privacy).
+- **5-Minute Expiration**: The session authorization code and sign-in notice are explicitly valid for **5 minutes only**.
 
 ---
 

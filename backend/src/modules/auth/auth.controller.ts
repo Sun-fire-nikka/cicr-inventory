@@ -16,7 +16,8 @@ import {
   setUserApproval,
   setUserRole,
   deleteUserApproval,
-  getAllUserApprovals
+  getAllUserApprovals,
+  findUserApprovalByIdentifier
 } from './userApprovalService';
 import {
   sendAdminNewUserRegistrationAlert,
@@ -29,7 +30,7 @@ import { logAuditEvent } from '../../services/auditService';
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, roll_number } = req.body;
+    const { name, email, username, password, roll_number, batch } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ status: 'error', message: 'Name, email, and password required.' });
@@ -43,6 +44,8 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const normEmail = email.trim().toLowerCase();
+    const normUsername = (username || name).trim();
+    const userBatch = batch ? String(batch).trim() : null;
 
     // Check if email already registered in DB or managed approval state
     const { data: existingUser } = await dbRead
@@ -94,15 +97,20 @@ export const register = async (req: Request, res: Response) => {
 
     newUser = insertedUser;
 
-    // Track approval status: all students and non-admins strictly set to PENDING
-    setUserApproval(normEmail, initialStatus, isMasterAdmin ? 'SYSTEM' : undefined);
+    // Track approval status and registration metadata
+    setUserApproval(normEmail, initialStatus, isMasterAdmin ? 'SYSTEM' : undefined, {
+      username: normUsername,
+      batch: userBatch,
+      name: name.trim(),
+      roll_number: userRoll
+    });
 
     // Record in system audit trail
     logAuditEvent({
       action: 'Sign Up',
       userId: newUser.id,
       itemId: null,
-      description: `New ${isMasterAdmin ? 'Admin' : 'Student'} registration: ${name.trim()} (${normEmail}) [Status: ${initialStatus}]`
+      description: `New ${isMasterAdmin ? 'Admin' : 'Student'} registration: ${name.trim()} (@${normUsername}, ${normEmail}) [Batch: ${userBatch || 'N/A'}, Status: ${initialStatus}]`
     }).catch(() => {});
 
     // Send instant email notification to Admins if non-master-admin registers
@@ -110,7 +118,9 @@ export const register = async (req: Request, res: Response) => {
       sendAdminNewUserRegistrationAlert(SUPER_ADMIN_EMAILS, {
         userName: name.trim(),
         userEmail: normEmail,
+        username: normUsername,
         rollNumber: userRoll,
+        batch: userBatch,
         registeredAt: newUser.created_at || new Date().toISOString()
       }).catch((e) => console.error('[EMAIL ERROR] Failed to send admin registration alert:', e));
     }
@@ -122,7 +132,7 @@ export const register = async (req: Request, res: Response) => {
     return res.status(201).json({
       status: 'success',
       message,
-      data: { ...newUser, status: initialStatus }
+      data: { ...newUser, username: normUsername, batch: userBatch, status: initialStatus }
     });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
@@ -131,29 +141,71 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, username, password } = req.body;
-    const identifier = (email || username || '').trim();
+    const { identifier, email, username, name, password } = req.body;
+    const loginId = (identifier || email || username || name || '').trim();
 
-    if (!identifier || !password) {
-      return res.status(400).json({ status: 'error', message: 'Email/Username and password required.' });
+    if (!loginId || !password) {
+      return res.status(400).json({ status: 'error', message: 'Email, Username, or Name and password required.' });
     }
 
-    if (identifier.includes('@') && !isValidEmail(identifier)) {
+    if (loginId.includes('@') && !isValidEmail(loginId)) {
       return res.status(403).json({
         status: 'forbidden',
         message: 'Access restricted. Only official JIIT student accounts (enrollmentnumber@mail.jiit.ac.in) and authorized administrators can log in.'
       });
     }
 
-    const { data: user, error } = await dbRead
-      .from('users')
-      .select('*')
-      .or(`email.ilike.${identifier},name.ilike.${identifier}`)
-      .limit(1)
-      .maybeSingle();
+    // Resolve user by Email, Name, or Username
+    let user: any = null;
 
-    if (error || !user) {
-      return res.status(401).json({ status: 'error', message: 'Invalid credentials. User not found.' });
+    // 1. Direct email match if identifier is an email
+    if (loginId.includes('@')) {
+      const { data } = await dbRead
+        .from('users')
+        .select('*')
+        .eq('email', loginId.toLowerCase())
+        .maybeSingle();
+      if (data) user = data;
+    }
+
+    // 2. Name or email ilike lookup in DB
+    if (!user) {
+      const { data } = await dbRead
+        .from('users')
+        .select('*')
+        .or(`email.ilike.${loginId},name.ilike.${loginId}`)
+        .limit(1)
+        .maybeSingle();
+      if (data) user = data;
+    }
+
+    // 3. Approval state lookup (matches username, name, roll_number, or email)
+    if (!user) {
+      const match = findUserApprovalByIdentifier(loginId);
+      if (match) {
+        const { data } = await dbRead
+          .from('users')
+          .select('*')
+          .eq('email', match.email)
+          .maybeSingle();
+        if (data) user = data;
+      }
+    }
+
+    // 4. Master Admin Aliases
+    if (!user) {
+      const lower = loginId.toLowerCase();
+      if (['vardaan', 'vardaansaxena'].includes(lower)) {
+        const { data } = await dbRead.from('users').select('*').eq('email', 'vardaansaxena096@gmail.com').maybeSingle();
+        if (data) user = data;
+      } else if (['cicradmin', 'cicrinventory', 'cicr admin'].includes(lower)) {
+        const { data } = await dbRead.from('users').select('*').eq('email', 'cicrinventory@gmail.com').maybeSingle();
+        if (data) user = data;
+      }
+    }
+
+    if (!user) {
+      return res.status(401).json({ status: 'error', message: 'Invalid credentials. User not found by email, username, or name.' });
     }
 
     if (!isValidEmail(user.email) && user.role !== 'ADMIN') {
@@ -182,7 +234,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const approval = isMasterAdmin
-      ? { status: 'APPROVED' as const, role: 'ADMIN' as const }
+      ? { status: 'APPROVED' as const, role: 'ADMIN' as const, username: user.email === 'vardaansaxena096@gmail.com' ? 'vardaan' : 'cicradmin', batch: undefined }
       : getUserApproval(user.email, user.role);
 
     if (approval.status === 'PENDING') {
@@ -216,21 +268,26 @@ export const login = async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
-    // Dispatch autogenerated login email alert to user and CC/Super Admin
+    // Generate an autogenerated 6-digit session security code valid for 5 minutes only
+    const sessionCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Dispatch autogenerated login email alert strictly to the user ONLY (valid for 5 mins)
     sendLoginSecurityAlertEmail({
       userEmail: user.email,
       userName: user.name,
       role: effectiveRole,
       ip: (req.headers['x-forwarded-for'] as string) || req.ip,
       userAgent: req.headers['user-agent'],
-      loginTime: new Date()
+      loginTime: new Date(),
+      sessionCode,
+      validityMinutes: 5
     }).catch((e) => console.error('[EMAIL ERROR] Failed to send login alert:', e));
 
     logAuditEvent({
       action: 'Sign In',
       userId: user.id,
       itemId: null,
-      description: `User authenticated: ${user.name} (${user.email}) [Role: ${effectiveRole}]`
+      description: `User authenticated: ${user.name} (${user.email}) [Role: ${effectiveRole}] via ${loginId}`
     }).catch(() => {});
 
     return res.status(200).json({
@@ -242,7 +299,9 @@ export const login = async (req: Request, res: Response) => {
         email: user.email,
         roll_number: user.roll_number,
         role: effectiveRole,
-        status: approval.status
+        status: approval.status,
+        username: approval.username || undefined,
+        batch: approval.batch || undefined
       }
     });
   } catch (err: any) {

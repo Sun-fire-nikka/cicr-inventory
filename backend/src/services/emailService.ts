@@ -608,6 +608,8 @@ export interface NewUserAlertContext {
   userName: string;
   userEmail: string;
   rollNumber?: string | null;
+  username?: string | null;
+  batch?: string | null;
   registeredAt?: string;
 }
 
@@ -626,17 +628,27 @@ export const sendAdminNewUserRegistrationAlert = async (
       <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <tr>
-            <td style="padding:6px 0;color:#64748b;width:120px;font-family:'SFMono-Regular',Consolas,monospace;">NAME:</td>
+            <td style="padding:6px 0;color:#64748b;width:130px;font-family:'SFMono-Regular',Consolas,monospace;">NAME:</td>
             <td style="padding:6px 0;color:#ffffff;font-weight:600;">${userContext.userName}</td>
           </tr>
           <tr>
             <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">EMAIL:</td>
             <td style="padding:6px 0;color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;">${userContext.userEmail}</td>
           </tr>
+          ${userContext.username ? `
           <tr>
-            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">ROLL NUMBER:</td>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">USERNAME:</td>
+            <td style="padding:6px 0;color:#ff007a;font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">@${userContext.username}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">ENROLLMENT:</td>
             <td style="padding:6px 0;color:#e2e8f0;font-family:'SFMono-Regular',Consolas,monospace;">${userContext.rollNumber || 'N/A'}</td>
           </tr>
+          ${userContext.batch ? `
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">BATCH:</td>
+            <td style="padding:6px 0;color:#facc15;font-weight:600;font-family:'SFMono-Regular',Consolas,monospace;">${userContext.batch}</td>
+          </tr>` : ''}
           <tr>
             <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">REGISTERED:</td>
             <td style="padding:6px 0;color:#94a3b8;font-family:'SFMono-Regular',Consolas,monospace;">${regTime} IST</td>
@@ -1147,10 +1159,12 @@ export const sendUpcomingReminder = async (
       </p>
     `;
 
+    const recipients = Array.from(new Set([recipientEmail, ...SUPER_ADMIN_EMAILS]));
+
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
-      to: recipientEmail,
+      to: recipients.join(', '),
       subject: `[CICR Inventory] Return Due Tomorrow: ${itemName}`,
       messageId: generateMessageId(),
       headers: buildHeaders('upcoming-reminder'),
@@ -1229,10 +1243,12 @@ export const sendReturnReminder = async (
       </p>
     `;
 
+    const recipients = Array.from(new Set([recipientEmail, ...SUPER_ADMIN_EMAILS]));
+
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
-      to: recipientEmail,
+      to: recipients.join(', '),
       subject: daysOverdue > 0
         ? `[CICR Inventory] OVERDUE Notice: ${itemName}`
         : `[CICR Inventory] Return Due Today: ${itemName}`,
@@ -1314,10 +1330,12 @@ export const sendDueReminder = async (
       </p>
     `;
 
+    const recipients = Array.from(new Set([recipientEmail, ...SUPER_ADMIN_EMAILS]));
+
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
-      to: recipientEmail,
+      to: recipients.join(', '),
       subject: `[CICR Inventory] ${isOverdue ? 'OVERDUE' : 'Return Reminder'}: ${itemName}`,
       messageId: generateMessageId(),
       headers: buildHeaders('due-reminder'),
@@ -1577,6 +1595,8 @@ export interface LoginSecurityAlertContext {
   ip?: string;
   userAgent?: string;
   loginTime?: Date | string;
+  sessionCode?: string;
+  validityMinutes?: number;
 }
 
 export const sendLoginSecurityAlertEmail = async (
@@ -1589,15 +1609,18 @@ export const sendLoginSecurityAlertEmail = async (
       timeStyle: 'short'
     });
 
+    const sessionCode = context.sessionCode || Math.floor(100000 + Math.random() * 900000).toString();
+    const validityMins = context.validityMinutes || 5;
+
     const contentHtml = `
       <div style="background:#090c13;border:1px solid #1e293b;border-radius:4px;padding:18px;margin-bottom:18px;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <tr>
-            <td style="padding:6px 0;color:#64748b;width:120px;font-family:'SFMono-Regular',Consolas,monospace;">USER:</td>
+            <td style="padding:6px 0;color:#64748b;width:150px;font-family:'SFMono-Regular',Consolas,monospace;">USER:</td>
             <td style="padding:6px 0;color:#ffffff;font-weight:600;">${context.userName}</td>
           </tr>
           <tr>
-            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">EMAIL:</td>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">ACCOUNT EMAIL:</td>
             <td style="padding:6px 0;color:#00f0ff;font-family:'SFMono-Regular',Consolas,monospace;">${context.userEmail}</td>
           </tr>
           <tr>
@@ -1605,8 +1628,16 @@ export const sendLoginSecurityAlertEmail = async (
             <td style="padding:6px 0;color:#ff007a;font-weight:700;font-family:'SFMono-Regular',Consolas,monospace;">${context.role}</td>
           </tr>
           <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">AUTH CODE:</td>
+            <td style="padding:6px 0;color:#39ff14;font-size:16px;font-weight:700;letter-spacing:2px;font-family:'SFMono-Regular',Consolas,monospace;">${sessionCode}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">VALIDITY WINDOW:</td>
+            <td style="padding:6px 0;color:#facc15;font-weight:700;font-family:'SFMono-Regular',Consolas,monospace;">VALID FOR ${validityMins} MINUTES ONLY</td>
+          </tr>
+          <tr>
             <td style="padding:6px 0;color:#64748b;font-family:'SFMono-Regular',Consolas,monospace;">TIMESTAMP:</td>
-            <td style="padding:6px 0;color:#39ff14;font-family:'SFMono-Regular',Consolas,monospace;">${loginTimeStr} IST</td>
+            <td style="padding:6px 0;color:#e2e8f0;font-family:'SFMono-Regular',Consolas,monospace;">${loginTimeStr} IST</td>
           </tr>
           ${context.ip ? `
           <tr>
@@ -1615,39 +1646,48 @@ export const sendLoginSecurityAlertEmail = async (
           </tr>` : ''}
         </table>
       </div>
-      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
-        A new authenticated session was established on the CICR Inventory Hub. If this was not you or an authorized member, contact the lab administrator immediately.
+      <div style="background:rgba(250,204,21,0.08);border:1px solid rgba(250,204,21,0.3);border-radius:4px;padding:12px;margin-bottom:12px;">
+        <p style="margin:0;font-size:12px;color:#facc15;line-height:1.5;">
+          ⚠️ <strong>TIME-SENSITIVE NOTICE:</strong> This autogenerated sign-in verification and session notification is <strong>valid for 5 minutes only</strong>. No administrators receive this alert; this message is dispatched strictly to you as the account holder.
+        </p>
+      </div>
+      <p style="font-size:12px;color:#64748b;line-height:1.5;margin:0;">
+        If you did not initiate this sign-in, please reset your password immediately and notify the CICR lab.
       </p>
     `;
 
-    const recipients = Array.from(new Set([context.userEmail, ...SUPER_ADMIN_EMAILS]));
+    // Strictly dispatch ONLY to the user logging in. No admin receives this email!
+    const recipients = [context.userEmail];
 
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
       to: recipients.join(', '),
-      subject: `[CICR Security Alert] New Login: ${context.userName} (${context.userEmail})`,
+      subject: `[CICR Security Alert] Autogenerated Sign-In Notice (Valid for ${validityMins} Mins)`,
       messageId: generateMessageId(),
-      headers: buildHeaders('login-security-alert', 'normal'),
-      priority: 'normal' as const,
+      headers: buildHeaders('login-security-alert', 'high'),
+      priority: 'high' as const,
       text: [
-        `CICR SECURITY // NEW AUTHENTICATION EVENT`,
+        `CICR SECURITY // AUTOGENERATED AUTHENTICATION NOTICE`,
         `================================================`,
         `User: ${context.userName} (${context.userEmail})`,
         `Role: ${context.role}`,
+        `Auth Code: ${sessionCode}`,
+        `Validity: VALID FOR ${validityMins} MINUTES ONLY`,
         `Time: ${loginTimeStr} IST`,
         `IP: ${context.ip || 'Unknown'}`,
         ``,
-        `A new session has been initialized.`,
+        `This time-sensitive sign-in alert is valid for 5 minutes only.`,
+        `Dispatched strictly to account holder. No other administrators received this message.`,
         ``,
         `Regards,`,
         `CICR Security Monitor`
       ].join('\n'),
       html: renderCyberEmail({
-        badgeText: 'SECURITY // AUTHENTICATED SESSION',
-        badgeType: 'info',
-        title: `Login Activity: ${context.userName}`,
-        subtitle: `New authenticated session initialized for ${context.userEmail}.`,
+        badgeText: `SECURITY // VALID FOR ${validityMins} MINS ONLY`,
+        badgeType: 'warning',
+        title: `Sign-In Notice: ${context.userName}`,
+        subtitle: `Autogenerated authentication alert for ${context.userEmail} (valid for 5 mins).`,
         contentHtml
       })
     };
@@ -1754,8 +1794,7 @@ export const sendAdminItemCreatedNotification = async (
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
-      to: context.createdByAdminEmail,
-      cc: SUPER_ADMIN_EMAILS.filter(e => e.toLowerCase() !== context.createdByAdminEmail.toLowerCase()).join(', '),
+      to: adminRecipients.join(', '),
       subject: `[CICR Admin] New Hardware Component Added: ${context.itemName} (${context.quantity}x)`,
       messageId: generateMessageId(),
       headers: buildHeaders('item-created-telemetry', 'high'),
@@ -1866,8 +1905,7 @@ export const sendAdminItemDeletedNotification = async (
     const mailOptions = {
       from: getFromAddress(),
       replyTo: getReplyToAddress(),
-      to: context.deletedByAdminEmail,
-      cc: SUPER_ADMIN_EMAILS.filter(e => e.toLowerCase() !== context.deletedByAdminEmail.toLowerCase()).join(', '),
+      to: adminRecipients.join(', '),
       subject: `[CICR Admin] Hardware Component Deleted: ${context.itemName}`,
       messageId: generateMessageId(),
       headers: buildHeaders('item-deleted-telemetry', 'high'),

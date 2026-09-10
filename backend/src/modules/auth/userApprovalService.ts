@@ -17,6 +17,10 @@ export interface UserApprovalRecord {
   role: 'ADMIN' | 'MEMBER';
   approvedAt?: string;
   approvedBy?: string;
+  username?: string | null;
+  batch?: string | null;
+  name?: string | null;
+  roll_number?: string | null;
 }
 
 const STORAGE_FILE = path.resolve(process.cwd(), 'user_approval_data.json');
@@ -104,7 +108,8 @@ export const getUserApproval = (email: string, initialRole: 'ADMIN' | 'MEMBER' =
 export const setUserApproval = (
   email: string,
   status: 'PENDING' | 'APPROVED' | 'REJECTED',
-  approvedBy?: string
+  approvedBy?: string,
+  metadata?: { username?: string | null; batch?: string | null; name?: string | null; roll_number?: string | null }
 ): UserApprovalRecord => {
   const normEmail = email.trim().toLowerCase();
   
@@ -113,7 +118,9 @@ export const setUserApproval = (
       status: 'APPROVED',
       role: 'ADMIN',
       approvedAt: new Date().toISOString(),
-      approvedBy: 'SYSTEM'
+      approvedBy: 'SYSTEM',
+      username: normEmail === 'vardaansaxena096@gmail.com' ? 'vardaan' : 'cicradmin',
+      name: normEmail === 'vardaansaxena096@gmail.com' ? 'Vardaan' : 'CICR Admin'
     };
   }
 
@@ -127,6 +134,13 @@ export const setUserApproval = (
   } else {
     current.approvedAt = undefined;
     current.approvedBy = undefined;
+  }
+
+  if (metadata) {
+    if (metadata.username) current.username = metadata.username.trim();
+    if (metadata.batch) current.batch = metadata.batch.trim();
+    if (metadata.name) current.name = metadata.name.trim();
+    if (metadata.roll_number) current.roll_number = metadata.roll_number.trim();
   }
 
   approvalState[normEmail] = current;
@@ -174,12 +188,45 @@ export const getAllUserApprovals = (): Record<string, UserApprovalRecord> => {
       status: 'APPROVED',
       role: 'ADMIN',
       approvedAt: '2026-09-08T00:00:00.000Z',
-      approvedBy: 'SYSTEM'
+      approvedBy: 'SYSTEM',
+      username: adm.toLowerCase() === 'vardaansaxena096@gmail.com' ? 'vardaan' : 'cicradmin',
+      name: adm.toLowerCase() === 'vardaansaxena096@gmail.com' ? 'Vardaan' : 'CICR Admin'
     };
   });
   return {
     ...approvalState,
     ...base
   };
+};
+
+export const findUserApprovalByIdentifier = (identifier: string): { email: string; record: UserApprovalRecord } | null => {
+  const norm = identifier.trim().toLowerCase();
+  
+  if (norm === 'vardaan' || norm === 'vardaansaxena' || norm === 'vardaansaxena096@gmail.com') {
+    return {
+      email: 'vardaansaxena096@gmail.com',
+      record: { status: 'APPROVED', role: 'ADMIN', username: 'vardaan', name: 'Vardaan' }
+    };
+  }
+  if (norm === 'cicradmin' || norm === 'cicrinventory' || norm === 'cicr admin' || norm === 'cicrinventory@gmail.com') {
+    return {
+      email: 'cicrinventory@gmail.com',
+      record: { status: 'APPROVED', role: 'ADMIN', username: 'cicradmin', name: 'CICR Admin' }
+    };
+  }
+
+  for (const [email, rec] of Object.entries(approvalState)) {
+    if (purgedEmails.has(email.toLowerCase())) continue;
+    if (
+      email.toLowerCase() === norm ||
+      rec.username?.toLowerCase() === norm ||
+      rec.name?.toLowerCase() === norm ||
+      rec.roll_number?.toLowerCase() === norm
+    ) {
+      return { email, record: rec };
+    }
+  }
+
+  return null;
 };
 
