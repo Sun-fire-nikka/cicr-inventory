@@ -32,7 +32,15 @@ export interface HardwareIssueRequest {
   reviewNote?: string;
 }
 
-const STORAGE_FILE = path.resolve(process.cwd(), 'hardware_requests_data.json');
+const resolveStoragePath = (fileName: string) => {
+  const localPath = path.resolve(process.cwd(), fileName);
+  if (fs.existsSync(localPath)) return localPath;
+  const backendPath = path.resolve(process.cwd(), 'backend', fileName);
+  if (fs.existsSync(backendPath)) return backendPath;
+  return path.resolve(__dirname, '..', '..', '..', fileName);
+};
+
+const STORAGE_FILE = resolveStoragePath('hardware_requests_data.json');
 
 let requestsState: Record<string, HardwareIssueRequest> = {};
 

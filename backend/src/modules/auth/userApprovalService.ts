@@ -23,7 +23,15 @@ export interface UserApprovalRecord {
   roll_number?: string | null;
 }
 
-const STORAGE_FILE = path.resolve(process.cwd(), 'user_approval_data.json');
+const resolveStoragePath = (fileName: string) => {
+  const localPath = path.resolve(process.cwd(), fileName);
+  if (fs.existsSync(localPath)) return localPath;
+  const backendPath = path.resolve(process.cwd(), 'backend', fileName);
+  if (fs.existsSync(backendPath)) return backendPath;
+  return path.resolve(__dirname, '..', '..', '..', fileName);
+};
+
+const STORAGE_FILE = resolveStoragePath('user_approval_data.json');
 
 let approvalState: Record<string, UserApprovalRecord> = {};
 let purgedEmails: Set<string> = new Set();
