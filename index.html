@@ -38,8 +38,39 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&family=Playfair+Display:wght@500;700;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Stylesheets & Essential Preload -->
+    <link rel="stylesheet" href="/src/style.css">
+    <style>
+        html, body {
+            background-color: #030712 !important;
+            background: #030712 !important;
+            color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow-x: hidden;
+        }
+        .auth-logo {
+            width: 56px !important;
+            height: 56px !important;
+            max-width: 56px !important;
+            max-height: 56px !important;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto 12px auto;
+        }
+        .logo-img, .sidebar-logo-img {
+            width: 36px !important;
+            height: 36px !important;
+            max-width: 36px !important;
+            max-height: 36px !important;
+            object-fit: contain;
+        }
+    </style>
     <!-- Lucide Icons CDN (for dynamic runtime parsing) -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module" src="/src/main.ts"></script>
 </head>
 <body>
     <!-- 3D Canvas Background & Sakura Falling Leaves & Avengers Energy Overlays -->
@@ -51,7 +82,7 @@
     <div class="auth-overlay" id="auth-overlay">
         <div class="auth-card glass">
             <div class="auth-header">
-                <img src="logo.png" class="auth-logo" alt="CICR Logo">
+                <img src="logo.png" class="auth-logo" alt="CICR Logo" width="56" height="56">
                 <h2>CICR Inventory</h2>
                 <p id="auth-subtitle"> ~ Creative & Innovative Cell in Robotics</p>
             </div>
@@ -152,7 +183,7 @@
     <div class="navbar-wrapper" id="global-navbar" style="display: none;">
         <nav class="nav-capsule">
             <div class="logo-area" style="cursor: pointer;" id="nav-brand-logo">
-                <img src="logo.png" class="logo-img" alt="CICR Logo">
+                <img src="logo.png" class="logo-img" alt="CICR Logo" width="36" height="36">
                 <div class="logo-text-wrapper">
                     <span class="logo-title">CICR Inventory</span>
                 </div>
@@ -243,7 +274,7 @@
         <!-- Left Sidebar Navigation -->
         <aside class="app-sidebar" id="app-sidebar">
             <div class="sidebar-header">
-                <img src="logo.png" class="sidebar-logo-img" alt="CICR Logo">
+                <img src="logo.png" class="sidebar-logo-img" alt="CICR Logo" width="36" height="36">
                 <div class="sidebar-brand-text">
                     <span class="brand-title">CICR Inventory</span>
                 </div>
@@ -1094,7 +1125,7 @@
 
 
 
-    <!-- Entry module scripts for Vite bundling -->
-    <script type="module" src="/src/main.ts"></script>
+
+    <!-- End Body -->
 </body>
 </html>
