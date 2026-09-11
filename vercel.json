@@ -4,11 +4,11 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://cicr-inventory-backend.onrender.com/api/:path*"
+      "source": "/api/(.*)",
+      "destination": "https://cicr-inventory-backend.onrender.com/api/$1"
     },
     {
-      "source": "/((?!api/|assets/|.*\\..*).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
