@@ -2073,6 +2073,15 @@ class AuthManager {
             });
         }
 
+        if (this.loginOtpInp) {
+            this.loginOtpInp.addEventListener('input', () => {
+                this.loginOtpInp.value = this.loginOtpInp.value.replace(/\D/g, '').slice(0, 6);
+                if (this.loginOtpInp.value.length === 6) {
+                    this.handleVerifyOtp();
+                }
+            });
+        }
+
         if (this.btnCancelOtp) {
             this.btnCancelOtp.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -2244,6 +2253,7 @@ class AuthManager {
         if (this.loginOtpModal) {
             this.loginOtpModal.style.removeProperty('display');
             this.loginOtpModal.style.setProperty('display', 'flex', 'important');
+            this.loginOtpModal.classList.add('active');
         }
         this.startOtpTimer();
         this.startResendCooldown(cooldownSeconds);
@@ -2253,6 +2263,7 @@ class AuthManager {
         if (this.otpTimerInterval) clearInterval(this.otpTimerInterval);
         if (this.resendCooldownInterval) clearInterval(this.resendCooldownInterval);
         if (this.loginOtpModal) {
+            this.loginOtpModal.classList.remove('active');
             this.loginOtpModal.style.setProperty('display', 'none', 'important');
         }
     }

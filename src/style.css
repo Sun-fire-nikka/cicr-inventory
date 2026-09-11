@@ -7777,6 +7777,30 @@ body.theme-light .devs-clean-divider {
 /* ==========================================================================
    Two-Factor Authentication (2FA) OTP Modal Styles
    ========================================================================== */
+#login-otp-modal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(3, 5, 12, 0.82) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    z-index: 10005 !important;
+    display: none;
+    align-items: center !important;
+    justify-content: center !important;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+#login-otp-modal.active {
+    display: flex !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
 .otp-modal-content {
     max-width: 440px !important;
     width: 90% !important;
