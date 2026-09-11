@@ -441,10 +441,37 @@ body::before {
     height: 16px;
     color: var(--text-dim);
     pointer-events: none;
+    transition: color 0.25s cubic-bezier(0.4, 0, 0.2, 1), filter 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-icon-wrapper:focus-within .input-icon {
+    color: var(--neon-cyan, #00f0ff);
+    filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.45));
 }
 
 .input-icon-wrapper input {
     padding-left: 38px !important;
+}
+
+/* Aesthetic Cyberpunk Placeholders */
+.auth-card input::placeholder {
+    color: rgba(148, 163, 184, 0.55);
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 400;
+    letter-spacing: 0.35px;
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s ease;
+}
+
+.auth-card input:focus::placeholder {
+    opacity: 0.25;
+    transform: translateX(4px);
+    color: rgba(148, 163, 184, 0.35);
+}
+
+body.theme-light .auth-card input::placeholder,
+[data-theme="light"] .auth-card input::placeholder {
+    color: rgba(100, 116, 139, 0.65);
 }
 
 .password-toggle-btn {
