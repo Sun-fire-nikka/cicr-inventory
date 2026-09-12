@@ -1,4 +1,4 @@
-import { supabase } from '../app';
+import { dbRead, dbWrite } from '../config/database';
 import { sendDueReminder } from './emailService';
 import { DEFAULT_BOTE_CONFIG } from './boteService';
 
@@ -58,7 +58,7 @@ export const describeDueWindow = (dueDate: Date | string, now: Date): string => 
 export const runReminderSweep = async (now: Date = new Date()): Promise<SweepResult> => {
   const { leadHours, batchLimit } = resolveReminderConfig();
 
-  const { data: records, error } = await supabase
+  const { data: records, error } = await dbRead
     .from('borrow_records')
     .select('id, user_id, inventory_id, quantity, due_date')
     .eq('status', 'BORROWED')
@@ -74,15 +74,15 @@ export const runReminderSweep = async (now: Date = new Date()): Promise<SweepRes
   if (!pending.length) return { scanned: 0, sent: 0, failed: 0 };
 
   // Resolve borrowers and items manually, mirroring getBorrowHistory
-  const userIds = [...new Set(pending.map((r) => r.user_id).filter(Boolean))];
-  const itemIds = [...new Set(pending.map((r) => r.inventory_id).filter(Boolean))];
+  const userIds = [...new Set(pending.map((r: any) => r.user_id).filter(Boolean))];
+  const itemIds = [...new Set(pending.map((r: any) => r.inventory_id).filter(Boolean))];
 
   const [usersRes, itemsRes] = await Promise.all([
     userIds.length
-      ? supabase.from('users').select('id, name, email').in('id', userIds)
+      ? dbRead.from('users').select('id, name, email').in('id', userIds)
       : Promise.resolve({ data: [] }),
     itemIds.length
-      ? supabase.from('inventory').select('id, name').in('id', itemIds)
+      ? dbRead.from('inventory').select('id, name').in('id', itemIds)
       : Promise.resolve({ data: [] })
   ]);
 
@@ -117,7 +117,7 @@ export const runReminderSweep = async (now: Date = new Date()): Promise<SweepRes
     }
 
     // Stamp only if still unstamped, so two overlapping sweeps can't double-count
-    const { error: stampErr } = await supabase
+    const { error: stampErr } = await dbWrite
       .from('borrow_records')
       .update({ reminder_sent_at: new Date().toISOString() })
       .eq('id', record.id)

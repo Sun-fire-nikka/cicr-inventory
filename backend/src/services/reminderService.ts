@@ -77,8 +77,8 @@ export const runDueReminderCheck = async (): Promise<{ checked: number; sent: nu
         : Promise.resolve({ data: [] as { id: string; name: string }[] })
     ]);
 
-    const userMap = Object.fromEntries((usersRes.data || []).map((u) => [u.id, u]));
-    const itemMap = Object.fromEntries((itemsRes.data || []).map((i) => [i.id, i]));
+    const userMap = Object.fromEntries((usersRes.data || []).map((u: any) => [u.id, u]));
+    const itemMap = Object.fromEntries((itemsRes.data || []).map((i: any) => [i.id, i]));
 
     let sent = 0;
     let skipped = 0;
@@ -94,7 +94,7 @@ export const runDueReminderCheck = async (): Promise<{ checked: number; sent: nu
       }
 
       const itemName = itemMap[record.inventory_id]?.name || record.inventory_id;
-      const isUpcoming = dueList.every((r) => r.id !== record.id);
+      const isUpcoming = dueList.every((r: any) => r.id !== record.id);
 
       const result = isUpcoming
         ? await sendUpcomingReminder(user.email, user.name, itemName, record.due_date)

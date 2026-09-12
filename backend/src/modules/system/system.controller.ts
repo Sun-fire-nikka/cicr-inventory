@@ -44,8 +44,8 @@ export const getBoteMetrics = async (req: Request, res: Response) => {
       dueTodayEmails: dueToday.count || 0,
       totalUsers: totalUsers.count || 0,
       totalItems: items.data?.length || 0,
-      availableQuantity: items.data?.reduce((acc, curr) => acc + (curr.available_quantity || 0), 0) || 0,
-      borrowedQuantity: items.data?.reduce((acc, curr) => acc + (curr.quantity || 0), 0) || 0
+      availableQuantity: items.data?.reduce((acc: number, curr: any) => acc + (curr.available_quantity || 0), 0) || 0,
+      borrowedQuantity: items.data?.reduce((acc: number, curr: any) => acc + (curr.quantity || 0), 0) || 0
     };
 
     return res.status(200).json({

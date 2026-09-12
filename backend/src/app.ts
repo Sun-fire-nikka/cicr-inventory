@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 
 import { dbWrite, dbRead } from './config/database';
 import { redisClient, isRedisEnabled } from './config/redis';
+import { buildHealthPayload } from './config/healthMonitor';
 
 import authRoutes from './modules/auth/auth.routes';
 import inventoryRoutes from './modules/inventory/inventory.routes';
@@ -55,7 +56,9 @@ app.use('/api/borrow', borrowRoutes);
 app.use('/api', dashboardRoutes); // Exposes GET /api/stats and GET /api/audit
 
 app.get('/api/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'success', message: 'CICR Inventory API is live! 🚀' });
+  const payload = buildHealthPayload();
+  const statusCode = payload.status === 'healthy' ? 200 : payload.status === 'degraded' ? 200 : 503;
+  res.status(statusCode).json(payload);
 });
 
 export { dbRead };

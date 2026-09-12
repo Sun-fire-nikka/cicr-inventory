@@ -8,8 +8,7 @@ import {
   sendAdminBorrowNotification,
   SUPER_ADMIN_EMAILS
 } from '../../services/emailService';
-import { dbRead } from '../../config/database';
-import { supabase } from '../../app';
+import { dbRead, dbWrite } from '../../config/database';
 import { finalizeBorrow } from './borrow.controller';
 
 export interface HardwareIssueRequest {
@@ -329,7 +328,7 @@ export const rejectHardwareRequest = async (
 
   // If persisted in Supabase borrow_records, delete it
   try {
-    await supabase.from('borrow_records').delete().eq('id', id);
+    await dbWrite.from('borrow_records').delete().eq('id', id);
   } catch (e) {
     // Non-blocking
   }
@@ -355,7 +354,7 @@ export const rejectHardwareRequest = async (
 
   // Log audit
   try {
-    await supabase.from('audit_logs').insert([
+    await dbWrite.from('audit_logs').insert([
       {
         action: 'Rejected Request',
         user_id: req.userId || null,

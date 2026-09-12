@@ -11,6 +11,14 @@
       "role": "ADMIN",
       "approvedAt": "2026-09-08T00:00:00.000Z",
       "approvedBy": "SYSTEM"
+    },
+    "992501030406@mail.jiit.ac.in": {
+      "status": "PENDING",
+      "role": "MEMBER",
+      "username": "CTRL",
+      "batch": "f - 7",
+      "name": "kush",
+      "roll_number": "992501030406"
     }
   },
   "purgedEmails": [

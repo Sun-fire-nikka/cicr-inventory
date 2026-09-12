@@ -1,4 +1,4 @@
-import { supabase } from '../app';
+import { dbWrite } from '../config/database';
 
 export interface AuditEventPayload {
   action: string;
@@ -18,7 +18,7 @@ export const logAuditEvent = async ({
   description
 }: AuditEventPayload): Promise<void> => {
   try {
-    const { error } = await supabase.from('audit_logs').insert([
+    const { error } = await dbWrite.from('audit_logs').insert([
       {
         action,
         user_id: userId || null,

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import { supabase } from '../../app';
-import { dbRead } from '../../config/database';
+import { dbRead, dbWrite } from '../../config/database';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { cacheGetJSON, cacheSetJSON, cacheInvalidate, cacheInvalidatePattern } from '../../config/redis';
 import { sendAdminItemCreatedNotification, sendAdminItemDeletedNotification } from '../../services/emailService';
@@ -102,7 +101,7 @@ export const createItem = async (req: AuthRequest, res: Response) => {
 
     const qty = Number(quantity);
 
-    const { data: newItem, error } = await supabase
+    const { data: newItem, error } = await dbWrite
       .from('inventory')
       .insert([
         {
@@ -169,7 +168,7 @@ export const updateItem = async (req: AuthRequest, res: Response) => {
 
     updates.updated_at = new Date().toISOString();
 
-    const { data: updatedItem, error } = await supabase
+    const { data: updatedItem, error } = await dbWrite
       .from('inventory')
       .update(updates)
       .eq('id', id)
@@ -199,9 +198,9 @@ export const deleteItem = async (req: AuthRequest, res: Response) => {
     }
 
     // Clean up any historical borrow records referencing this item so foreign key won't fail
-    await supabase.from('borrow_records').delete().eq('inventory_id', id);
+    await dbWrite.from('borrow_records').delete().eq('inventory_id', id);
 
-    const { error } = await supabase.from('inventory').delete().eq('id', id);
+    const { error } = await dbWrite.from('inventory').delete().eq('id', id);
     if (error) throw error;
 
     await invalidateItemsCache(id);
