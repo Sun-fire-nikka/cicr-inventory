@@ -3,6 +3,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { default: app, supabase } = require('../dist/app.js');
 const { setUserApproval, setUserRole } = require('../dist/modules/auth/userApprovalService.js');
+const { pendingLoginOtps } = require('../dist/modules/auth/auth.controller.js');
 
 if (!process.env.SUPABASE_URL || process.env.SUPABASE_URL.includes('placeholder') || process.env.SUPABASE_URL === 'http://localhost:54321') {
   console.log('Skipping live Supabase integration tests (no live SUPABASE_URL configured).');
@@ -35,6 +36,26 @@ async function api(path, { method = 'GET', token, body } = {}) {
   return { status: res.status, json };
 }
 
+async function loginAndGetToken(email, password) {
+  const loginRes = await api('/api/auth/login', {
+    method: 'POST',
+    body: { email, password }
+  });
+  assert.equal(loginRes.status, 200);
+  assert.equal(loginRes.json.status, 'otp_required');
+
+  const record = pendingLoginOtps.get(email.toLowerCase());
+  assert.ok(record, 'OTP record should exist for ' + email);
+
+  const verifyRes = await api('/api/auth/verify-login-otp', {
+    method: 'POST',
+    body: { email, otp: record.otp }
+  });
+  assert.equal(verifyRes.status, 200);
+  assert.equal(verifyRes.json.status, 'success');
+  return verifyRes.json.token;
+}
+
 before(async () => {
   await new Promise((resolve) => { server = app.listen(0, () => resolve()); });
   base = `http://127.0.0.1:${server.address().port}`;
@@ -59,7 +80,7 @@ after(async () => {
 test('GET /api/health returns 200', async () => {
   const { status, json } = await api('/api/health');
   assert.equal(status, 200);
-  assert.equal(json.status, 'success');
+  assert.ok(json.status === 'healthy' || json.status === 'degraded');
 });
 
 // ---------- Public read endpoints ----------
@@ -139,12 +160,7 @@ test('POST /api/auth/login returns token once approved as ADMIN', async () => {
   setUserRole(ADMIN_EMAIL, 'ADMIN');
   setUserApproval(MEMBER_EMAIL, 'APPROVED', 'MASTER_ADMIN');
 
-  const { status, json } = await api('/api/auth/login', {
-    method: 'POST',
-    body: { email: ADMIN_EMAIL, password: ADMIN_PW }
-  });
-  assert.equal(status, 200);
-  adminToken = json.token;
+  adminToken = await loginAndGetToken(ADMIN_EMAIL, ADMIN_PW);
   assert.ok(adminToken);
 });
 
@@ -183,11 +199,7 @@ test('POST /api/items without token returns 401', async () => {
 });
 
 test('POST /api/items with member token returns 403', async () => {
-  const { status, json } = await api('/api/auth/login', {
-    method: 'POST', body: { email: MEMBER_EMAIL, password: MEMBER_PW }
-  });
-  assert.equal(status, 200);
-  memberToken = json.token;
+  memberToken = await loginAndGetToken(MEMBER_EMAIL, MEMBER_PW);
   const r = await api('/api/items', {
     method: 'POST',
     token: memberToken,

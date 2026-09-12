@@ -43,7 +43,7 @@ interface PendingLoginOtp {
   attempts: number;
 }
 
-const pendingLoginOtps = new Map<string, PendingLoginOtp>();
+export const pendingLoginOtps = new Map<string, PendingLoginOtp>();
 
 export const register = async (req: Request, res: Response) => {
   try {
