@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import { supabase } from '../../app';
-import { dbRead } from '../../config/database';
+import { dbRead, dbWrite } from '../../config/database';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import {
   sendBorrowConfirmation,
@@ -66,7 +65,7 @@ export const finalizeBorrow = async (
 
   // 2. Atomic decrement: only succeed if sufficient stock exists.
   //    This WHERE clause prevents concurrent borrows from over-allocating.
-  const { data: updatedRows, error: updateErr } = await supabase
+  const { data: updatedRows, error: updateErr } = await dbWrite
     .from('inventory')
     .update({
       available_quantity: item.available_quantity - quantity,
@@ -105,7 +104,7 @@ export const finalizeBorrow = async (
   const isUUID = (str?: string) => Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
   const safeUserId = isUUID(userId) ? userId : null;
 
-  const { data: borrowRecord, error: borrowErr } = await supabase
+  const { data: borrowRecord, error: borrowErr } = await dbWrite
     .from('borrow_records')
     .insert([
       {
@@ -415,7 +414,7 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
 
     // 2. Atomic status flip: only transition BORROWED -> RETURNED.
     //    If another concurrent request already flipped it, this affects 0 rows.
-    const { data: updatedRecord, error: updateRecordErr } = await supabase
+    const { data: updatedRecord, error: updateRecordErr } = await dbWrite
       .from('borrow_records')
       .update({
         status: 'RETURNED',
@@ -442,7 +441,7 @@ export const returnItem = async (req: AuthRequest, res: Response) => {
       .single();
     const restoredQty = (currentItem?.available_quantity || 0) + record.quantity;
 
-    const { error: restoreErr } = await supabase
+    const { error: restoreErr } = await dbWrite
       .from('inventory')
       .update({ available_quantity: restoredQty, updated_at: new Date().toISOString() })
       .eq('id', record.inventory_id);
