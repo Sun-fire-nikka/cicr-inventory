@@ -101,6 +101,13 @@ export const getUserApproval = (email: string, initialRole: 'ADMIN' | 'MEMBER' =
     };
   }
 
+  if (normEmail === 'mahakkatahara.mk@gmail.com') {
+    return {
+      status: 'REJECTED',
+      role: 'MEMBER'
+    };
+  }
+
   if (!approvalState[normEmail]) {
     const isStudent = normEmail.endsWith('@mail.jiit.ac.in') || normEmail.endsWith('@jiit.ac.in');
     approvalState[normEmail] = {
@@ -172,6 +179,10 @@ export const setUserRole = (
   }
 
   purgedEmails.delete(normEmail);
+
+  if (normEmail === 'mahakkatahara.mk@gmail.com') {
+    role = 'MEMBER';
+  }
 
   const current = approvalState[normEmail] || { status: 'APPROVED', role: 'MEMBER' };
   current.role = role;

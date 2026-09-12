@@ -4,7 +4,10 @@
   "version": "2.6.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n \"frontend,backend\" -c \"cyan,magenta\" \"vite\" \"npm start --prefix backend\"",
+    "dev:frontend": "vite",
+    "dev:backend": "npm start --prefix backend",
+    "backend": "npm start --prefix backend",
     "build": "tsc && vite build",
     "build:backend": "npm run build --prefix backend",
     "start": "npm start --prefix backend",
@@ -16,5 +19,8 @@
     "three": "^0.185.1",
     "typescript": "~6.0.2",
     "vite": "^8.2.0"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
   }
 }

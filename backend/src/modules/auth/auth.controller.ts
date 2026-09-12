@@ -619,6 +619,10 @@ export const changeUserRole = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Cannot demote a Super Admin.' });
     }
 
+    if (user.email.toLowerCase() === 'mahakkatahara.mk@gmail.com' && role === 'ADMIN') {
+      return res.status(400).json({ status: 'error', message: 'User is not permitted to hold an ADMIN role.' });
+    }
+
     const updated = setUserRole(user.email, role);
     await supabase.from('users').update({ role }).eq('id', id);
 

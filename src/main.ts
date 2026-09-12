@@ -8,10 +8,31 @@ declare const lucide: {
 };
 
 // Dynamic API URL for Local Development & Live Production
-const API_BASE = (import.meta.env.VITE_API_BASE as string) ||
+let API_BASE = (import.meta.env.VITE_API_BASE as string) ||
     (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
         ? 'http://localhost:5000/api'
         : 'https://cicr-inventory-backend.onrender.com/api');
+
+const CLOUD_API_FALLBACK = 'https://cicr-inventory-backend.onrender.com/api';
+
+// Intelligent Automatic Failover: If local backend is down, seamlessly switch to live cloud backend
+if (typeof window !== 'undefined' && window.fetch) {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+        try {
+            return await originalFetch(input, init);
+        } catch (err: any) {
+            const urlStr = typeof input === 'string' ? input : input instanceof URL ? input.toString() : (input as Request).url;
+            if (urlStr && (urlStr.includes('localhost:5000') || urlStr.includes('127.0.0.1:5000'))) {
+                const fallbackUrl = urlStr.replace(/https?:\/\/(localhost|127\.0\.0\.1):5000\/api/, CLOUD_API_FALLBACK);
+                console.warn(`[CICR API] Local backend unreachable. Auto-falling back to cloud backend: ${fallbackUrl}`);
+                API_BASE = CLOUD_API_FALLBACK;
+                return originalFetch(fallbackUrl, init);
+            }
+            throw err;
+        }
+    };
+}
 
 const ADMIN_USERNAME = 'SRVKILLER09';
 
@@ -152,11 +173,19 @@ class Background3D {
         if (theme === 'matrix') fogHex = 0x020d07;
         else if (theme === 'midnight') fogHex = 0x060e20;
         else if (theme === 'light') fogHex = 0xf1f5f9;
-        else if (theme === 'sakura') fogHex = 0xfce2ed;
+        else if (theme === 'sakura' || theme === 'pink') fogHex = 0xfce2ed;
         else if (theme === 'avengers') fogHex = 0x090a15;
 
+        if (this.canvas) {
+            if (theme === 'sakura' || theme === 'pink' || theme === 'light') {
+                this.canvas.style.opacity = '0.04';
+            } else {
+                this.canvas.style.opacity = '1';
+            }
+        }
+
         if (this.scene) {
-            this.scene.fog = new THREE.FogExp2(fogHex, theme === 'sakura' ? 0.01 : 0.015);
+            this.scene.fog = new THREE.FogExp2(fogHex, (theme === 'sakura' || theme === 'pink') ? 0.01 : 0.015);
         }
 
         this.setParticleColorsForTheme(theme);
@@ -175,7 +204,7 @@ class Background3D {
             color1 = new THREE.Color(0x00f0ff); // Stark Arc Cyan
             color2 = new THREE.Color(0xa855f7); // Wakanda Vibranium Purple
             color3 = new THREE.Color(0xef4444); // Iron Crimson Energy
-        } else if (theme === 'sakura') {
+        } else if (theme === 'sakura' || theme === 'pink') {
             color1 = new THREE.Color(0xec4899); // Sakura Blossom Pink
             color2 = new THREE.Color(0xf43f5e); // Rose Petal Crimson
             color3 = new THREE.Color(0xf472b6); // Soft Blossom Rose
@@ -920,32 +949,10 @@ class DashboardManager {
         const themeBtnDark = document.getElementById('theme-btn-dark');
         const themeBtnLight = document.getElementById('theme-btn-light');
         const themeBtnPink = document.getElementById('theme-btn-pink');
-        const themeBtns = [themeBtnDark, themeBtnLight, themeBtnPink];
 
-        const applyTheme = (themeName: 'dark' | 'light' | 'pink') => {
-            document.body.classList.remove('theme-light', 'theme-pink');
-            themeBtns.forEach(btn => btn?.classList.remove('active'));
-
-            if (themeName === 'light') {
-                document.body.classList.add('theme-light');
-                themeBtnLight?.classList.add('active');
-            } else if (themeName === 'pink') {
-                document.body.classList.add('theme-pink');
-                themeBtnPink?.classList.add('active');
-            } else {
-                themeBtnDark?.classList.add('active');
-            }
-
-            localStorage.setItem('cicr_theme', themeName);
-        };
-
-        themeBtnDark?.addEventListener('click', () => applyTheme('dark'));
-        themeBtnLight?.addEventListener('click', () => applyTheme('light'));
-        themeBtnPink?.addEventListener('click', () => applyTheme('pink'));
-
-        // Load active theme state on dashboard init
-        const activeTheme = (localStorage.getItem('cicr_theme') || 'dark') as 'dark' | 'light' | 'pink';
-        applyTheme(activeTheme);
+        themeBtnDark?.addEventListener('click', () => ThemeManager.applyTheme('cyberpunk'));
+        themeBtnLight?.addEventListener('click', () => ThemeManager.applyTheme('light'));
+        themeBtnPink?.addEventListener('click', () => ThemeManager.applyTheme('sakura'));
     }
 
     private renderStats() {
@@ -1184,6 +1191,11 @@ class ModalManager {
             try {
                 const user = JSON.parse(userStr);
                 const email = (user.email || '').toLowerCase().trim();
+
+                // Blocked from admin
+                if (email === 'mahakkatahara.mk@gmail.com') {
+                    return 'MEMBER';
+                }
 
                 // Master Admin accounts
                 if (email === 'vardaansaxena096@gmail.com' || email === 'cicrinventory@gmail.com') {
@@ -2425,7 +2437,9 @@ class AuthManager {
         let effectiveRole: 'ADMIN' | 'MEMBER' = 'MEMBER';
         const normEmail = (_userObj?.email || '').toLowerCase().trim();
 
-        if (normEmail === 'vardaansaxena096@gmail.com' || normEmail === 'cicrinventory@gmail.com') {
+        if (normEmail === 'mahakkatahara.mk@gmail.com') {
+            effectiveRole = 'MEMBER';
+        } else if (normEmail === 'vardaansaxena096@gmail.com' || normEmail === 'cicrinventory@gmail.com') {
             effectiveRole = 'ADMIN';
         } else if (normEmail.endsWith('@mail.jiit.ac.in') || normEmail.endsWith('@jiit.ac.in')) {
             effectiveRole = 'MEMBER';
@@ -3180,6 +3194,9 @@ class AdminManager {
             let actionsHtml = '';
             if (isMaster) {
                 actionsHtml = `<span style="font-size: 10px; color: var(--neon-cyan); font-weight:800; font-family:'Orbitron',sans-serif;">PERMANENT ADMIN</span>`;
+            } else if (u.email.toLowerCase() === 'mahakkatahara.mk@gmail.com') {
+                const deleteBtn = `<button class="btn-table-action btn-del" onclick="window.adminDeleteUser('${u.id}', '${u.name}')" title="Delete User"><i data-lucide="trash-2"></i></button>`;
+                actionsHtml = `<span style="font-size: 10px; color: var(--text-dim); font-weight:600; margin-right:6px;">MEMBER ONLY</span> ${deleteBtn}`;
             } else {
                 const roleBtn = u.role === 'ADMIN'
                     ? `<button class="btn-table-action btn-demote" onclick="window.adminSetRole('${u.id}', 'MEMBER')" title="Demote to Member"><i data-lucide="shield-off"></i> Demote</button>`
@@ -4255,15 +4272,22 @@ class ThemeManager {
 
     public static applyTheme(theme: string) {
         document.documentElement.setAttribute('data-theme', theme);
-        document.body.classList.remove('theme-light', 'theme-pink', 'theme-sakura', 'theme-avengers');
-        if (theme === 'light') {
-            document.body.classList.add('theme-light');
-        } else if (theme === 'pink' || theme === 'sakura') {
+        document.body.classList.remove(
+            'theme-cyberpunk',
+            'theme-matrix',
+            'theme-midnight',
+            'theme-light',
+            'theme-pink',
+            'theme-sakura',
+            'theme-avengers'
+        );
+        document.body.classList.add(`theme-${theme}`);
+        if (theme === 'pink' || theme === 'sakura') {
             document.body.classList.add('theme-sakura');
-        } else if (theme === 'avengers') {
-            document.body.classList.add('theme-avengers');
+            document.body.classList.add('theme-pink');
         }
         localStorage.setItem('cicr_vault_theme', theme);
+        localStorage.setItem('cicr_theme', theme === 'sakura' ? 'pink' : theme === 'cyberpunk' ? 'dark' : theme);
 
         if (this.themeSelectEl && this.themeSelectEl.value !== theme) {
             this.themeSelectEl.value = theme;
@@ -4274,6 +4298,15 @@ class ThemeManager {
         if (this.headerThemeSelectEl && this.headerThemeSelectEl.value !== theme) {
             this.headerThemeSelectEl.value = theme;
         }
+
+        // Sync sidebar theme buttons if present
+        const themeBtnDark = document.getElementById('theme-btn-dark');
+        const themeBtnLight = document.getElementById('theme-btn-light');
+        const themeBtnPink = document.getElementById('theme-btn-pink');
+        [themeBtnDark, themeBtnLight, themeBtnPink].forEach(b => b?.classList.remove('active'));
+        if (theme === 'light') themeBtnLight?.classList.add('active');
+        else if (theme === 'sakura' || theme === 'pink') themeBtnPink?.classList.add('active');
+        else if (theme === 'cyberpunk') themeBtnDark?.classList.add('active');
 
         if (window.bg3D) {
             window.bg3D.updateThemeColors(theme);
