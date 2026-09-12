@@ -155,19 +155,26 @@ export function buildHealthPayload(): HealthPayload {
   let status: HealthPayload['status'];
   let message: string;
 
-  if (neonConfigured && primaryHealthy) {
-    status = 'healthy';
-    message = 'CICR Inventory API is live!';
-  } else if (neonConfigured && !primaryHealthy && replicaHealthy) {
-    status = 'degraded';
-    message = 'Primary database unavailable — serving from replica';
-  } else if (neonConfigured && !primaryHealthy && !replicaHealthy) {
-    status = 'unhealthy';
-    message = 'All database endpoints unavailable';
-  } else {
+  if (!neonConfigured) {
     // Neon not configured — legacy mode, always healthy
     status = 'healthy';
     message = 'CICR Inventory API is live!';
+  } else if (healthState.primary === 'unknown' || healthState.replica === 'unknown') {
+    // Startup: first health check has not completed yet — treat as healthy
+    // to avoid a false 503 on cold start. The monitor will correct this
+    // on the next cycle (within seconds).
+    status = 'healthy';
+    message = 'Health check initializing — first probe pending';
+  } else if (primaryHealthy) {
+    status = 'healthy';
+    message = 'CICR Inventory API is live!';
+  } else if (!primaryHealthy && replicaHealthy) {
+    status = 'degraded';
+    message = 'Primary database unavailable — serving from replica';
+  } else {
+    // !primaryHealthy && !replicaHealthy
+    status = 'unhealthy';
+    message = 'All database endpoints unavailable';
   }
 
   return {
