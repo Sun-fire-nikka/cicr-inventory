@@ -21,6 +21,12 @@ import {
   isNeonConfigured,
   isReplicaConfigured,
 } from './neonPool';
+import {
+  generateIdempotencyKey,
+  markApplied,
+  isApplied,
+  startPeriodicCleanup,
+} from './idempotency';
 
 // ------------------------------------------------------------ configuration
 const MAX_BUFFERED_WRITES = 100;
@@ -41,6 +47,7 @@ export interface BufferedWrite {
   sql: string;
   values: unknown[];
   timestamp: number;
+  idempotencyKey: string;
 }
 
 export interface PromotionResult {
@@ -108,20 +115,30 @@ export function bufferWrite(sql: string, values?: unknown[]): boolean {
     console.error('[FAILOVER] Write buffer full — rejecting write');
     return false;
   }
-  writeBuffer.push({ sql, values: values || [], timestamp: Date.now() });
-  console.log(`[FAILOVER] Write buffered (${writeBuffer.length}/${MAX_BUFFERED_WRITES})`);
+  const idempotencyKey = generateIdempotencyKey(sql, values);
+  writeBuffer.push({ sql, values: values || [], timestamp: Date.now(), idempotencyKey });
+  console.log(`[FAILOVER] Write buffered (${writeBuffer.length}/${MAX_BUFFERED_WRITES}) key=${idempotencyKey}`);
   return true;
 }
 
-async function replayBuffer(): Promise<{ replayed: number; failed: number }> {
+async function replayBuffer(): Promise<{ replayed: number; failed: number; skipped: number }> {
   let replayed = 0;
   let failed = 0;
+  let skipped = 0;
   const buffer = [...writeBuffer];
   writeBuffer = [];
 
   for (const entry of buffer) {
+    // Skip writes that were already applied (idempotency check)
+    if (isApplied(entry.idempotencyKey)) {
+      console.log(`[FAILOVER] Skipping duplicate write key=${entry.idempotencyKey}`);
+      skipped++;
+      continue;
+    }
+
     try {
       await primaryPool.query(entry.sql, entry.values);
+      markApplied(entry.idempotencyKey);
       replayed++;
     } catch (err: any) {
       console.error(`[FAILOVER] Buffered write replay failed: ${err.message}`);
@@ -131,8 +148,8 @@ async function replayBuffer(): Promise<{ replayed: number; failed: number }> {
     }
   }
 
-  console.log(`[FAILOVER] Buffer replay: ${replayed} succeeded, ${failed} failed`);
-  return { replayed, failed };
+  console.log(`[FAILOVER] Buffer replay: ${replayed} succeeded, ${failed} failed, ${skipped} skipped (dedup)`);
+  return { replayed, failed, skipped };
 }
 
 // ------------------------------------------------------------ promotion

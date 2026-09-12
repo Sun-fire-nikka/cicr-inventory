@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import app from './app';
-import { supabase } from './app';
+import { dbRead } from './config/database';
 import { startReminderScheduler } from './services/reminderService';
 import { startHealthMonitor, stopHealthMonitor, closeNeonPools } from './config/healthMonitor';
 import { initFailover, PromotionResult, FenceResult } from './config/failover';
@@ -62,7 +62,7 @@ startHealthMonitor();
 
 async function testConnection() {
   try {
-    const { error } = await supabase.from('users').select('id').limit(1);
+    const { error } = await dbRead.from('users').select('id').limit(1);
     if (error && error.code !== 'PGRST116') {
       console.warn('⚠️ Supabase connection warning:', error.message);
     } else {
