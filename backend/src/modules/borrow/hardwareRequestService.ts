@@ -255,7 +255,7 @@ export const approveHardwareRequest = async (
 
     const { data: activeHolders } = await dbRead
       .from('borrow_records')
-      .select('borrower_name, roll_number, quantity, borrowed_at')
+      .select('borrower_name, quantity, borrowed_at')
       .eq('inventory_id', req.itemId)
       .eq('status', 'BORROWED')
       .neq('id', borrowRecord.id);

@@ -182,7 +182,7 @@ export const borrowItem = async (req: AuthRequest, res: Response) => {
     if (userEmail) {
       const { data: activeHolders } = await dbRead
         .from('borrow_records')
-        .select('borrower_name, roll_number, quantity, borrowed_at')
+        .select('borrower_name, quantity, borrowed_at')
         .eq('inventory_id', inventory_id)
         .eq('status', 'BORROWED')
         .neq('id', borrowRecord.id);
@@ -342,7 +342,7 @@ export const verifyOtp = async (req: AuthRequest, res: Response) => {
     if (userEmail) {
       const { data: activeHolders } = await dbRead
         .from('borrow_records')
-        .select('borrower_name, roll_number, quantity, borrowed_at')
+        .select('borrower_name, quantity, borrowed_at')
         .eq('inventory_id', payload.itemId)
         .eq('status', 'BORROWED')
         .neq('id', borrowRecord.id);

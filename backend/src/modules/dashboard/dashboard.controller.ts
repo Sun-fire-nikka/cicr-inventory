@@ -37,9 +37,13 @@ export const getAuditLogs = async (req: Request, res: Response) => {
     const { category, search, limit } = req.query;
     const maxLimit = Math.min(Math.max(Number(limit) || 100, 1), 250);
 
+    // NOTE: audit_logs uses item_id (not inventory_id) for the FK to inventory.
+    // The generic FK_MAP cannot express this table-specific FK, so we omit the
+    // inventory join here.  If the frontend needs the item name, resolve it in
+    // a second pass (same pattern as getBorrowHistory).
     let query = dbRead
       .from('audit_logs')
-      .select('*, users(name, email, role), inventory(name, category)')
+      .select('*, users(name, email, role)')
       .order('timestamp', { ascending: false })
       .limit(maxLimit);
 

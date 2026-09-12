@@ -22,12 +22,32 @@ dotenv.config();
 
 // ------------------------------------------------------------------ helpers
 function escapeIdent(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`;
+  return name.split('.').map((p) => `"${p.replace(/"/g, '""')}"`).join('.');
+}
+
+/** Split a select expression by commas, respecting nested parentheses.
+ *  e.g. "*, inventory(name, available_quantity)" → ["*", "inventory(name, available_quantity)"]
+ *       NOT ["*", " inventory(name", " available_quantity)"]
+ */
+function splitColumns(expr: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < expr.length; i++) {
+    if (expr[i] === '(') depth++;
+    else if (expr[i] === ')') depth--;
+    else if (expr[i] === ',' && depth === 0) {
+      parts.push(expr.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  parts.push(expr.slice(start).trim());
+  return parts;
 }
 
 function parseColumns(selectExpr: string): string {
   if (selectExpr === '*') return '*';
-  return selectExpr.split(',').map((c) => c.trim()).map(escapeIdent).join(', ');
+  return splitColumns(selectExpr).map(escapeIdent).join(', ');
 }
 
 // Foreign key definitions for PostgREST-style joins
@@ -204,7 +224,10 @@ class QueryBuilder {
     const { table, columns, filters, orderBy, limitCount, singleResult, countOnly, countExact } = this.state;
 
     // Handle joins
-    const joinEntries = Object.entries(FK_MAP).filter(([key]) => columns?.includes(key));
+    const colParts = columns ? splitColumns(columns) : ['*'];
+    const joinEntries = Object.entries(FK_MAP).filter(([key]) =>
+      colParts.includes(key),
+    );
     const hasJoins = joinEntries.length > 0;
 
     // Extract base columns (non-join parts)
@@ -213,9 +236,8 @@ class QueryBuilder {
 
     if (hasJoins) {
       // Parse columns: split by comma, separate join expressions from plain columns
-      const parts = columns?.split(',').map((p) => p.trim()) || ['*'];
       const plainCols: string[] = [];
-      for (const part of parts) {
+      for (const part of colParts) {
         if (FK_MAP[part]) {
           const fk = FK_MAP[part];
           const joinCols = part.slice(part.indexOf('(') + 1, -1).split(',').map((c) => c.trim());
@@ -227,7 +249,9 @@ class QueryBuilder {
           plainCols.push(part);
         }
       }
-      baseColumns = plainCols.length > 0 ? plainCols.map(escapeIdent).join(', ') : `${escapeIdent(table)}.*`;
+      baseColumns = plainCols.length > 0
+        ? plainCols.map((c) => (c === '*' ? `${escapeIdent(table)}.*` : escapeIdent(c))).join(', ')
+        : `${escapeIdent(table)}.*`;
     } else {
       baseColumns = columns === '*' ? `${escapeIdent(table)}.*` : parseColumns(columns || '*');
     }
@@ -252,7 +276,12 @@ class QueryBuilder {
     const whereClauses: string[] = [];
 
     for (const filter of filters) {
-      const clause = this.buildFilterClause(filter, values, paramIdx);
+      // When JOINs are active, qualify base-table filter columns to avoid
+      // ambiguity (e.g. "id" exists in both borrow_records and inventory).
+      const qualifiedFilter = hasJoins
+        ? { ...filter, column: `${table}.${filter.column}` }
+        : filter;
+      const clause = this.buildFilterClause(qualifiedFilter, values, paramIdx);
       if (clause) {
         whereClauses.push(clause.sql);
         paramIdx = clause.nextIdx;
@@ -511,6 +540,23 @@ class QueryBuilder {
   private unflattenRow(row: Record<string, unknown>, columns: string): Record<string, unknown> {
     if (!columns.includes('(')) return row;
 
+    // Build a map of alias → Set of explicitly requested column names.
+    // This prevents base-table columns like `inventory_id` from being captured
+    // into the join object (which would make record.inventory_id undefined).
+    const joinColMap: Record<string, Set<string>> = {};
+    const parts = splitColumns(columns);
+    for (const part of parts) {
+      const fkEntry = FK_MAP[part];
+      if (fkEntry) {
+        const colListMatch = part.match(/^\w+\((.+)\)$/);
+        if (colListMatch) {
+          joinColMap[fkEntry.alias] = new Set(
+            colListMatch[1].split(',').map((c) => c.trim()),
+          );
+        }
+      }
+    }
+
     const result: Record<string, unknown> = {};
     const joinObjects: Record<string, Record<string, unknown>> = {};
 
@@ -518,21 +564,14 @@ class QueryBuilder {
       const joinMatch = key.match(/^(\w+)_(.+)$/);
       if (joinMatch) {
         const [, alias, colName] = joinMatch;
-        const fkEntry = Object.values(FK_MAP).find((f) => f.alias === alias);
-        if (fkEntry) {
+        const expectedCols = joinColMap[alias];
+        if (expectedCols && expectedCols.has(colName)) {
           if (!joinObjects[alias]) joinObjects[alias] = {};
           joinObjects[alias][colName] = val;
           continue;
         }
       }
       result[key] = val;
-    }
-
-    // Also add base table columns
-    for (const [key, val] of Object.entries(row)) {
-      if (!key.includes('_')) {
-        result[key] = val;
-      }
     }
 
     for (const [alias, obj] of Object.entries(joinObjects)) {
