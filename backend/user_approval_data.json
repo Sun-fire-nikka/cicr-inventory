@@ -25,14 +25,24 @@
     "992501030555@mail.jiit.ac.in": {
       "status": "PENDING",
       "role": "MEMBER"
+    },
+    "mahakkatahara.mk@gmail.com": {
+      "status": "APPROVED",
+      "role": "MEMBER",
+      "approvedAt": "2026-09-12T14:50:00.000Z",
+      "approvedBy": "SYSTEM"
+    },
+    "992501030399@mail.jiit.ac.in": {
+      "status": "APPROVED",
+      "role": "MEMBER",
+      "approvedAt": "2026-09-12T14:55:00.000Z",
+      "approvedBy": "SYSTEM"
     }
   },
   "purgedEmails": [
-    "mahakkatahara.mk@gmail.com",
     "992501030999@mail.jiit.ac.in",
     "kushagragargdelhi@gmail.com",
     "9922103999@mail.jiit.ac.in",
-    "992501030399@mail.jiit.ac.in",
     "9922103702@mail.jiit.ac.in",
     "9922103689@mail.jiit.ac.in",
     "992501030398@mail.jiit.ac.in",

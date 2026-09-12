@@ -102,9 +102,12 @@ export const getUserApproval = (email: string, initialRole: 'ADMIN' | 'MEMBER' =
   }
 
   if (normEmail === 'mahakkatahara.mk@gmail.com') {
+    const existing = approvalState[normEmail];
     return {
-      status: 'REJECTED',
-      role: 'MEMBER'
+      status: existing?.status || 'APPROVED',
+      role: 'MEMBER',
+      approvedAt: existing?.approvedAt || new Date().toISOString(),
+      approvedBy: existing?.approvedBy || 'SYSTEM'
     };
   }
 
