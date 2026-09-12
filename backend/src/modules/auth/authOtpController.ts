@@ -13,8 +13,7 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { dbRead } from '../../config/database';
-import { supabase } from '../../app';
+import { dbRead, dbWrite } from '../../config/database';
 import { generateAuthOtp, storeAuthOtp, verifyAuthOtp, consumeAuthOtp } from './authOtpService';
 import { isStudentEmail } from '../../validators/email.validator';
 import { getAdminByEmail } from '../borrow/adminDirectory';
@@ -141,7 +140,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
       const userRole = isSuperAdmin ? 'ADMIN' : 'MEMBER';
       const initialStatus = isSuperAdmin ? 'APPROVED' : 'PENDING';
 
-      const { data: newUser, error: createErr } = await supabase
+      const { data: newUser, error: createErr } = await dbWrite
         .from('users')
         .insert([{
           name: displayName,

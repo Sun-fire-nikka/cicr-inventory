@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { supabase } from '../../app';
-import { dbRead } from '../../config/database';
+import { dbRead, dbWrite } from '../../config/database';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { isValidEmail } from '../../validators/email.validator';
 import {
@@ -102,7 +101,7 @@ export const register = async (req: Request, res: Response) => {
       created_at: new Date().toISOString()
     };
 
-    const { data: insertedUser, error: insertError } = await supabase
+    const { data: insertedUser, error: insertError } = await dbWrite
       .from('users')
       .insert([{ name: name.trim(), email: normEmail, password_hash, roll_number: userRoll, role: userRole }])
       .select('id, name, email, roll_number, role, created_at')
@@ -245,7 +244,7 @@ export const login = async (req: Request, res: Response) => {
 
     if (isMasterAdmin && user.role !== 'ADMIN') {
       try {
-        await supabase.from('users').update({ role: 'ADMIN' }).eq('id', user.id);
+        await dbWrite.from('users').update({ role: 'ADMIN' }).eq('id', user.id);
       } catch (err) {
         console.warn('Could not sync master admin role in DB:', err);
       }
@@ -620,7 +619,7 @@ export const changeUserRole = async (req: AuthRequest, res: Response) => {
     }
 
     const updated = setUserRole(user.email, role);
-    await supabase.from('users').update({ role }).eq('id', id);
+    await dbWrite.from('users').update({ role }).eq('id', id);
 
     logAuditEvent({
       action: 'Role Changed',
@@ -646,7 +645,7 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
     }
 
     deleteUserApproval(user.email);
-    await supabase.from('users').delete().eq('id', id);
+    await dbWrite.from('users').delete().eq('id', id);
 
     logAuditEvent({
       action: 'User Deleted',
