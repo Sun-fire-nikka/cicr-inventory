@@ -68,8 +68,9 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v2.5.0** | ✅ Released | **CanvasFX Visual Engines.** Added 60 FPS physics-based **Sakura (Cherry Blossom)** falling petals engine and cinematic **Avengers Assemble** theme featuring vibrating Captain America Vibranium shield with radial gradients, Arc Reactor HUD, and ambient energy sparks. |
 | **v2.5.1** | ✅ Released | **Production Deployment & Security Hardening.** Dual-endpoint hardware request fallback, theme contrast optimizations, verified SMTP fallback for Render production (`render.yaml`), Vercel SPA build config (`vercel.json`), and purge of compiled build artifacts from source control. |
 | **v2.6.0** | ✅ Released | **10-Min OTP Verification Popup, 10-Min Cooldown Gap, 5-Field Registration & Real-Time Audit Stream.** Security verification popup modal for sign-in requiring 6-digit email OTP (strictly valid for 10 minutes with enforced 10-minute gap before new OTP generation), 5-field registration (`Name`, `Email`, `Username`, `Enrollment Number`, `Batch`), flexible sign-in via Email/Username/Name, real-time System Audit & Activity Logs stream (`#admin-audit-section`), in-app item deletion, 6-second auto-sync engine, zero mock data. |
+| **v2.7.0** | ✅ Released | **Master Whitelist Enforcement, Theme Background Hardening & Complete Database Purge.** All test/pending data cleared across Supabase PostgreSQL tables (`borrow_records`, hardware issue requests, `audit_logs`, `inventory`, and non-admin user accounts); database strictly holds dual master superadmins (`vardaansaxena096@gmail.com` and `cicrinventory@gmail.com`); theme backgrounds hardened with `!important` rule overrides and dynamic client-side cloud API failover. |
 
-> The current active release is **v2.6.0 — 10-Min OTP Verification Popup, 10-Min Cooldown Gap & Real-Time Audit Stream**. Both the Vercel frontend and Render backend run in production with live database sync, multi-tier hardware queues, real-time activity auditing, and automated transactional telemetry.
+> The current active release is **v2.7.0 — Master Whitelist Enforcement, Theme Background Hardening & Complete Database Purge**. Both the Vercel frontend and Render backend run in production with live database sync, multi-tier hardware queues, real-time activity auditing, and automated transactional telemetry.
 
 ### 🏷️ Version Registry (Git Tags)
 
@@ -85,6 +86,7 @@ Track, reserve, and deploy microcontrollers, sensors, and actuators from JIIT's 
 | **v2.5.0** | `v2.5.0` | ✅ Released | Avengers & Sakura Canvas Engines |
 | **v2.5.1** | `v2.5.1` | ✅ Released | Production Deployments & Security Polish |
 | **v2.6.0** | `v2.6.0`, `v2.6` | ✅ Released | 10-Min OTP Popup, 10-Min Cooldown Gap, 5-Field Registration & Audit Stream |
+| **v2.7.0** | `v2.7.0` | ✅ Released | Database Purge, Master Admin Whitelist & Theme Engine Hardening |
 
 ---
 
