@@ -501,8 +501,8 @@ export const getBorrowHistory = async (req: AuthRequest, res: Response) => {
     if (error) throw error;
 
     // Resolve related users and items manually
-    const userIds = [...new Set((records || []).map((r) => r.user_id).filter(Boolean))];
-    const itemIds = [...new Set((records || []).map((r) => r.inventory_id).filter(Boolean))];
+    const userIds = [...new Set((records || []).map((r: any) => r.user_id).filter(Boolean))];
+    const itemIds = [...new Set((records || []).map((r: any) => r.inventory_id).filter(Boolean))];
 
     const [usersRes, itemsRes] = await Promise.all([
       userIds.length
@@ -513,10 +513,10 @@ export const getBorrowHistory = async (req: AuthRequest, res: Response) => {
         : Promise.resolve({ data: [] })
     ]);
 
-    const userMap = Object.fromEntries((usersRes.data || []).map((u) => [u.id, u]));
-    const itemMap = Object.fromEntries((itemsRes.data || []).map((i) => [i.id, i]));
+    const userMap = Object.fromEntries((usersRes.data || []).map((u: any) => [u.id, u]));
+    const itemMap = Object.fromEntries((itemsRes.data || []).map((i: any) => [i.id, i]));
 
-    const history = (records || []).map((r) => ({
+    const history = (records || []).map((r: any) => ({
       ...r,
       users: userMap[r.user_id] || null,
       inventory: itemMap[r.inventory_id] || null

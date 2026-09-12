@@ -74,8 +74,8 @@ export const runReminderSweep = async (now: Date = new Date()): Promise<SweepRes
   if (!pending.length) return { scanned: 0, sent: 0, failed: 0 };
 
   // Resolve borrowers and items manually, mirroring getBorrowHistory
-  const userIds = [...new Set(pending.map((r) => r.user_id).filter(Boolean))];
-  const itemIds = [...new Set(pending.map((r) => r.inventory_id).filter(Boolean))];
+  const userIds = [...new Set(pending.map((r: any) => r.user_id).filter(Boolean))];
+  const itemIds = [...new Set(pending.map((r: any) => r.inventory_id).filter(Boolean))];
 
   const [usersRes, itemsRes] = await Promise.all([
     userIds.length

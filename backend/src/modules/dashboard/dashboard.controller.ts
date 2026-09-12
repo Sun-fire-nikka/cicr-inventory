@@ -12,8 +12,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       .eq('status', 'BORROWED');
 
     const { data: items } = await dbRead.from('inventory').select('quantity, available_quantity');
-    const totalQuantity = items?.reduce((acc, curr) => acc + curr.quantity, 0) || 0;
-    const availableQuantity = items?.reduce((acc, curr) => acc + curr.available_quantity, 0) || 0;
+    const totalQuantity = items?.reduce((acc: number, curr: any) => acc + curr.quantity, 0) || 0;
+    const availableQuantity = items?.reduce((acc: number, curr: any) => acc + curr.available_quantity, 0) || 0;
 
     return res.status(200).json({
       status: 'success',
