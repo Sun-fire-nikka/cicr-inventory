@@ -5,8 +5,8 @@
 // 2. Keep Neon compute warm (prevent scale-to-zero cold starts)
 // 3. Track consecutive failures for failover decisions
 //
-// The monitor runs as a background interval. It does NOT trigger
-// failover — that is the responsibility of the failover module (Stage 3).
+// When primary failure is confirmed (threshold exceeded) and a healthy
+// replica exists, triggers the failover state machine.
 import {
   isNeonConfigured,
   isReplicaConfigured,
@@ -15,6 +15,7 @@ import {
   healthState,
   closeNeonPools,
 } from './neonPool';
+import { triggerFailover, getFailoverPhase, getWriteBufferLength } from './failover';
 
 // ------------------------------------------------------------ configuration
 const DEFAULT_CHECK_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes (Neon scales to zero after 5)
@@ -64,6 +65,16 @@ async function runHealthCycle(): Promise<void> {
     if (healthState.failoverState === 'HEALTHY') {
       console.warn('[HEALTH] Primary down, replica up — state transitions to DEGRADED');
       healthState.failoverState = 'DEGRADED';
+    }
+    // Trigger failover if threshold exceeded and no promotion already in progress
+    if (
+      healthState.primaryConsecutiveFailures >= monitorConfig.failureThreshold &&
+      getFailoverPhase() === 'IDLE'
+    ) {
+      console.warn('[HEALTH] Failure threshold exceeded — triggering failover');
+      triggerFailover().catch((err) => {
+        console.error('[HEALTH] Failover trigger failed:', err.message);
+      });
     }
   }
 
@@ -128,6 +139,8 @@ export interface HealthPayload {
     primary: string;
     replica: string;
     failoverState: string;
+    failoverPhase: string;
+    writeBufferLength: number;
     primaryConsecutiveFailures: number;
     lastPrimaryCheck: string | null;
     lastReplicaCheck: string | null;
@@ -170,6 +183,8 @@ export function buildHealthPayload(): HealthPayload {
       primary: healthState.primary,
       replica: healthState.replica,
       failoverState: healthState.failoverState,
+      failoverPhase: getFailoverPhase(),
+      writeBufferLength: getWriteBufferLength(),
       primaryConsecutiveFailures: healthState.primaryConsecutiveFailures,
       lastPrimaryCheck: healthState.lastPrimaryCheck?.toISOString() || null,
       lastReplicaCheck: healthState.lastReplicaCheck?.toISOString() || null,

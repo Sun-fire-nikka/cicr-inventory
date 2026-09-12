@@ -5,11 +5,19 @@ import app from './app';
 import { supabase } from './app';
 import { startReminderScheduler } from './services/reminderService';
 import { startHealthMonitor, stopHealthMonitor, closeNeonPools } from './config/healthMonitor';
+import { initFailover } from './config/failover';
 import systemRoutes from './routes/system.routes';
 
 const PORT = process.env.PORT || 5000;
 
 app.use('/api/system', systemRoutes);
+
+// Initialize failover with placeholder functions.
+// Real Neon API promotion/fencing will be wired in Stage 4.
+initFailover(
+  async () => ({ success: false, error: 'Neon API not yet wired (Stage 4)' }),
+  async () => ({ success: false, error: 'Neon API not yet wired (Stage 4)' }),
+);
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server listening on http://localhost:${PORT}`);
