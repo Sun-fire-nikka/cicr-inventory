@@ -13,7 +13,18 @@ import Redis from 'ioredis';
 // having run dotenv.config() first).
 dotenv.config();
 
-export const REDIS_URL = process.env.REDIS_URL || '';
+const normalizeRedisUrl = (raw: string | undefined): string => {
+  const value = (raw || '').trim().replace(/^['"]|['"]$/g, '');
+  if (!value) return '';
+  const normalized = value.replace(/^UPSTASH_REDIS_REST_URL\s*=\s*/i, '').replace(/^REDIS_URL\s*=\s*/i, '');
+  if (!normalized) return '';
+  if (/^redis(?:s)?:\/\//i.test(normalized) || /^\w+\s*:\d+$/i.test(normalized)) {
+    return normalized;
+  }
+  return '';
+};
+
+export const REDIS_URL = normalizeRedisUrl(process.env.REDIS_URL);
 export const isRedisEnabled = REDIS_URL.length > 0;
 
 // ---------------------------------------------------------------- in-memory
